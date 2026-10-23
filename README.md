@@ -124,3 +124,12 @@ The **same source snapshot SHA-256** can generate different model assessments af
 The newer report separates **Model-suggested severity** (unverified) from **Review priority**. Only a distinct `issues[]` model candidate with a valid source line ID can elevate the review priority to `warning` or `critical`; such items are prominently labeled **manual verification required**. No cited issues => `info`, even if the model expresses uncertainty about headings, color contrast, keyboard traversal or link function. A citation confirms only the *source line*, not that a proposed problem is true.
 
 The first run after this policy update writes a new desktop report (`analysisPolicyVersion: 2`) even when the underlying page has not changed. Subsequent identical captures are deduplicated. Legacy reports remain unchanged and are still valid historical records of the model's earlier judgments.
+
+
+## Evidence consistency and non-actionable AI suggestions (policy v3)
+
+Source line citations establish **provenance**, not general factual truth. A narrow evidence guard now flags one observed model error pattern: an observation describes **one multilingual paragraph**, but its cited source lines are multiple separately typed `paragraph` nodes. Such a claim appears under "Model claims with insufficient evidence" rather than as a supported observation; a true single multiline-language paragraph can still be cited.
+
+The report will **not** display unconditional webpage modifications when no explicit, source-linked issue candidates are present. Instead it prompts manual verification of uncertainties without recommending any page change. If issue candidates exist, the model's proposed follow-up is still marked **unverified** and conditional on review.
+
+The initial run after upgrading to analysis policy v3 regenerates an evidence report on the Desktop even when the page snapshot SHA is identical. Subsequent unchanged captures remain deduplicated. No services, packages, model downloads or filesystem relocations are needed for this update.

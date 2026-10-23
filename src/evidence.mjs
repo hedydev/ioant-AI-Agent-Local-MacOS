@@ -25,7 +25,22 @@ export function buildEvidenceSnapshot(raw, { maxChars = 20000, maxLines = 240, m
 }
 
 // The evidence text is ALWAYS obtained from browser material, never supplied by a model.
-// Validate references only. A valid source line supports provenance, not a factual
+// The model sometimes describes separately cited paragraph nodes as one multilingual
+// paragraph. Reject that narrow structural mismatch instead of silently presenting it
+// as a sourced observation. This is not a general semantic entailment checker.
+function structuralContradiction(claim, evidence) {
+  const lines = evidence.map(entry => entry.text);
+  const paragraphNodes = lines.filter(line => /^(?:[-*]\s*)?paragraph\b/i.test(line));
+  const singleParagraph = /\b(?:a|an|one|single)\s+(?:(?:\S+\s+){0,2})?paragraph\b/i.test(claim);
+  const claimsMultilingual = /\b(?:multilingual|multi-language|multiple languages|different languages)\b/i.test(claim);
+  if (singleParagraph && claimsMultilingual && paragraphNodes.length > 1) {
+    return 'Claim describes one multilingual paragraph but citations are separate paragraph nodes';
+  }
+  return null;
+}
+
+// Validate reference existence and a few deterministic structural contradictions;
+// a valid source line supports provenance, not a factual
 // or causal judgment; every issue remains a model suggestion until verified.
 function linkClaims(items, lookup) {
   const linked = [], unsupported = [];
@@ -39,10 +54,16 @@ function linkClaims(items, lookup) {
       });
       continue;
     }
+    const referenced = unique.map(id => ({ id, text: lookup.get(id) }));
+    const mismatch = structuralContradiction(item.claim, referenced);
+    if (mismatch) {
+      unsupported.push({ claim: item.claim, reason: mismatch });
+      continue;
+    }
     linked.push({
       claim: item.claim,
       ...(item.severity ? { severity: item.severity } : {}),
-      evidence: unique.map(id => ({ id, text: lookup.get(id) }))
+      evidence: referenced
     });
   }
   return { linked, unsupported };

@@ -70,11 +70,11 @@ test('mock OpenClaw->Ollama->report, deduplicate, never execute page commands', 
     assert.match(content, /Review priority .*: info/);
     assert.match(content, /Model-suggested severity .*: warning/);
     assert.match(content, /L0001: “heading Example Domain”/);
-    assert.match(content, /Model claims without valid line citations/);
+    assert.match(content, /Model claims with insufficient evidence/);
     assert.match(content, /No source supports a CSS color/);
     const state = JSON.parse(await readFile(join(reportRoot, 'example', 'state.json'), 'utf8'));
     assert.equal(state.evidenceSchemaVersion, 2);
-    assert.equal(state.analysisPolicyVersion, 2);
+    assert.equal(state.analysisPolicyVersion, 3);
     const forced = await run([...opts, '--force'], env);
     assert.equal(forced.code, 0, forced.err);
     assert.match(forced.out, /REPORT/);
@@ -90,7 +90,7 @@ test('mock OpenClaw->Ollama->report, deduplicate, never execute page commands', 
     assert.match(missingOutput.out, /REPORT/);
     assert.equal(requests, 3);
     const oldState = JSON.parse(await readFile(join(reportRoot, 'example', 'state.json'), 'utf8'));
-    oldState.analysisPolicyVersion = 1;
+    oldState.analysisPolicyVersion = 2;
     await writeFile(join(reportRoot, 'example', 'state.json'), JSON.stringify(oldState));
     const policyMigration = await run(opts, env);
     assert.equal(policyMigration.code, 0, policyMigration.err);

@@ -106,6 +106,9 @@ export function reportMarkdown({ site, time, runId, hash, analysis, truncated, e
   );
   const unsupported = (analysis.unsupported ?? []).map(item => '- ' + inline(item.claim) + ' — ' + inline(item.reason));
   const triage = assessTriage(analysis);
+  const manualFollowUp = triage.candidateCount === 0
+    ? 'Verify the uncertainties on the live page before considering any change. No corrective action is established by this snapshot.'
+    : 'Manually confirm source-linked issue candidates before changing the page. Unverified model suggestion: ' + inline(analysis.recommendation || 'Review each candidate against the live page.');
   const issueRows = (analysis.issues ?? []).map(item => '- ' + inline(item.claim) + ' (model-assessed ' + inline(item.severity) + ')'
     + '\n' + item.evidence.map(e => '  - ' + e.id + ': “' + quote(e.text) + '”').join('\n'));
   const issueMissing = (analysis.unsupportedIssues ?? []).map(item => '- ' + inline(item.claim) + ' — ' + inline(item.reason));
@@ -125,14 +128,14 @@ export function reportMarkdown({ site, time, runId, hash, analysis, truncated, e
     '', '## Summary (model interpretation)', inline(analysis.summary),
     '', '## Evidence-linked observations (source excerpts; verify interpretation)',
     supported.length ? supported.join('\n') : '- None',
-    '', '## Model claims without valid line citations (unverified)',
+    '', '## Model claims with insufficient evidence (unverified)',
     unsupported.length ? unsupported.join('\n') : '- None',
     '', '## Source-linked issue candidates (manual verification required)',
     issueRows.length ? issueRows.join('\n') : '- None',
     '', '## Uncited issue proposals (not used to set priority)',
     issueMissing.length ? issueMissing.join('\n') : '- None',
     '', '## Uncertainties', bullets(analysis.uncertainties ?? []),
-    '', '## Suggested manual checks', inline(analysis.recommendation),
+    '', '## Manual verification (do not change page without evidence)', manualFollowUp,
     '', '> Source excerpts are taken from the redacted accessibility snapshot, not written by the model. A matching source line does not prove the claim is correct. This is not a verified functional test.',
     ''
   ].join('\n');

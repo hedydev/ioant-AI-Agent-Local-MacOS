@@ -102,3 +102,15 @@ User supplied two real Markdown reports for `https://example.com/`:
 Code introduces `analysisPolicyVersion: 2` (separate from `evidenceSchemaVersion: 2`), structured optional `issues[]`, cited issue candidates, and two distinct fields in reports: provisional review priority and model-suggested severity. If there are no cited issue candidates, priority stays `info`; invalid/missing issue IDs cannot elevate. All issue candidates still require human verification. Prompt asks the model not to treat absent tests as observed defects. The first audit after the policy revision intentionally regenerates the desktop report, while following snapshots stay deduplicated.
 
 **Status:** GitHub implementation and local V8 smoke tests only at present; real Mac v3 report generation and exact second-pass dedup remain to be tested. No OpenClaw or Ollama reinstall needed. Next operator action: run single-command bootstrap, then inspect the new desktop report.
+
+
+## Third Mac report and evidence semantic guard (2026-10-24)
+
+Operator uploaded an actual v2 audit report `2026-10-23T16-35-00-703Z-dd12805e.md`:
+- Page: `https://example.com/`; SHA-256 matches both prior reports (`e1efa1a3f803749fcda6a145d3c0a1798156d1b742cb8a9d4a41b576e0970941`).
+- The `info` review priority and model-suggested `info` are aligned; no sourced issue candidates or invalid citation IDs.
+- Two residual model mistakes: claims that *one paragraph* has multilingual text while citing **four different paragraph nodes**, and unconditionally proposes `Add a clear heading` even though whether a heading exists is expressly uncertain.
+
+Fixed in evidence guard and report renderer: a narrow structural contradiction check demotes a singular multilingual-paragraph claim backed by multiple separate paragraph nodes to "insufficient evidence"; truly single multilingual paragraph claims are unaffected. When there are **no source-linked issue candidates**, the report emits a fixed non-mutating manual-verification instruction instead of exposing unsolicited model modification orders. When candidates exist, any model suggestion is explicitly labeled unverified and requires manual confirmation. Prompt also reinforces both boundaries.
+
+This creates `analysisPolicyVersion: 3`: first new-policy run generates one Desktop Markdown report despite unchanged source SHA, and next same-page run is eligible to return `UNCHANGED`. Old Desktop reports and LunaDrive state/log history are not deleted. Pure-logic V8 regression scenarios passed 5/5; full Node and Mac OpenClaw/Ollama tests are still pending. Do not claim the attached report alone proves the `UNCHANGED` second capture.

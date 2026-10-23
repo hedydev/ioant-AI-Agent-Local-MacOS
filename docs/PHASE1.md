@@ -152,3 +152,14 @@ The analysis policy now treats model `severity` as an unverified opinion. Model 
 The state file keeps `evidenceSchemaVersion: 2` and now also `analysisPolicyVersion: 2`. This avoids silently skipping the first new-policy report based on unchanged SHA. Thereafter, repeated unchanged captures skip inference.
 
 This change neither adds browser actions nor introduces visual/interaction accessibility testing. Real Mac rollout/test output and confirmation of the report's judgment remain pending.
+
+
+## Phase-1 report semantic consistency patch (policy v3, 2026-10-24)
+
+New evidence: the third on-Mac Markdown report, timestamp 2026-10-23T16:35:00Z, has the same snapshot SHA as prior reports and correctly returns `info` review priority. Nonetheless, the model cited `L0002-L0005` (separate language paragraphs) while saying *a paragraph with multilingual content*, and its unchecked remediation said *Add a clear heading* despite explicit uncertainty about whether any heading exists.
+
+The deterministic guard now checks this specific, generalizable *structural* contradiction (singular multilingual-paragraph claim vs two or more distinct cited paragraph nodes); it sends the claim to the insufficient-evidence section. It deliberately does **not** claim to verify all semantics or accessibility. Other observations still need human review.
+
+The report renderer now withholds raw proposed webpage edits when there are no cited issue candidates, and substitutes an explicit `verify uncertainties first; no changes established` notice. When there are cited issue candidates, model recommendations are labelled unverified and must be manually confirmed before any change.
+
+The state now distinguishes `analysisPolicyVersion: 3` so the first run after this policy update generates a new report even if the underlying snapshot hash has not changed. Existing Desktop output and strict OpenClaw `tabs`/`snapshot` restrictions remain intact. Five additional pure-function checks passed; full macOS tests and real runtime confirmation remain outstanding.
