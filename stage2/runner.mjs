@@ -1,4 +1,5 @@
 import { aliceWitnessPreflight } from './alice-preflight.mjs';
+import { aliceLabStartupProbe } from './alice-lab-startup.mjs';
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
@@ -24,6 +25,11 @@ export async function runAction(action, repoRoot, options={}) {
   if (action==='alice-witness-preflight') {
     if (options.enableAlicePreflight!==true) return {status:'approval_required',reason:'This Alice workflow must be explicitly enabled on the Mac launcher.'};
     return aliceWitnessPreflight({execute:executeStep,sshTarget:process.env.ALICE_SSH_TARGET});
+  }
+  if (action==='alice-lab-startup-probe') {
+    if(options.enableAliceLabStartupProbe!==true)
+      return {status:'approval_required',reason:'17880 lab BDS startup is not authorized; start the watcher with the separate --enable-alice-lab-startup-probe flag.'};
+    return aliceLabStartupProbe({execute:executeStep,sshTarget:process.env.ALICE_SSH_TARGET});
   }
   const plan=actionPlan(action,repoRoot);
   if (!plan) return {status:'approval_required',reason:'Not on automatic action allowlist. No command was run.'};

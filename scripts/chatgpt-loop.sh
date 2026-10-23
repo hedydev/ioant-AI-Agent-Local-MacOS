@@ -9,6 +9,12 @@ if [[ " $* " == *" --enable-alice-preflight " ]]; then
   echo '[loop] Alice workflow explicitly enabled: fetch/ff-only pull + non-destructive Mint sync + read-only witness preflight.'
   echo '[loop] No BDS restart or world-pack install actions are authorized.'
 fi
+if [[ " $* " == *" --enable-alice-lab-startup-probe "* ]]; then
+  [[ -n "${ALICE_SSH_TARGET:-}" ]] || { echo '[loop] Set ALICE_SSH_TARGET locally before explicitly enabling 17880 lab startup.' >&2; exit 2; }
+  echo '[loop] Explicit 17880-only LAB authorization enabled: guarded Alice sync, readiness check, single startup probe.'
+  echo '[loop] No production 17879 BDS restart, world mutation, pack install or probe retry authorized.'
+  echo '[loop] If Mint sudo is interactive, stop safely; never automate sudo passwords.'
+fi
 source "$ROOT/scripts/dev-env.sh"
 command -v node >/dev/null || { echo '[loop] Existing Node 20+ required' >&2; exit 1; }
 node -e 'if(Number(process.versions.node.split(".")[0])<20)process.exit(1)'

@@ -284,3 +284,41 @@ The responding AI **correctly did not emit executable JSON**. It identified that
 **Recovery:** when started again, any existing `initPending` is reconciled first from visible user-role receipts. If verified, it records `initSent` / `aliceInitSent`, clears pending, logs `initialization_reconciled`, and continues watch **without reposting**. If not verified, it logs `initialization_uncertain` and stops rather than guessing. For **legacy runs** (including this real Mac run) that failed before `initPending` existed, initialization likewise first checks the existing conversation's user-role receipts, and skips sending if the exact marker is present. Existing `feedbackPending` still retains its independent no-duplicate-send guard. An AI response with no structured JSON leaves the watcher idle, not executed or stopped.
 
 **Verification:** executed a direct mock DOM evaluation of the actual embedded OpenClaw page function: it correctly retained only the two permitted user-role receipt prefixes and did not return sample private message bodies. New isolated simulated integration tests cover delayed DOM commit, recovery of an already delivered pending init, fail-closed unresolved pending, and browser DOM receipt privacy. This is *not yet* a full Mac Node suite or a verified production send/receipt loop. Do not report AliceAI witness-preflight as completed.
+
+
+## 2026-10-24: Separate explicitly authorized 17880-only startup probe
+
+The operator approved integration of the existing Alice `witness-lab-startup-probe` into the Mac ↔ ChatGPT automation after observing the watcher remain idle: the receiving AI correctly identified that its earlier pending experiment is `alice-mac.sh sync → witness-lab-startup-probe`, *not* the previously authorized read-only `witness-preflight`. The Mac-side executor now registers an entirely separate allowlisted action `alice-lab-startup-probe` gated by the **separate** `--enable-alice-lab-startup-probe` opt-in and `ALICE_SSH_TARGET`. The old `--enable-alice-preflight` does not authorize it.
+
+Initialization with `--initialize` plus the new lab flag sends a one-time prompt to the **same selected ChatGPT conversation** to request exactly one structured task, with fields `protocol,id,action` and action `alice-lab-startup-probe`; it never directly executes on initialization. If the target AI decides not to issue that JSON, the watcher stays idle.
+
+For one received, complete and twice-stable structured lab task, the worker first durably saves `labProbeAttempted={id,at}` in its private LunaDrive per-conversation `state.json` BEFORE ANY Git, SSH or BDS operation. This prevents repeated lab startup after browser disconnect, uncertain send, crash, repeated task ID or new task ID; it also consumes authorization if a pre-step fails (conservative). On success or failure the one-shot barrier remains. Do **not** manually remove this barrier or Mint's clone process locks/one-shot backup markers; further attempts need separate human review and scoped reauthorization.
+
+Fixed plan (no shell-provided commands or model-supplied args):
+
+1. Verify exactly `hedydev/ioant-AI-Minecraft-Alice`, `main`, clean tracked worktree; Git fetch and `pull --ff-only`; re-check cleanliness.
+2. Execute Alice's maintained `alice-mac.sh sync` with its own Mac/Mint tests. No Alice client or production BDS restart.
+3. Execute the read-only `witness-lab-startup-check`; require unique fresh private Mac Desktop report `AliceAI-BDS-Lab-Startup-check-TIMESTAMP.json`, schemaVersion 1, `state=ready_for_isolated_lab_probe`, `reason=none`, and all production-safety booleans false.
+4. Execute the reviewed Alice `witness-lab-startup-probe` once, within a bounded child command timeout. The upstream script does its own 17880 clone/port/process isolation checks, backs up cloned config and instrumentation, launches only cloned BDS, requests graceful stop, and reports enum-only status. It does NOT restart or write the production 17879 world/BDS. Existing Mint scripts use `ssh -tt` and can require local operator `sudo` for *read-only* /proc cwd verification; the automated child cannot submit a sudo password or bypass this requirement, so a permission failure must be reported as a stop.
+5. Accept `passed` only if the **new, unique, owned/private** `AliceAI-BDS-Lab-Startup-probe-TIMESTAMP.json` schemaVersion 1 report has `state=lab_module_imports_observed`, `serverReadyObserved=true`, `verifiedScriptModuleLoaded=true`, `scriptLoadErrorObserved=false`, `isolatedBdsExited=true`, all production mutation flags false. This is evidence of BDS imports, NOT Alice player login/movement, world witness or real gameplay.
+
+On failure, produce bounded enum/status information and a sanitized validated JSON report if one exists. Raw SSH/sudo output is **not** copied into the ChatGPT response. If shutdown is unverified or the child times out, do NOT automatically rerun or conclude that the 17880 BDS is stopped; inspect it manually. In particular, a local timeout or lost SSH response cannot independently guarantee Mint process termination. The worker still confirms message receipt before proceeding, with the prior `feedbackPending` duplicate-send guard.
+
+**Mac commands** (stop the current foreground watcher via Ctrl+C before starting a new one):
+
+```bash
+cd ~/Documents/workspace/ioant-AI-Agent-Local-MacOS
+git fetch origin main
+git pull --ff-only origin main
+bash scripts/dev-env.sh exec node --test
+
+IOANT_CHATGPT_BROWSER_PROFILE=chrome \
+ALICE_SSH_TARGET="tedz@192.168.0.104" \
+bash scripts/chatgpt-loop.sh \
+  --chat-url "https://chatgpt.com/g/g-p-6acaef839af081919426a885b3209f54-ai-mc-alice/c/6adb7cd3-78fc-83ec-9379-ab1decb687cf" \
+  --initialize \
+  --enable-alice-lab-startup-probe \
+  --watch
+```
+
+Use `bash scripts/chatgpt-loop-logs.sh tail` and `... bundle` for private event-only diagnostics. The new one-shot claim is recorded as `lab_probe_claimed`; never infer execution from an initialization receipt alone. **Real Mac Node-suite pass, sudo readiness, real Mint 17880 start/stop and ChatGPT round-trip are NOT YET VERIFIED.** No existing Alice source code, BDS world or Mint process was modified in this integration commit.

@@ -4,7 +4,7 @@ export const PROTOCOL = 'ioant-mac-ops-v1';
 const CHAT_PATH = /^\/(?:g\/[a-zA-Z0-9_-]+\/)?c\/[a-zA-Z0-9-]{15,}$/;
 const TASK_ID = /^[a-zA-Z0-9][a-zA-Z0-9_-]{3,79}$/;
 const AUTO_ACTIONS = new Set(['project-tests', 'project-status', 'project-head', 'environment-scan']);
-const KNOWN_ACTIONS = new Set([...AUTO_ACTIONS, 'audit-example', 'alice-witness-preflight']);
+const KNOWN_ACTIONS = new Set([...AUTO_ACTIONS, 'audit-example', 'alice-witness-preflight', 'alice-lab-startup-probe']);
 
 export function validateChatUrl(value) {
   const url = new URL(value);
@@ -61,7 +61,7 @@ export function responseForTask(task, execution, session) {
   if (execution.exitCode !== undefined) lines.push(`Exit code: ${execution.exitCode}`);
   if (execution.elapsedMs !== undefined) lines.push(`Elapsed ms: ${execution.elapsedMs}`);
   if (execution.reportJson) {
-    lines.push('Fresh validated witness-preflight JSON (not an old duplicate):\n```json\n' + execution.reportJson + '\n```');
+    lines.push((task.action==='alice-lab-startup-probe'?'Fresh validated 17880 LAB startup JSON (BDS test only; no gameplay proof)':'Fresh validated witness-preflight JSON (not an old duplicate)')+':\n```json\n' + execution.reportJson + '\n```');
     if (execution.reportFilename) lines.push('Report file on Mac Desktop: ' + execution.reportFilename);
   }
   if (execution.output) lines.push('Output (bounded/redacted):\n' + redactFeedback(execution.output));
