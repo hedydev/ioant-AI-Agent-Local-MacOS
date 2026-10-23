@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {actionFromJson,isSafeAction} from '../stage2/protocol.mjs';
 
 const root=resolve(import.meta.dirname,'..');
 const launcher=readFileSync(resolve(root,'scripts/chatgpt-loop.sh'),'utf8');
@@ -41,5 +42,12 @@ test('protocol initialization for the 17880 probe remains exact chat task and fe
  assert.match(worker,/ensureInitialization\(opts\.enableAliceLabStartupProbe\?'lab':/);
  assert.match(worker,/Alice isolated 17880 startup probe ioant-mac-ops-v1/);
  assert.match(protocol,/Fresh validated 17880 LAB startup JSON/);
- assert.doesNotMatch(protocol,/AUTO_ACTIONS.*alice-lab-startup-probe/);
+ const task=actionFromJson(JSON.stringify({
+  protocol:'ioant-mac-ops-v1',
+  id:'lab-contract-20261024',
+  action:'alice-lab-startup-probe'
+ }));
+ assert.equal(task.known,true);
+ assert.equal(task.authorized,false);
+ assert.equal(isSafeAction('alice-lab-startup-probe'),false);
 });
