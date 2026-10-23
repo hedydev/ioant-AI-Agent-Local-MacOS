@@ -89,3 +89,10 @@ bash scripts/bootstrap-phase1.sh
 ```
 
 This installs the official **isolated** CLI only when missing and never installs a persistent Gateway service. It checks already installed Ollama models, uses a transient token-authenticated local Gateway only if another healthy Gateway is not found, and shuts down only its own process. Review `README.md` for a one-copy command including Git fast-forward pull. A nonzero result means the live browser acceptance is incomplete; inspect the bounded error and private Gateway log path.
+
+## Real Mac acceptance observation (2026-10-23)
+
+- Successfully installed isolated Node **24.22.1** and **OpenClaw 2026.10.6** (installer output).
+- Bootstrap tests ran: **16 pass, 1 fail**, at `test/bootstrap-contract.test.mjs`; static regex matched documentation string `fnm installation` as if it were an `fnm install` command. The assertion was narrowed and regression test added.
+- Bootstrap halted before checking Ollama, starting Gateway/browser, or generating a report.
+- Next run: `git pull --ff-only origin main`, then `bash scripts/bootstrap-phase1.sh`. It should discover existing private CLI and skip reinstall. Record actual output; no live browser success claimed yet.

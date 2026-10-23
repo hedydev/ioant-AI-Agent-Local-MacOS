@@ -41,3 +41,9 @@ User reported that entering newly cloned repository triggered a `fnm` install pr
 ## Single-command installer and smoke audit
 
 Added `scripts/bootstrap-phase1.sh` which safely reuses/installs an isolated OpenClaw CLI, tests the repository, checks Ollama, launches a temporary loopback-only token-protected Gateway if needed, starts a separate browser profile, opens a public test page, and attempts one real report. No global Node upgrade, daemon installation, credential import, or cloud model changes. Script shell syntax and static contract tests are part of verification; actual installer + Gateway + browser behavior **requires Mac acceptance**.
+
+## One-command bootstrap acceptance: false positive fixed (2026-10-23)
+
+Operator log: isolated Node 24.22.1 and OpenClaw 2026.10.6 (fe06181) were installed successfully. Bootstrap then stopped after **16/17** project tests passed; the only failure was a misleading static-test regex `/fnm install/` matching the narrative `fnm installation` in `scripts/bootstrap-phase1.sh`. No evidence of an actual unwanted install command; browser/Gateway/Ollama inference were **not yet exercised** by this bootstrap attempt.
+
+Corrected `test/bootstrap-contract.test.mjs` to check command-shaped lines, with a regression test for the exact false-positive case. On next Mac execution, existing `~/.openclaw/bin/openclaw` will be reused: do not repeat the first-time installation.
