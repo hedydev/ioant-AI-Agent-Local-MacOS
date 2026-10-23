@@ -1,0 +1,13 @@
+{
+  "name": "ioant-ai-agent-local-macos",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Read-only OpenClaw browser auditing with local Ollama",
+  "engines": { "node": ">=24.22.1" },
+  "scripts": {
+    "test": "node --test",
+    "audit": "node src/audit.mjs --once",
+    "watch": "node src/audit.mjs --watch"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "sites": [
+    {
+      "id": "example",
+      "url": "https://example.com/",
+      "profile": "openclaw",
+      "enabled": true
+    }
+  ]
+}
