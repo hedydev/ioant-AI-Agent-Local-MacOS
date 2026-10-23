@@ -15,6 +15,14 @@ node -e 'if(Number(process.versions.node.split(".")[0])<20)process.exit(1)'
 OPENCLAW_BIN="$HOME/.openclaw/bin/openclaw"
 [[ -x "$OPENCLAW_BIN" ]] || { echo '[loop] OpenClaw is not at expected ~/.openclaw/bin; use existing isolated installation, no automatic install' >&2; exit 1; }
 export IOANT_OPENCLAW_BIN="$OPENCLAW_BIN"
+# Explicit browser scope: managed or existing signed-in Chrome. Never attach to
+# an arbitrary profile name or silently switch from isolated to personal Chrome.
+BROWSER_PROFILE="${IOANT_CHATGPT_BROWSER_PROFILE:-openclaw}"
+case "$BROWSER_PROFILE" in
+  openclaw|user|chrome) ;;
+  *) echo "[loop] Unsupported browser profile: $BROWSER_PROFILE (choose openclaw, user, or chrome)." >&2; exit 2;;
+esac
+export IOANT_CHATGPT_BROWSER_PROFILE="$BROWSER_PROFILE"
 GATEWAY_PID=''
 cleanup() {
   local rc=$?
@@ -92,7 +100,12 @@ if (( GATEWAY_HEALTHY == 0 )); then
   done
   (( ready == 1 )) || { echo "[loop] Temporary Gateway not ready; private log: $GATEWAY_LOG" >&2; exit 1; }
 fi
-"$OPENCLAW_BIN" browser --browser-profile openclaw start
+# Managed Chrome is launched by OpenClaw; user attaches to already-running
+# Chrome (may require a local consent prompt); chrome uses extension relay.
+case "$BROWSER_PROFILE" in
+  openclaw|user) "$OPENCLAW_BIN" browser --browser-profile "$BROWSER_PROFILE" start ;;
+  chrome) echo '[loop] Using already-paired Chrome extension profile; not launching managed Chromium.' ;;
+esac
 CHAT_URL=''
 for ((i=1; i<=$#; i++)); do
   if [[ "${!i}" == '--chat-url' ]]; then
@@ -102,12 +115,24 @@ for ((i=1; i<=$#; i++)); do
   fi
 done
 if [[ -n "$CHAT_URL" ]]; then
-  # Validate exact ChatGPT conversation origin before opening a URL with an authenticated browser.
   validated="$(cd "$ROOT" && node --input-type=module -e 'import {validateChatUrl} from "./stage2/protocol.mjs";console.log(validateChatUrl(process.argv[1]))' "$CHAT_URL")"
-  tabs="$("$OPENCLAW_BIN" browser --browser-profile openclaw --json tabs)"
-  if ! printf '%s' "$tabs" | EXPECTED_CHAT_URL="$validated" node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);const t=Array.isArray(j)?j:(j.tabs??j.result?.tabs);if(!Array.isArray(t))process.exit(2);process.exit(t.some(x=>x.url===process.env.EXPECTED_CHAT_URL)?0:1)})' 2>/dev/null; then
-    echo '[loop] Opening only the explicitly selected ChatGPT conversation in isolated OpenClaw browser'
-    "$OPENCLAW_BIN" browser --browser-profile openclaw open "$validated"
-  fi
+  # List tab URL metadata, never content, and require exactly one target.
+  tabs="$("$OPENCLAW_BIN" browser --browser-profile "$BROWSER_PROFILE" --json tabs)"
+  TAB_COUNT="$(printf '%s' "$tabs" | EXPECTED_CHAT_URL="$validated" node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);const t=Array.isArray(j)?j:(j.tabs??j.result?.tabs);if(!Array.isArray(t))process.exit(2);process.stdout.write(String(t.filter(x=>x.url===process.env.EXPECTED_CHAT_URL).length))})')" || {
+    echo '[loop] Could not safely inspect ChatGPT tabs in selected browser profile; stopping.' >&2; exit 1;
+  }
+  case "$TAB_COUNT" in
+    1) echo "[loop] Reusing exactly one matching ChatGPT tab in browser profile: $BROWSER_PROFILE" ;;
+    0)
+      if [[ "$BROWSER_PROFILE" == openclaw ]]; then
+        echo '[loop] Opening only the selected conversation in isolated managed browser.'
+        "$OPENCLAW_BIN" browser --browser-profile "$BROWSER_PROFILE" open "$validated"
+      else
+        echo "[loop] No matching ChatGPT tab in $BROWSER_PROFILE. Open the exact conversation in your existing Chrome and grant browser access before launching; not opening unrelated tabs." >&2
+        exit 1
+      fi
+      ;;
+    *) echo "[loop] Found $TAB_COUNT copies of the target ChatGPT tab; close duplicates before automation." >&2; exit 1 ;;
+  esac
 fi
 (cd "$ROOT" && node stage2/chatgpt-loop.mjs "$@")

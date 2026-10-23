@@ -162,3 +162,28 @@ Stage 2 now uses a standalone lock module. On an existing lock, it opens an excl
 **Operator steps:** fast-forward the Mac checkout, run full `node --test`, then rerun `bash scripts/chatgpt-loop.sh --chat-url 'EXACT-CHAT-URL' --watch`; add `--initialize --enable-alice-preflight` and locally provided `ALICE_SSH_TARGET` only when intentionally authorizing the Alice sync action. If a previous owner still exists, the worker prints its PID and refuses a second instance—inspect with `ps -p PID -o pid=,command=` before doing anything else. Do **not** blindly `rm watch.lock`, kill unrelated processes, reset state, or remove `watch.lock.recovery` while another recovery might be active.
 
 **Validation:** five focused Node 22 tests of orphan recovery, active lock refusal, invalid/public/symlink lock rejection, safe owner-specific release and recovery contention passed in isolated Linux. Real Mac watch continuity, DOM sign-in, and reply confirmation remain to be tested.
+
+
+## Proxy-routed managed Chromium blocked by strict SSRF: use existing Chrome (2026-10-24)
+
+**Real Mac evidence:** OneBox/sing-box on `127.0.0.1:6789` is listening; OpenClaw 2026.10.6 accepts `browser.extraArgs: ["--proxy-server=http://127.0.0.1:6789"]` and starts the dedicated `openclaw` browser. But its `browser open <ChatGPT URL>` fails with exactly `Navigation blocked: strict browser SSRF policy cannot be enforced while this browser profile is proxy-routed`. This is OpenClaw's security contract, not a ChatGPT authentication error or proof that OneBox is broken. Do **not** work around it by enabling `dangerouslyAllowPrivateNetwork` just to access ChatGPT.
+
+OpenClaw official browser profiles provide `user` (existing local Chrome via Chrome DevTools MCP, requires an interactive consent prompt) and `chrome` (official Chrome extension relay, suited to unattended work). The Mac loop launcher now honors **explicit** `IOANT_CHATGPT_BROWSER_PROFILE=user` or `chrome`, while `openclaw` remains the default. The worker rejects unknown profiles. When using the existing signed-in Chrome, the launcher **requires exactly one already-open tab with the complete exact authorized chat URL** and does not create a browser tab if missing; it never imports cookies, changes Chrome's global proxy, relaxes browser SSRF policy, or navigates to unapproved URLs.
+
+**Mac read-only existing-Chrome smoke test, after fast-forward and passing tests:**
+
+```bash
+REPO="$HOME/Documents/workspace/ioant-AI-Agent-Local-MacOS"
+CHAT_URL='https://chatgpt.com/g/g-p-6acaef839af081919426a885b3209f54-ben-di-aigroup/c/6adb7cd3-78fc-83ec-9379-ab1decb687cf'
+git -C "$REPO" pull --ff-only origin main && (
+  cd "$REPO"
+  bash scripts/dev-env.sh exec node --test &&
+  IOANT_CHATGPT_BROWSER_PROFILE=user bash scripts/chatgpt-loop.sh --chat-url "$CHAT_URL" --once
+)
+```
+
+Open the exact target URL in ordinary Chrome first and approve the local Chrome remote-debugging attach when prompted. Chrome MCP typically requires Chrome 144+ with remote debugging enabled at `chrome://inspect/#remote-debugging`. Existing Chrome may access more of the personal session than the selected page even though our worker reads only the exact tab; this is a higher-trust integration. Never attempt to import the personal profile into managed Chromium.
+
+For future unattended automation, install and approve the **official** OpenClaw Chrome extension on the Mac, choose its **Selected tabs** access mode, place only the authorized ChatGPT tab in the OpenClaw tab group, and launch with `IOANT_CHATGPT_BROWSER_PROFILE=chrome`. Do not automatically install a new extension or grant all-tab access without user approval. The extension's live pairing is a separate acceptance checkpoint. Existing `browser.extraArgs` remains relevant only to managed Chromium; switching to `user`/`chrome` does not require disabling or altering it.
+
+**Validation:** profile-routing code and focused tests published; real Mac Chrome attach, page DOM reading and message send/receipt remain unverified. An HTTP 403 response from `curl` over OneBox does not establish the outcome in full signed-in Chrome.

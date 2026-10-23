@@ -46,7 +46,9 @@ function argsOf(argv){
   return out;
 }
 const profile=process.env.IOANT_CHATGPT_BROWSER_PROFILE || 'openclaw';
-if(!/^[a-zA-Z0-9_-]{1,40}$/.test(profile))throw Error('Invalid browser profile');
+if(!['openclaw','user','chrome'].includes(profile)) {
+  throw Error('Unsupported browser profile: only openclaw, user or chrome may be used for this loop');
+}
 const bin=process.env.IOANT_OPENCLAW_BIN || join(homedir(),'.openclaw','bin','openclaw');
 
 async function browser(...args){
