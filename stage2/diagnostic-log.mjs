@@ -18,7 +18,8 @@ const EVENTS=new Set([
  'gateway_error','browser_profile','tab_found','tab_missing','launcher_exit',
  'tab_retry_started','tab_retry_recovered','tab_retry_timeout','tab_retry_error',
  'worker_start','page_ready','page_not_ready','read_only_success',
- 'initialization_attempt','initialization_sent','task_seen','action_started',
+ 'initialization_attempt','initialization_pending','initialization_sent',
+ 'initialization_reconciled','initialization_uncertain','task_seen','action_started',
  'action_finished','report_saved','feedback_pending','feedback_confirmed',
  'watch_heartbeat','watch_stopped','worker_error','log_capacity_reached'
 ]);

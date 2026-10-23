@@ -23,8 +23,15 @@ const readPageFunction=`() => {
   const messages=elements.slice(-6).map(el=>({
     codes:Array.from(el.querySelectorAll('pre code')).slice(0,8).map(code=>(code.textContent||'').slice(0,5000))
   }));
-  const users=Array.from(document.querySelectorAll('[data-message-author-role="user"]')).slice(-5)
-    .map(el=>(el.innerText||'').slice(0,1200));
+  // Read only allowlisted *prefix receipts* from all currently rendered user
+  // turns. An arbitrary last-five window is insufficient for delayed replies.
+  // Do not return ordinary user messages or their text to the local worker.
+  const users=Array.from(document.querySelectorAll('[data-message-author-role="user"]')).slice(-100)
+    .map(el=>{
+      const text=(el.innerText||'').trimStart();
+      const match=text.match(/^(Ioant Mac (?:local command feedback protocol ioant-mac-ops-v1|Alice witness workflow ioant-mac-ops-v1)|\\[IOANT-MAC-OPS RESULT [a-zA-Z0-9_-]{4,80}\\])/);
+      return match?.[1]??null;
+    }).filter(Boolean);
   // ChatGPT has used both an id and a data-testid on its contenteditable composer.
   // Keep selectors narrow to the prompt area; never treat global search inputs as chat.
   const selectors=['#prompt-textarea','[data-testid="composer-input"][contenteditable="true"]',
@@ -126,10 +133,10 @@ function composerRef(snapshot){
   return matches[0][1];
 }
 
-async function sendToChat(target,url,content,receipt){
+async function sendToChat(target,url,content,receipt,{beforePress=async()=>{}}={}){
   // Cannot mistake a pending uncertain send for a fresh task; always verify first.
   let state=await readPage(target,url);
-  if(state.users.some(msg=>msg.includes(receipt)))return {confirmed:true,alreadySent:true};
+  if(state.users.some(msg=>msg.startsWith(receipt)))return {confirmed:true,alreadySent:true};
   if(state.generating||!state.composerPresent||!state.composerEmpty)throw Error('ChatGPT is generating or composer is not empty/available; no automatic send');
   const snap=await browser('snapshot','--target-id',target,'--interactive');
   const ref=composerRef(snap);
@@ -137,12 +144,24 @@ async function sendToChat(target,url,content,receipt){
   // Ensure text actually landed in the intended field before pressing Send.
   state=await readPage(target,url);
   if(state.composerEmpty||state.generating)throw Error('Composer did not accept text or assistant is still generating; no Enter sent');
+  // Write any durable send-intent before the first action that may submit text.
+  // If the browser call times out, the chat may already have received Enter.
+  await beforePress();
   await browser('press','--target-id',target,'Enter');
-  // A failed confirmation is an uncertain send, never blindly re-post it.
-  await new Promise(resolve=>setTimeout(resolve,1000));
-  state=await readPage(target,url);
-  if(!state.users.some(msg=>msg.includes(receipt)))throw Error('Message send could not be confirmed; inspect ChatGPT manually before restarting (no automatic retry).');
-  return {confirmed:true,alreadySent:false};
+  // ChatGPT DOM commit is asynchronous; success requires a user-role receipt,
+  // not an assistant reply or a cleared composer. Never send Enter again.
+  for(let attempt=0;attempt<8;attempt++){
+    await new Promise(resolve=>setTimeout(resolve,1500));
+    try{
+      const currentTarget=await exactTab(url);
+      state=await readPage(currentTarget,url);
+      if(state.users.some(msg=>msg.startsWith(receipt)))return {confirmed:true,alreadySent:false};
+    }catch(err){
+      // The action is now ambiguous: re-read only, never retry the send.
+      if(attempt===7)recordDiagnosticEvent('page_not_ready',{code:diagnosticCode(err)});
+    }
+  }
+  throw Error('Message send could not be confirmed after bounded read-only checks; potential delivery, no automatic retry.');
 }
 
 async function atomicState(file,state){
@@ -235,23 +254,57 @@ async function main(){
       console.log('[loop] Read-only ChatGPT probe passed: exact conversation and composer detected; no task executed or message sent.');
       return;
     }
-    if(opts.initialize&&!opts.enableAlicePreflight&&!state.initSent){
-      const receipt='Ioant Mac local command feedback protocol '+PROTOCOL;
-      recordDiagnosticEvent('initialization_attempt',{mode:'basic'});
-      await sendToChat(target,opts.url,INIT,receipt);
-      state.initSent=true;
+    // Reconcile a previous ambiguous send BEFORE attempting any new message.
+    // An assistant reply cannot prove a user message exists; require the exact
+    // user-role prefix receipt returned by the DOM reader.
+    const initMeta={
+      basic:{key:'initSent',receipt:'Ioant Mac local command feedback protocol '+PROTOCOL,content:INIT},
+      alice:{key:'aliceInitSent',receipt:'Ioant Mac Alice witness workflow ioant-mac-ops-v1',content:INIT_ALICE}
+    };
+    if(state.initPending!==undefined&&state.initPending!==null){
+      const pending=initMeta[state.initPending];
+      if(!pending)throw Error('Unrecognized pending initialization state; no automatic send');
+      const observed=await readPage(target,opts.url);
+      if(!observed.users.some(msg=>msg.startsWith(pending.receipt))){
+        recordDiagnosticEvent('initialization_uncertain',{mode:state.initPending});
+        throw Error('Previous initialization send remains unconfirmed; no automatic resend. Verify the exact user message in ChatGPT before resuming.');
+      }
+      const kind=state.initPending;
+      state[pending.key]=true;
+      state.initPending=null;
       await atomicState(stateFile,state);
-      recordDiagnosticEvent('initialization_sent',{mode:'basic'});
-      console.log('[loop] One-time protocol sent to selected ChatGPT conversation.');
+      recordDiagnosticEvent('initialization_reconciled',{mode:kind});
+      console.log('[loop] Previous initialization found in ChatGPT user messages; no duplicate sent.');
     }
-    if(opts.initialize && opts.enableAlicePreflight && !state.aliceInitSent){
-      const receipt='Ioant Mac Alice witness workflow ioant-mac-ops-v1';
-      recordDiagnosticEvent('initialization_attempt',{mode:'alice'});
-      await sendToChat(target,opts.url,INIT_ALICE,receipt);
-      state.aliceInitSent=true;
+    async function ensureInitialization(kind){
+      const entry=initMeta[kind];
+      if(state[entry.key])return;
+      const page=await readPage(target,opts.url);
+      if(page.users.some(msg=>msg.startsWith(entry.receipt))){
+        // Also covers legacy runs that sent an initialization message before
+        // durable initPending was introduced.
+        state[entry.key]=true;
+        await atomicState(stateFile,state);
+        recordDiagnosticEvent('initialization_reconciled',{mode:kind});
+        console.log('[loop] Existing '+kind+' initialization confirmed from ChatGPT; skipping duplicate.');
+        return;
+      }
+      recordDiagnosticEvent('initialization_attempt',{mode:kind});
+      await sendToChat(target,opts.url,entry.content,entry.receipt,{
+        beforePress:async()=>{
+          state.initPending=kind;
+          await atomicState(stateFile,state);
+          recordDiagnosticEvent('initialization_pending',{mode:kind});
+        }
+      });
+      state[entry.key]=true;
+      state.initPending=null;
       await atomicState(stateFile,state);
-      recordDiagnosticEvent('initialization_sent',{mode:'alice'});
-      console.log('[loop] Alice witness-preflight workflow enabled in selected conversation.');
+      recordDiagnosticEvent('initialization_sent',{mode:kind});
+      console.log('[loop] '+kind+' initialization confirmed in selected ChatGPT conversation.');
+    }
+    if(opts.initialize) {
+      await ensureInitialization(opts.enableAlicePreflight?'alice':'basic');
     }
     do {
       if(stopping)break;
@@ -272,7 +325,7 @@ async function main(){
       if(state.feedbackPending){
         // Commands never re-run after a crash / unclear send.
         const receipt='[IOANT-MAC-OPS RESULT '+state.feedbackPending.id+']';
-        if(page.users.some(msg=>msg.includes(receipt))){
+        if(page.users.some(msg=>msg.startsWith(receipt))){
           state.lastTaskId=state.feedbackPending.id;state.feedbackPending=null;await atomicState(stateFile,state);
           recordDiagnosticEvent('feedback_confirmed',{taskId:state.lastTaskId});
           console.log('[loop] Previously sent feedback confirmed; moving on.');
