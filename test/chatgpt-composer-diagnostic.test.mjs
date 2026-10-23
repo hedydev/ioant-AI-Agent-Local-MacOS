@@ -63,7 +63,8 @@ test('extension missing-tab diagnostics report counts only without leaking other
  const syntax=spawnSync('bash',['-n',resolve(root,'scripts/chatgpt-loop.sh')],{encoding:'utf8'});
  assert.equal(syntax.status,0,syntax.stderr);
  assert.match(shell,/TAB_COUNTS=/);
- assert.match(shell,/Selected tabs mode, move the intended ChatGPT tab into the OpenClaw tab group/);
+ assert.match(shell,/If Access=All tabs, no tab group is needed/);
+ assert.match(shell,/If Access=Selected tabs, authorize the target tab in the OpenClaw group/);
  assert.match(shell,/a DIFFERENT project URL/);
  assert.doesNotMatch(shell,/echo[^\n]*x\.url/);
 });
