@@ -4,10 +4,15 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Read-only OpenClaw browser auditing with local Ollama",
-  "engines": { "node": ">=24.22.1" },
+  "engines": {
+    "node": ">=24.22.1"
+  },
   "scripts": {
     "test": "node --test",
     "audit": "node src/audit.mjs --once",
-    "watch": "node src/audit.mjs --watch"
+    "watch": "node src/audit.mjs --watch",
+    "env:scan": "node src/environment.mjs scan",
+    "env:save": "node src/environment.mjs save",
+    "env:check": "node src/environment.mjs check"
   }
 }

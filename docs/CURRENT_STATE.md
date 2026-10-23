@@ -29,3 +29,7 @@ Snapshot text cannot audit visual overlap; reports are model assessments, not co
 
 ## Next milestone (not authorized for this phase)
 After user acceptance, decide visual screenshot audit and a local dashboard. GitHub/doc/project actions and any browser interaction require separate permission and evidence.
+
+## Environment Registry addition (2026-10-23)
+
+The first-stage project now also provides `src/environment.mjs` (`scan`, `save`, `check`) and `docs/ENVIRONMENT_REGISTRY.md`. It discovers on-PATH/off-PATH binaries and probes known local Ollama ports, so AI assistants can avoid recommending redundant installs. Private data is written only on explicit save/preflight to LunaDrive, not GitHub. Four environment-tool tests were run in a Linux Node 22 container against the same discovery logic and passed; **Mac installation state and complete repository tests remain unverified**. Cross-AI automatic consumption/cloud access is not implemented.

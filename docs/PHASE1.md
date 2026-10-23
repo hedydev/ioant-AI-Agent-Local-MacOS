@@ -12,6 +12,10 @@
 
 We use OpenClaw as the browser transport, but invoke only `browser tabs` and `browser snapshot` in the runtime. Ollama `/api/chat` is called directly on loopback. We intentionally do **not** call `openclaw agent` yet: unrestricted tool-calling by a local model would mix untrusted webpage text with a potentially powerful executor. This is a safer stepping stone toward later agent orchestration.
 
+## Existing environment discovery
+
+Before any install advice, run `node src/environment.mjs scan` and see [Environment Registry](ENVIRONMENT_REGISTRY.md). `scripts/preflight.sh` saves a private snapshot to LunaDrive before checking live services. A missing PATH command is not proof of missing installation. User machine results remain unverified until the Mac runs the scan.
+
 ## Bootstrap on Mac
 
 1. Ensure `/Volumes/LunaDrive` mounted and writable. `bash scripts/dev-env.sh check` fails closed if absent or inherited cache paths mention old `/Volumes/MacDev`.

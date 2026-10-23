@@ -25,3 +25,7 @@ No automatic notifications, page-induced commands, changes to Git, file mutation
 ## Diagnostics
 
 Each audit has a run ID; JSONL logs contain timestamp, site ID, outcome, snapshot hash and bounded redacted error. Reports include observations vs uncertainties. No full model conversation or raw HTML is persisted. On failure, status is FAIL, not "passed".
+
+## Local environment inventory privacy
+
+The new read-only registry inspects bounded executable locations and Ollama loopback `/api/tags`. It reports executable paths with the home directory shortened to `~`, tool names and model names. Its `latest.json` stays under private LunaDrive storage, not this public GitHub repository. Do not post private inventories or enable remote registry serving automatically. Detection does not imply permission to start, install, execute, or configure programs.

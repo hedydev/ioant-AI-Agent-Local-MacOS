@@ -3,9 +3,11 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 bash "$SCRIPT_DIR/dev-env.sh" check
-command -v node >/dev/null || { echo '[preflight] Node missing' >&2; exit 1; }
+command -v node >/dev/null || { echo '[preflight] Node is not available on PATH (it may already be installed elsewhere)' >&2; exit 1; }
+# Discover and persist sanitized local facts BEFORE suggesting installations.
+bash "$SCRIPT_DIR/dev-env.sh" exec node "$SCRIPT_DIR/../src/environment.mjs" save
 node -e 'const [major,minor,patch]=process.versions.node.split(".").map(Number);if(!((major===24&&(minor>22||(minor===22&&patch>=1)))||(major===26&&(minor>12||(minor===12&&patch>=1)))||major>26)){console.error("Node requires >=24.22.1 or >=26.12.1 (supported lines)");process.exit(1)}'
-command -v openclaw >/dev/null || { echo '[preflight] OpenClaw missing: https://docs.openclaw.ai/install' >&2; exit 1; }
+command -v openclaw >/dev/null || { echo '[preflight] OpenClaw not available on PATH; check the environment inventory for an off-PATH binary before installing' >&2; exit 1; }
 command -v curl >/dev/null || { echo '[preflight] curl missing' >&2; exit 1; }
 printf '[preflight] OpenClaw: '
 openclaw --version

@@ -48,6 +48,18 @@ bash scripts/dev-env.sh exec node src/audit.mjs --watch --id example --interval 
 
 To audit another page, copy/edit `config/sites.json` with **exact** page URL and profile, open that same URL yourself using `openclaw browser --browser-profile ... open ...`, then run `--once --id YOUR_ID`. If a logged-in tab is required, first sign in manually in the **isolated** OpenClaw browser profile; browser profiles are not automatically shared with ordinary Chrome.
 
+## Environment discovery before installing anything
+
+The Mac may already have OpenClaw, Ollama, ADB, etc. A missing shell command does not prove an app is absent. Use the [read-only environment registry](docs/ENVIRONMENT_REGISTRY.md) first:
+
+```bash
+node src/environment.mjs scan
+bash scripts/dev-env.sh exec node src/environment.mjs save
+node src/environment.mjs check
+```
+
+A sanitized, private JSON snapshot is saved on LunaDrive, **never pushed to this public repository**. OpenClaw and other local AIs may read it with explicit local file permission; cloud ChatGPT cannot read it automatically.
+
 ## Stage-1 boundaries
 
 - One or more explicitly configured sites, sequential read-only captures. Matching uses **exact URL**; unexpected redirects and missing tabs fail closed.

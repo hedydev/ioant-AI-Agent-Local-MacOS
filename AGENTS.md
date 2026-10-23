@@ -23,3 +23,7 @@ Read this file and `docs/PHASE1.md` before changing the repository. Read Hero Sk
 - Never commit login state, cookies, local reports, private snapshots or secrets.
 
 Architecture: `src/core.mjs` pure contracts, `src/audit.mjs` CLI orchestration, `config/sites.json` explicit watchlist, `scripts/` bounded preflight/storage tools.
+
+## Environment evidence requirement
+
+Before instructing an operator to install tools or change configuration, run the read-only `node src/environment.mjs scan` or inspect a fresh private LunaDrive registry snapshot. Distinguish `on_path`, `found_off_path`, `not_detected`, service health and model inventory. Do not claim a tool is absent when it was merely not found in scanned paths. This registry is host-specific state, not Hero Skills knowledge; do not commit its generated content.
