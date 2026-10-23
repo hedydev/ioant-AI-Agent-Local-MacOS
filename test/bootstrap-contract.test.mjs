@@ -36,3 +36,12 @@ test('ordinary guidance mentioning fnm installation is not a shell install comma
   assert.match(guidance, /fnm install/); // This caused the previous false positive.
   assert.doesNotMatch(guidance, /^\s*fnm\s+install(?:\s|$)/m);
 });
+
+test('bootstrap reuses an exact public tab and checks unchanged repeat without another model pass', () => {
+  assert.match(source, /browser --browser-profile openclaw --json tabs/);
+  assert.match(source, /Reusing the already-open example\.com tab/);
+  assert.match(source, /Found \$TAB_COUNT example\.com tabs/);
+  assert.match(source, /SECOND_PASS=/);
+  assert.match(source, /UNCHANGED example sha256=/);
+  assert.match(source, /Repeat capture was not unchanged/);
+});

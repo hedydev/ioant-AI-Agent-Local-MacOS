@@ -29,3 +29,9 @@ Each audit has a run ID; JSONL logs contain timestamp, site ID, outcome, snapsho
 ## Local environment inventory privacy
 
 The new read-only registry inspects bounded executable locations and Ollama loopback `/api/tags`. It reports executable paths with the home directory shortened to `~`, tool names and model names. Its `latest.json` stays under private LunaDrive storage, not this public GitHub repository. Do not post private inventories or enable remote registry serving automatically. Detection does not imply permission to start, install, execute, or configure programs.
+
+## Evidence-v2 trust and privacy limits
+
+Never use model-generated quotes as evidence. Construct snapshot line IDs and excerpts deterministically from redacted browser output; models may only return those IDs. Reject missing/invalid source IDs as unsupported claims rather than pretending they were verified. Source citations are provenance pointers, **not** semantic/factual, visual or functional verification. Treat even valid-citation interpretations as model assessments.
+
+Each source excerpt is bounded and is included only for cited observations. Redaction remains best-effort, so excerpts can still expose sensitive information; prohibit login/secret-bearing pages until stronger privacy controls have real tests. Preserve no raw full-page snapshot. Changes to evidence version must not silently reuse stale old-schema reports.

@@ -67,18 +67,28 @@ export function parseAnalysis(content) {
   if (!obj || Array.isArray(obj) || typeof obj !== 'object') throw new Error('Invalid model response');
   const severity = ['info', 'warning', 'critical'].includes(obj.severity) ? obj.severity : 'unknown';
   const short = value => redact(typeof value === 'string' ? value.slice(0, 1200) : '');
+  const observations = Array.isArray(obj.observations) ? obj.observations.slice(0, 8).map(item => ({
+    claim: short(typeof item === 'string' ? item : item?.claim),
+    evidence_line_ids: Array.isArray(item?.evidence_line_ids) ? item.evidence_line_ids.slice(0, 4) : []
+  })).filter(item => item.claim.length) : [];
   return {
     severity,
     summary: short(obj.summary),
-    observations: Array.isArray(obj.observations) ? obj.observations.slice(0, 6).map(short) : [],
-    uncertainties: Array.isArray(obj.uncertainties) ? obj.uncertainties.slice(0, 6).map(short) : [],
+    observations,
+    uncertainties: Array.isArray(obj.uncertainties) ? obj.uncertainties.slice(0, 8).map(short) : [],
     recommendation: short(obj.recommendation)
   };
 }
 
-export function reportMarkdown({ site, time, runId, hash, analysis, truncated }) {
-  const clean = s => redact(String(s)).replace(/\r/g, '').replace(/</g, '&lt;');
-  const bullets = xs => xs.length ? xs.map(x => '- ' + clean(x).replace(/\n/g, ' ')).join('\n') : '- 无';
+export function reportMarkdown({ site, time, runId, hash, analysis, truncated, evidenceLineCount = 0 }) {
+  const clean = s => redact(String(s)).replace(/\r/g, '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const inline = s => clean(s).replace(/\n/g, ' ');
+  const quote = s => inline(s).replace(/([\\\x60*_{}\[\]])/g, '\\$1');
+  const bullets = xs => xs.length ? xs.map(x => '- ' + inline(x)).join('\n') : '- None';
+  const supported = (analysis.observations ?? []).map(item =>
+    '- ' + inline(item.claim) + '\n' + item.evidence.map(e => '  - ' + e.id + ': “' + quote(e.text) + '”').join('\n')
+  );
+  const unsupported = (analysis.unsupported ?? []).map(item => '- ' + inline(item.claim) + ' — ' + inline(item.reason));
   return [
     '# Website Audit — ' + clean(site.id),
     '', '- Time (UTC): ' + clean(time),
@@ -87,13 +97,17 @@ export function reportMarkdown({ site, time, runId, hash, analysis, truncated })
     '- Browser profile: ' + clean(site.profile),
     '- Snapshot SHA-256: ' + hash,
     '- Snapshot truncated: ' + (truncated ? 'yes' : 'no'),
+    '- Evidence protocol: evidence-v2 (numbered snapshot lines; model claims are not independently verified)',
+    '- Evidence lines shown to model: ' + evidenceLineCount,
     '- Severity (model assessment): ' + clean(analysis.severity),
-    '', '## Summary', clean(analysis.summary),
-    '', '## Observations (verify against page)',
-    bullets(analysis.observations),
-    '', '## Uncertainties', bullets(analysis.uncertainties),
-    '', '## Suggested manual checks', clean(analysis.recommendation),
-    '', '> An AI-generated review of a read-only accessibility snapshot, not a verified functional test. No browser actions or terminal commands were executed from the page.',
+    '', '## Summary (model interpretation)', inline(analysis.summary),
+    '', '## Evidence-linked observations (source excerpts; verify interpretation)',
+    supported.length ? supported.join('\n') : '- None',
+    '', '## Model claims without valid line citations (unverified)',
+    unsupported.length ? unsupported.join('\n') : '- None',
+    '', '## Uncertainties', bullets(analysis.uncertainties ?? []),
+    '', '## Suggested manual checks', inline(analysis.recommendation),
+    '', '> Source excerpts are taken from the redacted accessibility snapshot, not written by the model. A matching source line does not prove the claim is correct. This is not a verified functional test.',
     ''
   ].join('\n');
 }

@@ -45,3 +45,7 @@ The scan checks PATH, known Apple Silicon/Homebrew/local executable locations, a
 4. **Never interpret a model's recollection as stronger evidence than a fresh local probe.**
 
 Limitations: not a full installed-app audit; some applications may live in unscanned paths; no OpenClaw Gateway health assertion from mere binary discovery; the port catalog is not a full Ollama inference test. New detection targets should be added with tests and privacy review. No scheduled scans, network discovery, remote shell or web dashboard in phase 1.
+
+## Independent OpenClaw CLI detection
+
+Following the first Mac bootstrap, the private executable lives at `~/.openclaw/bin/openclaw`. Environment scan now inspects that known location and reports `found_off_path` when it is not on the current shell PATH. Preflight can reuse this exact existing executable without changing fnm defaults or installing another runtime.

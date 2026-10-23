@@ -46,3 +46,19 @@ test('readiness distinguishes installed, PATH and model availability', () => {
   assert.deepEqual(checks.map(c=>c.status),['ready','needs_path','ready','ready']);
   assert.match(formatSummary(snapshot),/found_off_path/);
 });
+
+test('find isolated OpenClaw in existing private installation even when it is off PATH', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'inventory-openclaw-'));
+  try {
+    const dir = join(home, '.openclaw', 'bin');
+    await mkdir(dir, {recursive:true});
+    const executable = join(dir, 'openclaw');
+    await writeFile(executable, '#!/bin/sh\n');
+    await chmod(executable, 0o700);
+    const detected = await detectTool('openclaw', { home, envPath:'/usr/bin' });
+    assert.equal(detected.status, 'found_off_path');
+    assert.equal(detected.executable, '~/.openclaw/bin/openclaw');
+  } finally {
+    await rm(home, {recursive:true, force:true});
+  }
+});

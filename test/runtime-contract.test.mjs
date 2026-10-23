@@ -13,3 +13,9 @@ test('preflight checks stage-1 Node independently from OpenClaw runtime', () => 
   assert.match(script, /OpenClaw might use its own compatible Node/);
   assert.doesNotMatch(script, /Node requires >=24\.22\.1/);
 });
+
+test('preflight can resolve already installed isolated OpenClaw', () => {
+  const script = readFileSync(resolve('scripts/preflight.sh'), 'utf8');
+  assert.match(script, /\.openclaw\/bin\/openclaw/);
+  assert.match(script, /export PATH="\$HOME\/\.openclaw\/bin:\$PATH"/);
+});

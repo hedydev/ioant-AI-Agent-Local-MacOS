@@ -16,7 +16,7 @@ function unique(values) { return [...new Set(values.filter(Boolean))]; }
 
 export function candidatePaths(name, { home = homedir(), envPath = process.env.PATH ?? '', downloads = [] } = {}) {
   const pathDirs = envPath.split(':').filter(Boolean).filter(d => isAbsolute(d));
-  const common = ['/opt/homebrew/bin', '/usr/local/bin', join(home,'.local','bin'), join(home,'.npm-global','bin'), join(home,'.volta','bin')];
+  const common = ['/opt/homebrew/bin', '/usr/local/bin', join(home,'.local','bin'), join(home,'.openclaw','bin'), join(home,'.npm-global','bin'), join(home,'.volta','bin')];
   const special = name === 'adb'
     ? downloads.filter(n => !n.startsWith('.') && n.length < 180).map(n => join(home,'Downloads',n,'platform-tools','adb'))
     : [];

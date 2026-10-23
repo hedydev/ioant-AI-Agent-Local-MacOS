@@ -110,3 +110,18 @@ Remaining optional sign-off:
 - Test opt-in foreground watch start/stop if continuous observation will be used.
 
 No Stage-2 browser click/fill/action, model tool execution, unattended agent, ChatDock connection or remote shell access is enabled by this result.
+
+## Evidence-linked audit v2 (committed, Mac rollout pending)
+
+Following the first live report, its assertions could not be reconciled against quoted source lines. Evidence protocol v2 introduces deterministic `L0001`-style IDs for **redacted, bounded** accessibility-snapshot lines. Ollama observations must specify `claim` and `evidence_line_ids`; a pure local validator resolves exact IDs to source excerpts and moves missing/invalid citations into an explicit unverified section. Model-provided quote text is ignored. The report includes counts, the evidence protocol, truncation status and model-assessment disclaimer.
+
+Validation design: the model never executes page content; citations do not certify claim-to-evidence entailment, visual appearance, link functionality, page semantics or accessibility standards. The source remains best-effort redacted; never scan secret-bearing pages in Phase 1. The full raw browser snapshot is not written to disk, only brief redacted excerpts of lines the model cites in the final report.
+
+The persisted state now includes `evidenceSchemaVersion: 2`. The first audit after this update creates a fresh evidence report even when its bounded snapshot SHA matches a v1 report. Later unchanged captures return `UNCHANGED` before Ollama inference. `--force` deliberately requests a new report.
+
+`scripts/bootstrap-phase1.sh` now:
+1. Reuses a unique existing `https://example.com/` browser tab, or opens the page if none is present; fails visibly on duplicates.
+2. Runs the real audit once (new report or unchanged skip), immediately runs it again and **requires `UNCHANGED example`**; this checks the unchanged-page path on the user's Mac without persistent monitoring.
+3. Stops only the Gateway it started.
+
+**Status:** code and mocked tests prepared; user has not yet run v2 on Mac. Successful v1 smoke proof remains valid, but v2 evidence quality and Mac dedup still need evidence.

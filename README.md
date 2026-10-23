@@ -64,6 +64,14 @@ bash scripts/dev-env.sh exec node src/audit.mjs --watch --id example --interval 
 
 To audit another page, copy/edit `config/sites.json` with **exact** page URL and profile, open that same URL yourself using `openclaw browser --browser-profile ... open ...`, then run `--once --id YOUR_ID`. If a logged-in tab is required, first sign in manually in the **isolated** OpenClaw browser profile; browser profiles are not automatically shared with ordinary Chrome.
 
+## Evidence-linked reports and unchanged-page verification
+
+Audit v2 numbers redacted accessibility snapshot lines as `L0001`, `L0002`, etc. The model returns claims with source line IDs; the report renderer adds **actual source excerpts** from those lines. Missing/invalid references are shown separately as **uncited** and are never silently treated as evidence. A cited line is only a source pointer, not proof the model interpreted it correctly; claims about visual styling, actual clicks or accessibility behavior still require human/functional tests.
+
+On first run after updating from the original report schema, the program deliberately creates a **new evidence-v2 report** even if the page text has not changed. From then on, matching snapshots with the same SHA are skipped unless `--force` is used. The one-command bootstrap now performs a second same-page capture and requires `UNCHANGED` to confirm no repeat inference. It reuses an existing unique `example.com` tab instead of opening duplicates.
+
+Local audits can contain short excerpts of page text despite best-effort credential redaction; avoid sensitive/private pages for stage 1. No full raw snapshot is persisted.
+
 ## Environment discovery before installing anything
 
 The Mac may already have OpenClaw, Ollama, ADB, etc. A missing shell command does not prove an app is absent. Use the [read-only environment registry](docs/ENVIRONMENT_REGISTRY.md) first:

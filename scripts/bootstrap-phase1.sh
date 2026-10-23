@@ -100,11 +100,31 @@ else
   info 'Temporary authenticated Gateway is available on localhost only.'
 fi
 
-info 'Starting separate OpenClaw browser profile and opening public example page'
+info 'Starting isolated OpenClaw browser; reuse a unique existing example.com tab'
 "$OPENCLAW_BIN" browser --browser-profile openclaw start || fail 'OpenClaw browser start failed.'
-"$OPENCLAW_BIN" browser --browser-profile openclaw open https://example.com/ || fail 'Failed to open example page.'
+TAB_COUNT="$("$OPENCLAW_BIN" browser --browser-profile openclaw --json tabs | node -e '
+  let s="";
+  process.stdin.on("data", d => s+=d).on("end", () => {
+    const json=JSON.parse(s);
+    const tabs=Array.isArray(json)?json:(json.tabs??json.result?.tabs);
+    if(!Array.isArray(tabs)) throw new Error("Invalid browser tab list");
+    const count=tabs.filter(t => {
+      try {return new URL(t.url).href==="https://example.com/"} catch{return false}
+    }).length;
+    process.stdout.write(String(count));
+  });
+')" || fail 'Could not inspect existing OpenClaw tabs.'
+case "$TAB_COUNT" in
+  0) "$OPENCLAW_BIN" browser --browser-profile openclaw open https://example.com/ || fail 'Failed to open example page.' ;;
+  1) info 'Reusing the already-open example.com tab; no duplicate created.' ;;
+  *) fail "Found $TAB_COUNT example.com tabs; close duplicates manually before auditing." ;;
+esac
 
 info 'Running one real read-only website audit with local Ollama'
 (cd "$ROOT" && node src/audit.mjs --once --id example) || fail 'Audit failed. Review local report/event logs; no external actions were taken.'
-info 'Success. OpenClaw is installed, project tests passed and a report path was printed.'
+info 'Checking an unchanged second capture does not request another model analysis'
+SECOND_PASS="$(cd "$ROOT" && node src/audit.mjs --once --id example)" || fail 'Second capture failed.'
+printf '%s\n' "$SECOND_PASS"
+[[ "$SECOND_PASS" == *"UNCHANGED example sha256="* ]] || fail 'Repeat capture was not unchanged; investigate snapshot stability and do not claim deduplication passed.'
+info 'Success. OpenClaw, local analysis and unchanged-snapshot deduplication passed.'
 info 'Temporary Gateway (if started here) will be shut down. No daemon installed.'

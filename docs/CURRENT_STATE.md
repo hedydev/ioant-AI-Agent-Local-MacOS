@@ -62,3 +62,14 @@ User-reported Mac terminal output after corrected bootstrap:
 **No extra installation required for recheck:** reuse isolated OpenClaw in `~/.openclaw`, existing Ollama on `127.0.0.1:11435`, and original fnm Node for the project scripts. Run `node --test` or `scripts/bootstrap-phase1.sh` only as needed.
 
 **Next acceptance evidence:** open/review the single local Markdown report for grounded observations and uncertainty; run a second `--once` against the same unchanged page while a Gateway/browser is available and verify an `UNCHANGED` log with no second model inference. Keep model output and private diagnostic files local.
+
+## Current work: Phase-1 evidence grounding and repeat-scan acceptance (2026-10-23)
+
+The initial live report demonstrated inference but provided only free-text model claims and no source excerpts. Evidence-v2 changes:
+- New `src/evidence.mjs`: bounded/redacted numbered browser source lines and deterministic citation resolution.
+- `src/core.mjs`: parse structured citation IDs; Markdown report separately labels line-linked interpretations and invalid/uncited model claims.
+- `src/audit.mjs`: feed numbered source, record v2 schema and evidence counts; regenerate once on schema transition, otherwise skip unchanged SHA.
+- `scripts/bootstrap-phase1.sh`: reuse a unique open example tab; a second same-session capture must print `UNCHANGED`.
+- Add evidence/force/dedup/invalid citation tests; adjust existing mocked integration test.
+
+**Verification boundary:** existing v1 real-Mac smoke was successful. v2 changes have not yet been executed against user's Mac/OpenClaw/Ollama, so do not mark v2 accepted or presume model citation quality. Use the single copy-paste Mac command from README, review the new report, confirm `UNCHANGED` and no unwanted environment changes. Keep credential-bearing pages out of audits.
