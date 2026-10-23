@@ -1,3 +1,4 @@
+import { aliceWitnessPreflight } from './alice-preflight.mjs';
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
@@ -14,14 +15,27 @@ export function actionPlan(action, repoRoot) {
   };
   return plans[action] ?? null;
 }
-export async function runAction(action, repoRoot) {
+export async function executeStep(plan) {
+  const result=await runFixedPlan(plan);
+  return result;
+}
+
+export async function runAction(action, repoRoot, options={}) {
+  if (action==='alice-witness-preflight') {
+    if (options.enableAlicePreflight!==true) return {status:'approval_required',reason:'This Alice workflow must be explicitly enabled on the Mac launcher.'};
+    return aliceWitnessPreflight({execute:executeStep,sshTarget:process.env.ALICE_SSH_TARGET});
+  }
   const plan=actionPlan(action,repoRoot);
   if (!plan) return {status:'approval_required',reason:'Not on automatic action allowlist. No command was run.'};
+  return runFixedPlan(plan);
+}
+
+async function runFixedPlan(plan) {
   const start=performance.now();
   return new Promise(resolveResult=>{
     let output='',finished=false,timedOut=false;
     const done=(result)=>{if(!finished){finished=true;resolveResult({...result,elapsedMs:Math.round(performance.now()-start),output})}};
-    const env={...process.env};
+    const env={...process.env,...(plan.env??{})};
     delete env.NODE_TEST_CONTEXT; // Do not turn nested project tests into recursive Node test-runner skips.
     const p=spawn(plan.bin,plan.args,{cwd:plan.cwd,env,shell:false,stdio:['ignore','pipe','pipe']});
     const timer=setTimeout(()=>{timedOut=true;p.kill('SIGTERM')},plan.timeout);

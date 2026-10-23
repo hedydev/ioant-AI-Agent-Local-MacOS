@@ -4,7 +4,7 @@ export const PROTOCOL = 'ioant-mac-ops-v1';
 const CHAT_PATH = /^\/(?:g\/[a-zA-Z0-9_-]+\/)?c\/[a-zA-Z0-9-]{15,}$/;
 const TASK_ID = /^[a-zA-Z0-9][a-zA-Z0-9_-]{3,79}$/;
 const AUTO_ACTIONS = new Set(['project-tests', 'project-status', 'project-head', 'environment-scan']);
-const KNOWN_ACTIONS = new Set([...AUTO_ACTIONS, 'audit-example']);
+const KNOWN_ACTIONS = new Set([...AUTO_ACTIONS, 'audit-example', 'alice-witness-preflight']);
 
 export function validateChatUrl(value) {
   const url = new URL(value);
@@ -60,9 +60,13 @@ export function responseForTask(task, execution, session) {
   if (execution.reason) lines.push(`Reason: ${redactFeedback(execution.reason)}`);
   if (execution.exitCode !== undefined) lines.push(`Exit code: ${execution.exitCode}`);
   if (execution.elapsedMs !== undefined) lines.push(`Elapsed ms: ${execution.elapsedMs}`);
+  if (execution.reportJson) {
+    lines.push('Fresh validated witness-preflight JSON (not an old duplicate):\n```json\n' + execution.reportJson + '\n```');
+    if (execution.reportFilename) lines.push('Report file on Mac Desktop: ' + execution.reportFilename);
+  }
   if (execution.output) lines.push('Output (bounded/redacted):\n' + redactFeedback(execution.output));
   lines.push('The worker is waiting for the next structured task in this same conversation.');
-  return lines.join('\n').slice(0,2800);
+  return lines.join('\n').slice(0,7000);
 }
 
 export function chatKey(url) { return createHash('sha256').update(validateChatUrl(url)).digest('hex').slice(0,24); }

@@ -38,3 +38,8 @@ The immutable read-only boundaries above continue to apply to `src/audit.mjs` an
 - Do not automatically import ordinary Chrome cookies, integrate ChatDock credentials, launch persistent services, or silently use another conversation.
 - Persist execution before sending feedback, bound and redact output, refuse uncertain duplicate sends and host commands, and stop on unexpected browser DOM changes.
 - All new behavior is experimental until **real Mac OpenClaw profile** confirms both command execution and same-chat response. Keep `docs/CHATGPT_LOOP.md` current. The operator is responsible for starting and stopping the foreground loop.
+
+
+## Opt-in Stage-2 Alice witness-preflight action
+
+The `alice-witness-preflight` action may execute only when the user launches the foreground Stage-2 watcher with `--enable-alice-preflight` and a locally set `ALICE_SSH_TARGET`. It is not part of Phase-1 audits and is not generally granted to assistant instructions in other conversations. The command plan is fixed: verify exact Alice repository, `main` and clean tracked worktree; `git fetch origin main` / `git pull --ff-only origin main`; maintained Alice Mac `sync` followed only on success by `witness-preflight`. It is approved to update backed-up Mint project source **but not** to restart Alice or BDS, alter Bedrock worlds, install packs, or bypass safety gates. The worker rejects legacy/duplicate JSON and reports failures without inventing evidence. Send sanitized JSON content, not a claim of completed file attachment upload. See `docs/CHATGPT_LOOP.md`.

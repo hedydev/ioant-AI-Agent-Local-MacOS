@@ -4,6 +4,11 @@ set -Eeuo pipefail
 umask 077
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 [[ "$(uname -s)" == Darwin ]] || { echo '[loop] macOS required' >&2; exit 1; }
+if [[ " $* " == *" --enable-alice-preflight " ]]; then
+  [[ -n "${ALICE_SSH_TARGET:-}" ]] || { echo '[loop] Set ALICE_SSH_TARGET before enabling Alice preflight' >&2; exit 2; }
+  echo '[loop] Alice workflow explicitly enabled: fetch/ff-only pull + non-destructive Mint sync + read-only witness preflight.'
+  echo '[loop] No BDS restart or world-pack install actions are authorized.'
+fi
 source "$ROOT/scripts/dev-env.sh"
 command -v node >/dev/null || { echo '[loop] Existing Node 20+ required' >&2; exit 1; }
 node -e 'if(Number(process.versions.node.split(".")[0])<20)process.exit(1)'

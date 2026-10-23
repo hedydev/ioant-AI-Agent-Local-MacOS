@@ -156,3 +156,8 @@ bash scripts/chatgpt-loop.sh --chat-url 'https://chatgpt.com/c/REPLACE_WITH_YOUR
 If ChatGPT is not signed in within the **isolated OpenClaw profile**, complete the one-time login in that profile. Real ChatGPT DOM/receipt behavior is not yet Mac-verified; simulated browser tests must not be reported as live acceptance.
 
 See [complete Phase-2 architecture, security, setup and validation](docs/CHATGPT_LOOP.md).
+
+
+## Opt-in ChatGPT ↔ AliceAI automatic command/report loop
+
+For a recurring ChatGPT discussion that asks you to update AliceAI, run Mint tests and generate BDS witness-preflight reports, see [ChatGPT command feedback loop](docs/CHATGPT_LOOP.md). After explicit `--enable-alice-preflight` startup, the bounded worker handles Git ff-only sync, tests, read-only witness generation, and posting the sanitized JSON result back to the **same** ChatGPT conversation without repeated manual copying. It never accepts raw shell commands from the page and does not restart BDS or edit a world. Mac/ChatGPT browser interaction remains real-device-unverified.

@@ -29,12 +29,13 @@ const readPageFunction=`() => {
 }`;
 
 function argsOf(argv){
-  const out={mode:'watch',interval:15,url:null,initialize:false};
+  const out={mode:'watch',interval:15,url:null,initialize:false,enableAlicePreflight:false};
   for(let i=0;i<argv.length;i++){
     if(argv[i]==='--once')out.mode='once';
     else if(argv[i]==='--watch')out.mode='watch';
     else if(argv[i]==='--list')out.mode='list';
     else if(argv[i]==='--initialize')out.initialize=true;
+    else if(argv[i]==='--enable-alice-preflight')out.enableAlicePreflight=true;
     else if(argv[i]==='--chat-url')out.url=validateChatUrl(argv[++i]??'');
     else if(argv[i]==='--interval'){out.interval=Number(argv[++i]); if(!Number.isInteger(out.interval)||out.interval<10||out.interval>3600)throw Error('--interval must be 10..3600 seconds');}
     else throw Error('Unknown flag: '+argv[i]);
@@ -150,6 +151,8 @@ async function writeReport(dir,task,result){
 
 const INIT=`Ioant Mac local command feedback protocol ${PROTOCOL}\n启用本地命令反馈。你可以讨论任何工作；只有需要本机自动执行安全检查时，才输出一个独立 JSON 代码块，字段必须恰好为 protocol、id、action。例如 {"protocol":"${PROTOCOL}","id":"test-001","action":"project-tests"}。可自动执行的 action 仅有 project-tests、project-status、project-head、environment-scan，作用于 ioant-AI-Agent-Local-MacOS 仓库。其他操作会被明确拒绝/要求审批。不要输出 shell 字符串、cwd、argv、密钥或敏感文件内容。收到以 [IOANT-MAC-OPS RESULT id] 开头的执行结果后再判断下一步，需要下一项检查就输出新的唯一 id；无任务就正常回答。不要重复先前 id。`;
 
+const INIT_ALICE=`Ioant Mac Alice witness workflow ioant-mac-ops-v1. 当前对话已连接你的 Mac 安全执行器。请先查看本对话上一条等待用户执行的命令：若正是 AliceAI 的 witness-preflight 预检，就立即输出唯一任务编号开始执行；如果不是，正常回答且不要自动执行其他操作。在需要执行 AliceAI 预检时，请只输出一个独立 JSON 代码块：{"protocol":"ioant-mac-ops-v1","id":"alice-唯一新任务编号","action":"alice-witness-preflight"}。此动作由 Mac 使用预先固定的仓库路径与本机配置的 SSH 目标，依次执行 Git fetch/ff-only pull、alice-mac.sh sync（内含本地/Mint 测试）、witness-preflight，只在所有步骤成功后读取本次新生成 schemaVersion 2 的 JSON 报告。失败会直接把错误反馈回来，不需要让我重复复制命令、寻找桌面文件或发送报告。收到 [IOANT-MAC-OPS RESULT id] 及原始失败摘要或经过校验的 JSON 后，先分析/修复，然后再输出新的唯一任务编号；不要重复上一任务。不要要求执行任意 shell、deploy/restart、改世界、安装行为包、管理账号或绕过 BDS 门禁。除这个固定工作流及原有四项本地检查外，其他操作都需要另行明确授权。`;
+
 async function main(){
   const opts=argsOf(process.argv.slice(2));
   if(opts.mode==='list'){
@@ -163,6 +166,7 @@ async function main(){
   const volume=process.env.IOANT_DEV_VOLUME;
   if(!store||!volume||!resolve(store).startsWith(resolve(volume)+'/DeveloperCache/'))
     throw Error('Run through scripts/dev-env.sh exec, with explicitly verified development volume and PROJECT_DEV_CACHE');
+  if(opts.enableAlicePreflight && !process.env.ALICE_SSH_TARGET) throw Error('Provide ALICE_SSH_TARGET on the Mac before --enable-alice-preflight');
   const workDir=join(store,'chatgpt-loop',chatKey(opts.url));
   await mkdir(workDir,{recursive:true,mode:0o700});
   const unlock=await lock(workDir);
@@ -173,7 +177,7 @@ async function main(){
   process.on('SIGTERM',()=>{stopping=true;console.log('[loop] Stop requested; finishing current operation.');});
   let state=await loadState(stateFile),previousFingerprint='',stable=0;
   console.log('[loop] Tracking only: '+opts.url);
-  console.log('[loop] Actions: project-tests / project-status / project-head / environment-scan. Ctrl-C stops.');
+  console.log('[loop] Actions: project-tests / project-status / project-head / environment-scan'+(opts.enableAlicePreflight?' / alice-witness-preflight (scoped Mint sync)':'')+'. Ctrl-C stops.');
   try{
     // A user may need to finish signing into ChatGPT in the managed browser.
     let target;
@@ -181,12 +185,19 @@ async function main(){
       try{target=await exactTab(opts.url);await readPage(target,opts.url)}
       catch(e){if(opts.mode==='once')throw e;target=null;console.log('[loop] ChatGPT tab/sign-in not ready; waiting for the exact URL.');await new Promise(r=>setTimeout(r,opts.interval*1000));}
     }
-    if(opts.initialize&&!state.initSent){
+    if(opts.initialize&&!opts.enableAlicePreflight&&!state.initSent){
       const receipt='Ioant Mac local command feedback protocol '+PROTOCOL;
       await sendToChat(target,opts.url,INIT,receipt);
       state.initSent=true;
       await atomicState(stateFile,state);
       console.log('[loop] One-time protocol sent to selected ChatGPT conversation.');
+    }
+    if(opts.initialize && opts.enableAlicePreflight && !state.aliceInitSent){
+      const receipt='Ioant Mac Alice witness workflow ioant-mac-ops-v1';
+      await sendToChat(target,opts.url,INIT_ALICE,receipt);
+      state.aliceInitSent=true;
+      await atomicState(stateFile,state);
+      console.log('[loop] Alice witness-preflight workflow enabled in selected conversation.');
     }
     do {
       if(stopping)break;
@@ -215,7 +226,8 @@ async function main(){
         if(a.fingerprint===previousFingerprint)stable++; else {previousFingerprint=a.fingerprint;stable=1;}
         if(stable>=2){
           const task=a.task;
-          const result=task.authorized?await runAction(task.action,ROOT):{status:'approval_required',reason:task.known?'This operation needs separate authorization.':'Action is not recognized or authorized.'};
+          const authorized=task.authorized || (task.action==='alice-witness-preflight' && opts.enableAlicePreflight);
+          const result=authorized?await runAction(task.action,ROOT,{enableAlicePreflight:opts.enableAlicePreflight}):{status:'approval_required',reason:task.known?'This operation needs separate authorization.':'Action is not recognized or authorized.'};
           await writeReport(workDir,task,result);
           const feedback=responseForTask(task,result,session);
           state.feedbackPending={id:task.id,feedback};

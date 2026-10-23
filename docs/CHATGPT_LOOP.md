@@ -92,3 +92,45 @@ The worker sends `[IOANT-MAC-OPS RESULT <id>]`, status, exit code and a small re
 ## Security and current limitations
 
 See OpenClaw browser CLI, prompt-injection and exec-approvals docs. Page text and any ChatGPT message may contain untrusted input, and local models are not approval authorities. No automatic unrestricted agent privileges have been granted. Frontend DOM selectors and OpenClaw `evaluate` JSON wrappers are version-dependent: **the browser send and receipt path is not considered real-Mac-proven until operator testing passes.** This script does not attach to the existing browser connector used by this chat; it drives only the Mac's separate OpenClaw profile.
+
+
+## AliceAI repeated preflight workflow (scoped opt-in, 2026-10-24)
+
+This capability is built from the operator's actual AliceAI exchange: ChatGPT asks the human to fast-forward `hedydev/ioant-AI-Minecraft-Alice`, run `alice-mac.sh sync` and `witness-preflight`, then upload the resulting Desktop JSON. A failed `unittest` import requires ChatGPT to fix code and then repeat the same sequence. **The operator does not need to paste that shell block for each iteration.**
+
+Opt-in adds exactly one action (`alice-witness-preflight`) to one exact selected ChatGPT conversation. ChatGPT must issue a JSON code block like:
+
+```json
+{"protocol":"ioant-mac-ops-v1","id":"alice-preflight-0001","action":"alice-witness-preflight"}
+```
+
+The worker runs only these preconfigured commands on the Mac, never commands or hostnames supplied inside the ChatGPT page:
+
+1. Verify canonical Alice repository remote origin, branch `main` and clean tracked worktree.
+2. `git fetch origin main`, then `git pull --ff-only origin main`; verify clean again.
+3. With the **locally supplied** `ALICE_SSH_TARGET`, run `bash games/minecraft-ai/scripts/alice-mac.sh sync`. Its maintained entrypoint performs Python tests, a tracked-only backed-up Mint copy and Mint tests. **This stage changes Mint project source files, but does not restart BDS/Alice or modify a world.** If tests fail, stop and return the final traceback/error text.
+4. Only after successful sync run `bash games/minecraft-ai/scripts/alice-mac.sh witness-preflight`; accept solely the Desktop path printed by this invocation, with the exact timestamped filename (never a `(1)` duplicate), regular-file and freshness checks, `schemaVersion: 2`, `audit: ALICE_BDS_SILENT_WITNESS_READ_ONLY`, expected read-only flags, allowed beta experiment value and observed timestamp.
+5. Post a bounded redacted execution result **and the validated, allowlisted JSON contents** into the *same* ChatGPT conversation, with an idempotent receipt. The original `.json` stays on the Mac Desktop. **This version transfers the report data in chat text, not as a literal file attachment.** If the DOM send is uncertain, do not re-run or blindly repost.
+
+Once configured, the one-time initialization message asks ChatGPT to issue the first structured task if its preceding AliceAI conversation has a pending preflight command. After ChatGPT receives an import failure report, it can fix its repository, emit a new unique task ID, and the foreground worker loops again.
+
+### Launch on the Mac (one-time per foreground session)
+
+```bash
+REPO="$HOME/Documents/workspace/ioant-AI-Agent-Local-MacOS"
+git -C "$REPO" pull --ff-only origin main &&
+cd "$REPO" &&
+bash scripts/dev-env.sh exec node --test &&
+ALICE_SSH_TARGET='tedz@192.168.0.104' \
+  bash scripts/chatgpt-loop.sh \
+  --chat-url 'https://chatgpt.com/c/REPLACE_WITH_THE_REAL_ALICE_CONVERSATION_ID' \
+  --initialize --enable-alice-preflight --watch
+```
+
+**Use the specific AliceAI ChatGPT conversation URL; the example above is a placeholder.** This uses the operator's previously supplied Mint SSH destination as a sample, not a new discovered address. If your target changed, replace it locally. The launcher does not install anything or configure SSH keys; use your existing SSH configuration. Log in to ChatGPT in the **separate OpenClaw browser profile** once if needed. The opt-in is scoped to this foreground process; do not run the Alice workflow from another conversation without deliberately selecting it. `Ctrl+C` stops the watcher.
+
+Automatic permissions do **not** include `alice-mac.sh deploy`, `restart`, world backup restoration, behavior pack installation, Beta API enabling, Minecraft admin operations, arbitrary shell commands or AI-proposed paths. Other actions return `approval_required`.
+
+### Test coverage and limitations
+
+Six new isolated Alice-workflow tests pass: local opt-in, exact argv/order, source/SSH filtering, stop on Python import failure, rejection of copied `(1)` files, and schema/timestamp privacy filtering. Existing Stage-2 protocol and simulated browser tests also pass (15/15 for this targeted subset on Node 22 Linux). This is **not** Mac real-site acceptance. OpenClaw's browser DOM selectors, sending the structured result and the full ChatGPT reasoning/repair loop still need one Mac trial. Remote Git commits will only be picked up by fast-forward on each new task; no autonomous repo commit or code edit is performed by this Mac worker.

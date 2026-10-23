@@ -162,3 +162,14 @@ Implementation is deliberately in **separate Stage 2**: `stage2/protocol.mjs` va
 A single opt-in `--initialize` sends the task protocol as a normal ChatGPT user message. The protocol only runs `project-tests`, `project-status`, `project-head`, and `environment-scan`. Arbitrary scripts or requests (including destructive and deployment actions) are rejected with `approval_required`; implementing user approval for further command classes is **not complete**.
 
 **Local non-Mac validation evidence:** seven new protocol/runner/mock-browser tests passed, including one simulated end-to-end assistant task → command → Desktop report → reply → wait. Two additional static/shell tests also passed separately. These results are **not** real ChatGPT/macOS login/UI proof. Real Mac execution, login, one exact ChatGPT tab, and message receipt still require operator verification; do not claim the loop is currently running from ChatGPT itself. No background process or ChatGPT session access was created in the user's Mac by this GitHub-only update.
+
+
+## ChatGPT/Mac AliceAI preflight feedback loop (2026-10-24)
+
+The user provided a representative full cycle: ChatGPT requested AliceAI Git main ff-only update → Mint sync and tests → BDS witness-preflight report JSON → upload → ChatGPT diagnosis of import-path regression → Git fix → rerun. The user wants the Mac to do these operational steps repeatedly while ChatGPT does the reasoning and fixes, without manual command copying or report hunting.
+
+Added a **separately opted-in** structured Stage-2 action `alice-witness-preflight`. It uses fixed repo and Mac script paths, validates the existing `origin` and `main`, refuses tracked dirty worktrees, performs only Git fetch/ff-only pull and maintained Alice sync/read-only witness commands, stops on nonzero output, extracts the Desktop report path from the actual script stdout and verifies freshness, filename, schema v2, timestamp, read-only flags. Sends a bounded, sanitized copy of the report's JSON fields inside the selected ChatGPT conversation as text; the original JSON remains on Desktop. The ChatGPT page never supplies Shell/cwd/argv/target. Mint sync is explicitly opt-in because it updates project files; no BDS restart/world writes are authorized.
+
+Tests: six Alice-specific cases passed, and the targeted Stage-2 suite passed 15/15 under Linux Node 22, with a simulated browser. Real Mac browser DOM and looping assistant behavior, same-chat feedback and recovery after an uncertain send **not yet physically accepted**. Documentation: `docs/CHATGPT_LOOP.md`.
+
+Important boundary: the loop is a foreground Mac process, not a task or background process running within this ChatGPT reply; requires explicit --initialize --enable-alice-preflight at startup. No literal binary attachment uploading yet; complete allowlisted report JSON is sent in message text after successful preflight.
