@@ -138,3 +138,21 @@ The initial run after upgrading to analysis policy v3 regenerates an evidence re
 ## Evidence citation count (analysis policy v4)
 
 A single observation may now cite up to **eight** source lines instead of four. If an observation lists distinct languages of separate paragraph nodes, the number of paragraph citations must cover every language it names, or the claim appears in the report's insufficient-evidence section rather than masquerading as completely sourced. This general count check is **not** a semantic language detector. The v4 policy creates a fresh Desktop report once, then resumes normal unchanged-page deduplication.
+
+
+## Phase 2 (opt-in): ChatGPT → Mac → ChatGPT command-feedback loop
+
+A **separate experimental foreground worker** can watch one explicitly selected ChatGPT conversation via the already installed isolated OpenClaw browser profile. When the most recent assistant turn contains exactly one structured `ioant-mac-ops-v1` JSON task, the worker can execute a small fixed action allowlist (`project-tests`, `project-status`, `project-head`, `environment-scan`), write a private Markdown report to the Mac Desktop and send a bounded result back to that exact conversation before waiting for the next distinct task ID.
+
+No plain-text shell commands are executed, even if suggested by ChatGPT. Other actions receive `approval_required`, not automatic host access. It does not import Chrome cookies, require a separate agent daemon, enable cross-conversation reading, or modify the Phase-1 audit permissions. State, task IDs and pending feedback receipts live privately on LunaDrive. The worker stops with Ctrl-C.
+
+```bash
+# On Mac, after fast-forwarding main and passing node --test:
+bash scripts/chatgpt-loop.sh --list
+# Supply the EXACT URL of the intended ChatGPT conversation:
+bash scripts/chatgpt-loop.sh --chat-url 'https://chatgpt.com/c/REPLACE_WITH_YOUR_ACTUAL_ID' --initialize --watch
+```
+
+If ChatGPT is not signed in within the **isolated OpenClaw profile**, complete the one-time login in that profile. Real ChatGPT DOM/receipt behavior is not yet Mac-verified; simulated browser tests must not be reported as live acceptance.
+
+See [complete Phase-2 architecture, security, setup and validation](docs/CHATGPT_LOOP.md).

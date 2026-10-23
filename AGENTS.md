@@ -27,3 +27,14 @@ Architecture: `src/core.mjs` pure contracts, `src/audit.mjs` CLI orchestration, 
 ## Environment evidence requirement
 
 Before instructing an operator to install tools or change configuration, run the read-only `node src/environment.mjs scan` or inspect a fresh private LunaDrive registry snapshot. Distinguish `on_path`, `found_off_path`, `not_detected`, service health and model inventory. Do not claim a tool is absent when it was merely not found in scanned paths. This registry is host-specific state, not Hero Skills knowledge; do not commit its generated content.
+
+
+## Separately opted-in Stage 2: ChatGPT command-feedback experiment (2026-10-24)
+
+The immutable read-only boundaries above continue to apply to `src/audit.mjs` and the Phase-1 browser audit. The new, **separately invoked** `stage2/chatgpt-loop.mjs` is authorized only for a single exact user-selected `https://chatgpt.com/c/...` (or `/g/.../c/...`) conversation. It may use OpenClaw's static `evaluate` to read assistant-authored structured tasks and its `type` / `press` actions to send bounded task results back to that same conversation. This does not grant any Phase-1 action capability.
+
+- Stage 2 executes only fixed, repository-scoped command action names listed in `stage2/runner.mjs`, invoked with `shell:false`. No model-provided shell strings, file paths, arbitrary `argv`, secrets, app upgrades or destructive operations.
+- The ChatGPT page is untrusted even if signed in. Check exact origin, exact selected tab, visible complete assistant turn, structured JSON protocol, unique task ID, and explicit action allowlist.
+- Do not automatically import ordinary Chrome cookies, integrate ChatDock credentials, launch persistent services, or silently use another conversation.
+- Persist execution before sending feedback, bound and redact output, refuse uncertain duplicate sends and host commands, and stop on unexpected browser DOM changes.
+- All new behavior is experimental until **real Mac OpenClaw profile** confirms both command execution and same-chat response. Keep `docs/CHATGPT_LOOP.md` current. The operator is responsible for starting and stopping the foreground loop.
