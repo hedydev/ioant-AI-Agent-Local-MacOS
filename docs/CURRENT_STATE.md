@@ -182,3 +182,12 @@ Latest operator terminal evidence: `gateway health requires credentials before o
 The old Stage-2 launcher discarded the actual authentication error and treated all failures on an occupied TCP 18789 as an unknowable listener, with no safe recovery path. It now prompts interactively for an already existing Gateway token or password **only** for the specific 'requires credentials' error plus local listener. The secret is hidden, never printed or saved by the launcher, and validated before reuse. Failed validation stops without stopping the other Gateway or changing local/browser config. As a follow-up security hardening, project-command subprocesses cannot inherit Gateway token/password/URL environment variables.
 
 Added regression tests for the launcher contract and child secret stripping. Real-Mac Gateway authentication and browser ChatGPT access **remain pending**. Do not request token disclosure, gateway reset, or proxy/VPN changes.
+
+
+## Mac ChatGPT loop open-tab success but blocked by prior watch.lock (2026-10-24)
+
+New actual operator run: OpenClaw Gateway authenticated, isolated browser said `running: true`, and browser opened the explicitly selected ChatGPT conversation with target `92B4BF9F43325BA3806F52BD50DF87F6`. Stage-2 worker then failed at `open(.../chatgpt-loop/<chat-key>/watch.lock, 'wx')` with `EEXIST`; the script stopped only its own temporary Gateway. Page contents, ChatGPT login, and message send/receipt have **not** been verified by this evidence.
+
+The lock had no stale-owner recovery. Added a separate lease module that accepts old-format PID metadata and cleans only a **provably dead** owner (process.kill(pid,0) -> ESRCH) under an exclusive recovery guard. A live/ambiguous owner, unsafe lock, corrupt metadata or competing recovery stops and keeps the lock. New lock owner nonce prevents cleanup removing a replacement. Also moved the asynchronous state read within the main cleanup try/finally to avoid leaking the lock after a state error. No application process signals or arbitrary lock deletion.
+
+Five targeted Node 22 lock tests were run and passed outside the Mac; complete Mac suite and full ChatGPT message round-trip remain pending. A launcher rerun should reuse the already-open tab if unique and recover an orphaned legacy lock, or print a clear live-owner conflict without running two Mac workers.

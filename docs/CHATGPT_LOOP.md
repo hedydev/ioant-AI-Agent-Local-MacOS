@@ -147,3 +147,18 @@ The task subprocess launcher now deletes `OPENCLAW_GATEWAY_TOKEN`, `OPENCLAW_GAT
 If Gateway auth succeeds but ChatGPT still shows 403 or fails to load, investigate the isolated browser's proxy routing and interactive login separately; do not switch off NetScale, Tailscale, sing-box, or system proxy from this script. Existing browser sessions do not automatically share Chrome sign-in.
 
 **Validation:** source patch and regression tests are published, but a real Mac Gateway token/password and isolated Chrome sign-in remain to be verified by the operator. The loop is **not** claimed active in this ChatGPT conversation.
+
+
+## `watch.lock` conflict and verified orphan recovery (2026-10-24)
+
+The operator's Mac trial authenticated the Gateway, started the isolated `openclaw` browser, and created exactly one authorized ChatGPT conversation tab (browser target `92B4BF9F43325BA3806F52BD50DF87F6`). The foreground worker then stopped on `EEXIST: watch.lock`. **That means a lock file existed, not that the other watcher was definitely still alive, and not that the ChatGPT page successfully loaded/sent anything.**
+
+Root cause: Stage 2 previously created `watch.lock` with exclusive `wx`, but never checked if its owner PID was still running after an abnormal crash. An old lock therefore blocked every subsequent launch. Additionally, reading `state.json` before the cleanup `try/finally` could leave a lock behind if the state was unreadable.
+
+Stage 2 now uses a standalone lock module. On an existing lock, it opens an exclusive recovery guard in the same private per-chat directory, requires a regular private same-user bounded JSON lock file with a trustworthy PID and timestamp, and checks `kill(pid,0)`. Only **ESRCH = definite nonexistence** permits stale-lock removal. An alive PID, `EPERM`, unknown process state, unsafe permissions, symbolic links, malformed metadata, a changing file identity, or simultaneous recovery **fail closed**. New locks include a random owner nonce. Cleanup checks the same owner/nonce before unlinking. No process is killed, and state history is not cleared. Old-format lock files (pid/startedAt) are recognized for recovery.
+
+`state.json` load now occurs inside the guarded `try/finally`. This fixes state-load-error lock leakage without relaxing duplicate execution / uncertain-feedback protections.
+
+**Operator steps:** fast-forward the Mac checkout, run full `node --test`, then rerun `bash scripts/chatgpt-loop.sh --chat-url 'EXACT-CHAT-URL' --watch`; add `--initialize --enable-alice-preflight` and locally provided `ALICE_SSH_TARGET` only when intentionally authorizing the Alice sync action. If a previous owner still exists, the worker prints its PID and refuses a second instance—inspect with `ps -p PID -o pid=,command=` before doing anything else. Do **not** blindly `rm watch.lock`, kill unrelated processes, reset state, or remove `watch.lock.recovery` while another recovery might be active.
+
+**Validation:** five focused Node 22 tests of orphan recovery, active lock refusal, invalid/public/symlink lock rejection, safe owner-specific release and recovery contention passed in isolated Linux. Real Mac watch continuity, DOM sign-in, and reply confirmation remain to be tested.

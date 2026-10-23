@@ -3,7 +3,8 @@
 // No arbitrary shell commands, browser click exploration, Chrome cookie imports or daemons.
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { open, readFile, writeFile, rename, mkdir, unlink } from 'node:fs/promises';
+import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
+import { acquireConversationLock } from './conversation-lock.mjs';
 import { resolve, dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -131,13 +132,6 @@ async function atomicState(file,state){
 async function loadState(file){
   try{return JSON.parse(await readFile(file,'utf8'))}catch(err){if(err.code==='ENOENT')return {lastTaskId:null,feedbackPending:null,initSent:false};throw err}
 }
-async function lock(dir){
-  const lockFile=join(dir,'watch.lock');
-  const fd=await open(lockFile,'wx',0o600);
-  await fd.writeFile(JSON.stringify({pid:process.pid,startedAt:new Date().toISOString()})+'\n');
-  await fd.close();
-  return async()=>{await unlink(lockFile).catch(()=>{})};
-}
 async function writeReport(dir,task,result){
   const reports=join(homedir(),'Desktop','Ioant-AI-Agent-Reports','chatgpt-loop');
   await privateReportDir(reports);
@@ -169,16 +163,17 @@ async function main(){
   if(opts.enableAlicePreflight && !process.env.ALICE_SSH_TARGET) throw Error('Provide ALICE_SSH_TARGET on the Mac before --enable-alice-preflight');
   const workDir=join(store,'chatgpt-loop',chatKey(opts.url));
   await mkdir(workDir,{recursive:true,mode:0o700});
-  const unlock=await lock(workDir);
+  const unlock=await acquireConversationLock(workDir);
   const stateFile=join(workDir,'state.json');
   const session=randomUUID().slice(0,8);
   let stopping=false;
   process.on('SIGINT',()=>{stopping=true;console.log('[loop] Stop requested; finishing current operation.');});
   process.on('SIGTERM',()=>{stopping=true;console.log('[loop] Stop requested; finishing current operation.');});
-  let state=await loadState(stateFile),previousFingerprint='',stable=0;
+  let state,previousFingerprint='',stable=0;
   console.log('[loop] Tracking only: '+opts.url);
   console.log('[loop] Actions: project-tests / project-status / project-head / environment-scan'+(opts.enableAlicePreflight?' / alice-witness-preflight (scoped Mint sync)':'')+'. Ctrl-C stops.');
   try{
+    state=await loadState(stateFile); // Must be within finally so a read failure does not leak lock.
     // A user may need to finish signing into ChatGPT in the managed browser.
     let target;
     while(!target){
