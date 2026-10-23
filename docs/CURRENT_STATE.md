@@ -47,3 +47,18 @@ Added `scripts/bootstrap-phase1.sh` which safely reuses/installs an isolated Ope
 Operator log: isolated Node 24.22.1 and OpenClaw 2026.10.6 (fe06181) were installed successfully. Bootstrap then stopped after **16/17** project tests passed; the only failure was a misleading static-test regex `/fnm install/` matching the narrative `fnm installation` in `scripts/bootstrap-phase1.sh`. No evidence of an actual unwanted install command; browser/Gateway/Ollama inference were **not yet exercised** by this bootstrap attempt.
 
 Corrected `test/bootstrap-contract.test.mjs` to check command-shaped lines, with a regression test for the exact false-positive case. On next Mac execution, existing `~/.openclaw/bin/openclaw` will be reused: do not repeat the first-time installation.
+
+## First successful live local browser audit (2026-10-23, operator evidence)
+
+User-reported Mac terminal output after corrected bootstrap:
+- `opened: https://example.com/`, `tab: t1` with a browser target ID; proves OpenClaw opened the explicitly allowed public test page.
+- `[phase1] Running one real read-only website audit with local Ollama`.
+- `REPORT example: .../audits/example/2026-10-23T15-27-58-766Z-b6fc7a9f.md` under the private LunaDrive project cache; proves the program emitted a report path after its local model analysis.
+- `[phase1] Success. OpenClaw is installed, project tests passed and a report path was printed.`
+- Temporary Gateway cleanup was invoked on exit; no persistent Gateway installation is claimed.
+
+**Status:** phase-1 initial real-Mac smoke workflow **passed** based on operator logs; local runtime/browser/model integration is no longer merely theoretical. Report content and accuracy were not inspected in this conversation; unchanged-page skip behavior, independent report quality, security of actual browser state, and opt-in watch lifecycle remain unverified.
+
+**No extra installation required for recheck:** reuse isolated OpenClaw in `~/.openclaw`, existing Ollama on `127.0.0.1:11435`, and original fnm Node for the project scripts. Run `node --test` or `scripts/bootstrap-phase1.sh` only as needed.
+
+**Next acceptance evidence:** open/review the single local Markdown report for grounded observations and uncertainty; run a second `--once` against the same unchanged page while a Gateway/browser is available and verify an `UNCHANGED` log with no second model inference. Keep model output and private diagnostic files local.

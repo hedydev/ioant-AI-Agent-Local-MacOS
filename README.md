@@ -2,7 +2,7 @@
 
 Phase 1: **human-controlled, read-only website audits** using the OpenClaw browser CLI for *snapshots* and a local Ollama model for *analysis*. No ChatDock dependency, cloud API, browser clicking, shell actions proposed by pages, or unattended account mutation.
 
-> Status: implementation committed; live Mac/OpenClaw/Ollama validation is required on the operator's machine. Do not mistake unit tests for a live-browser acceptance test.
+> Status: first real Mac **read-only smoke audit passed** (2026-10-23 operator log): OpenClaw opened example.com, local Ollama produced a private Markdown report, and temporary Gateway cleanup ran. Report quality, unchanged-page deduplication and ongoing monitoring remain to be individually accepted.
 
 ## Architecture
 

@@ -96,3 +96,17 @@ This installs the official **isolated** CLI only when missing and never installs
 - Bootstrap tests ran: **16 pass, 1 fail**, at `test/bootstrap-contract.test.mjs`; static regex matched documentation string `fnm installation` as if it were an `fnm install` command. The assertion was narrowed and regression test added.
 - Bootstrap halted before checking Ollama, starting Gateway/browser, or generating a report.
 - Next run: `git pull --ff-only origin main`, then `bash scripts/bootstrap-phase1.sh`. It should discover existing private CLI and skip reinstall. Record actual output; no live browser success claimed yet.
+
+## First real browser/AI smoke run — PASS (operator log, 2026-10-23)
+
+The corrected one-command Mac bootstrap succeeded. It opened `https://example.com/` under the OpenClaw browser profile, ran the `example` audit with local Ollama, printed a private Markdown report in the LunaDrive audits directory, and executed temporary Gateway shutdown. Bootstrap also reported passing project tests.
+
+This is **a verified operational smoke run from user-provided terminal output**, not certification of report accuracy or full UX security. The report body is not available here and has not been evaluated. The earlier 16/17 test error in this document refers to a **historical failed attempt** and was corrected before this success.
+
+Remaining optional sign-off:
+- Inspect report contents against actual page evidence.
+- Re-run an unchanged-page audit and verify SHA-based skip.
+- Verify deliberate failure cases on the Mac without exposing sensitive pages.
+- Test opt-in foreground watch start/stop if continuous observation will be used.
+
+No Stage-2 browser click/fill/action, model tool execution, unattended agent, ChatDock connection or remote shell access is enabled by this result.
