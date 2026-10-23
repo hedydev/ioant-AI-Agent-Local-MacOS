@@ -118,9 +118,11 @@ if [[ -n "$CHAT_URL" ]]; then
   validated="$(cd "$ROOT" && node --input-type=module -e 'import {validateChatUrl} from "./stage2/protocol.mjs";console.log(validateChatUrl(process.argv[1]))' "$CHAT_URL")"
   # List tab URL metadata, never content, and require exactly one target.
   tabs="$("$OPENCLAW_BIN" browser --browser-profile "$BROWSER_PROFILE" --json tabs)"
-  TAB_COUNT="$(printf '%s' "$tabs" | EXPECTED_CHAT_URL="$validated" node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);const t=Array.isArray(j)?j:(j.tabs??j.result?.tabs);if(!Array.isArray(t))process.exit(2);process.stdout.write(String(t.filter(x=>x.url===process.env.EXPECTED_CHAT_URL).length))})')" || {
+  # Report counts only. Never enumerate titles or URLs from personal Chrome.
+  TAB_COUNTS="$(printf '%s' "$tabs" | EXPECTED_CHAT_URL="$validated" node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);const t=Array.isArray(j)?j:(j.tabs??j.result?.tabs);if(!Array.isArray(t))process.exit(2);const u=new URL(process.env.EXPECTED_CHAT_URL);const id=u.pathname.split("/").at(-1);const chat=t.filter(x=>typeof x.url==="string"&&x.url.startsWith("https://chatgpt.com/"));const same=chat.filter(x=>{try{return new URL(x.url).pathname.split("/").at(-1)===id}catch{return false}});process.stdout.write([t.filter(x=>x.url===u.href).length,t.length,chat.length,same.length].join(" "))})')" || {
     echo '[loop] Could not safely inspect ChatGPT tabs in selected browser profile; stopping.' >&2; exit 1;
   }
+  read -r TAB_COUNT TAB_VISIBLE TAB_CHATGPT TAB_SAME_ID <<<"$TAB_COUNTS"
   case "$TAB_COUNT" in
     1) echo "[loop] Reusing exactly one matching ChatGPT tab in browser profile: $BROWSER_PROFILE" ;;
     0)
@@ -128,7 +130,13 @@ if [[ -n "$CHAT_URL" ]]; then
         echo '[loop] Opening only the selected conversation in isolated managed browser.'
         "$OPENCLAW_BIN" browser --browser-profile "$BROWSER_PROFILE" open "$validated"
       else
-        echo "[loop] No matching ChatGPT tab in $BROWSER_PROFILE. Open the exact conversation in your existing Chrome and grant browser access before launching; not opening unrelated tabs." >&2
+        if (( TAB_SAME_ID > 0 )); then
+          echo '[loop] An authorized tab has this conversation ID but a DIFFERENT project URL. Reopen the selected exact URL in that same authorized tab.' >&2
+        elif (( TAB_VISIBLE == 0 )); then
+          echo '[loop] Chrome extension is connected but exposes 0 tabs. In Selected tabs mode, move the intended ChatGPT tab into the OpenClaw tab group and verify the extension is not paused.' >&2
+        else
+          echo "[loop] No exact target tab among $TAB_VISIBLE authorized tabs ($TAB_CHATGPT on ChatGPT). Check the current tab URL and extension Selected tabs grant." >&2
+        fi
         exit 1
       fi
       ;;

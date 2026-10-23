@@ -24,9 +24,20 @@ const readPageFunction=`() => {
   }));
   const users=Array.from(document.querySelectorAll('[data-message-author-role="user"]')).slice(-5)
     .map(el=>(el.innerText||'').slice(0,1200));
-  const editing=document.querySelector('#prompt-textarea');
+  // ChatGPT has used both an id and a data-testid on its contenteditable composer.
+  // Keep selectors narrow to the prompt area; never treat global search inputs as chat.
+  const selectors=['#prompt-textarea','[data-testid="composer-input"][contenteditable="true"]',
+    '[data-testid="prompt-textarea"][contenteditable="true"]','form [contenteditable="true"][role="textbox"]',
+    'form textarea[aria-label*="Message"]','form textarea[aria-label*="消息"]'];
+  const editing=selectors.map(selector=>document.querySelector(selector)).find(Boolean);
+  const value=editing?(editing.matches('textarea')?editing.value:(editing.innerText??editing.textContent??'')):'';
   const generating=!!document.querySelector('[data-testid="stop-button"],button[aria-label="Stop generating"],button[aria-label="Stop streaming"]');
-  return '${MARKER}' + JSON.stringify({url:location.href,selectorFound:elements.length>0,generating,messages,users,composerPresent:!!editing,composerEmpty:!editing||!editing.textContent?.trim()});
+  // Structural flags only: never collect DOM, page text, cookies, or URLs of other tabs.
+  return '${MARKER}' + JSON.stringify({url:location.href,selectorFound:elements.length>0,generating,messages,users,
+    composerPresent:!!editing,composerEmpty:!String(value??'').trim(),
+    readyState:document.readyState,hasMain:!!document.querySelector('main'),
+    hasLoginForm:!!document.querySelector('form[action*="login"],input[autocomplete="current-password"]'),
+    editableCount:document.querySelectorAll('[contenteditable="true"]').length});
 }`;
 
 function argsOf(argv){
@@ -96,7 +107,14 @@ async function readPage(target, url){
   const raw=await browser('--json','evaluate','--target-id',target,'--fn',readPageFunction);
   const parsed=unpackMarked(raw);
   if(!parsed||parsed.url!==url)throw Error('Browser DOM result does not match the exact authorized conversation URL');
-  if(!parsed.composerPresent)throw Error('ChatGPT conversation input not ready. Sign in within isolated OpenClaw profile first.');
+  if(!parsed.composerPresent) {
+    const detail='profile='+profile+', readyState='+(parsed.readyState??'unknown')+
+      ', assistantTurns='+(parsed.selectorFound?'present':'absent')+
+      ', main='+(parsed.hasMain?'present':'absent')+
+      ', editableCount='+(Number.isInteger(parsed.editableCount)?parsed.editableCount:'unknown')+
+      ', loginForm='+(parsed.hasLoginForm?'present':'absent');
+    throw Error('ChatGPT input not detected ('+detail+'). This may be a loading/login/error page or a changed composer selector; do not assume the browser profile is signed out.');
+  }
   return parsed;
 }
 
@@ -179,8 +197,31 @@ async function main(){
     // A user may need to finish signing into ChatGPT in the managed browser.
     let target;
     while(!target){
-      try{target=await exactTab(opts.url);await readPage(target,opts.url)}
-      catch(e){if(opts.mode==='once')throw e;target=null;console.log('[loop] ChatGPT tab/sign-in not ready; waiting for the exact URL.');await new Promise(r=>setTimeout(r,opts.interval*1000));}
+      try{
+        target=await exactTab(opts.url);
+        if(opts.mode==='once') {
+          // ChatGPT is a SPA: wait briefly for React to hydrate before
+          // declaring the exact authorized tab unsuitable. No browser writes.
+          let lastError;
+          for(let attempt=0;attempt<3;attempt++) {
+            try {await readPage(target,opts.url);lastError=null;break}
+            catch(e) {
+              lastError=e;
+              if(!String(e.message).startsWith('ChatGPT input not detected')||attempt===2)throw e;
+              await new Promise(resolve=>setTimeout(resolve,1200));
+            }
+          }
+          if(lastError)throw lastError;
+        } else {
+          await readPage(target,opts.url);
+        }
+      }
+      catch(e){
+        if(opts.mode==='once')throw e;
+        target=null;
+        console.log('[loop] ChatGPT exact tab/page not ready: '+redactFeedback(e.message));
+        await new Promise(r=>setTimeout(r,opts.interval*1000));
+      }
     }
     if(opts.initialize&&!opts.enableAlicePreflight&&!state.initSent){
       const receipt='Ioant Mac local command feedback protocol '+PROTOCOL;
