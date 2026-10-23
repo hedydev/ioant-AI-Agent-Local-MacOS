@@ -137,3 +137,17 @@ Cause found in current source: `src/core.mjs` and `src/evidence.mjs` forcibly ca
 Fix: raise the per-claim cap to **eight** in the prompt/parser/evidence binding, and add a narrow deterministic structural rule: when a claim enumerates three or more named languages and plural paragraph nodes, there must be at least one distinct cited paragraph source line for every named language. Fewer citations result in "insufficient evidence". The rule checks **count**, not actual translation/language identity; manual review is still required. New source policy is `analysisPolicyVersion: 4`, requiring one new report under the updated policy (then unchanged SHA skipping resumes).
 
 **Validation:** source syntax and eleven evidence/observation pure-code regression checks ran and passed in V8 isolation. Full Node suite and physical Mac OpenClaw/Ollama browser acceptance remain pending. Do not report final Phase-1 sign-off until operator supplies test and/or unchanged output. Stage-one stays read-only; Desktop report destination unchanged.
+
+
+## Fifth real report: evidence-content acceptance on Mac (2026-10-24)
+
+Operator supplied the fifth `example.com` read-only report, `2026-10-23T17-07-25-282Z-3b628081.md` (timestamp 2026-10-23 17:07:25 UTC):
+- Snapshot SHA-256: `e1efa1a3f803749fcda6a145d3c0a1798156d1b742cb8a9d4a41b576e0970941` — the same as all four earlier supplied reports.
+- `Review priority: info`; `Model-suggested severity: info`; no issue candidates and no insufficient-evidence claims.
+- **All six separate language paragraphs** are cited individually: English `L0002`, Arabic `L0003`, Chinese `L0004`, French `L0005`, Russian `L0006`, Spanish `L0007`.
+- `Learn more` link and destination are grounded separately by `L0008` and `L0009`.
+- Manual verification notice is conditional and explicitly does not require changing the page without evidence.
+
+This establishes **operator-evidenced content acceptance** for the Stage-1 sample site's evidence/report behavior, including the eight-reference cap and model instruction corrections. It is **not** proof of accessibility, that the live link works, of passing the complete test suite, or of the second `UNCHANGED` capture; no latest terminal output was provided. Do not keep revising the example-domain prompt unless a concrete regression emerges.
+
+**Next priority:** one-time confirmation of `node --test` passing and the automated same-snapshot `UNCHANGED example` output (run the existing safe one-command bootstrap, preserve a short log). Thereafter test a user-explicitly-authorized, non-sensitive owned real site through the exact-URL allowlist; do not preauthorize or access another site automatically.

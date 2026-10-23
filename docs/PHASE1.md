@@ -181,3 +181,12 @@ Root cause: static per-observation citation truncation to four in `parseAnalysis
 This is a limited structural consistency rule; it does not independently recognize each language and does not validate translation fidelity, visual appearance, keyboard navigation or accessibility. Old reports are preserved on the Mac Desktop. The first v4 run creates a new report even when the SHA is unchanged, then another identical run should return `UNCHANGED`.
 
 **Mac acceptance pending:** run project Node tests and the one-command bootstrap if another live sample is desired; record actual test output and the second `UNCHANGED` log. No reinstallation or other-device operations required.
+
+
+## Fifth report evidence/content sign-off — sample site (2026-10-24)
+
+The fifth actual local report `2026-10-23T17-07-25-282Z-3b628081.md` demonstrates the revised model's six separate language paragraph descriptions with six separate citation excerpts (`L0002-L0007`) plus IANA link label and target citations (`L0008-L0009`). The report's two risk fields are both `info`, with no unsupported claims and no unsolicited page-modification instructions. The browser snapshot hash is identical to the four prior sampled reports.
+
+**Accepted from operator evidence:** report content shape and evidence alignment on the simple `example.com` case. **Not yet accepted:** independently confirmed full test count, unchanged-page second pass, more complex multi-page audits, visual accessibility and functional interaction. Stage 1 remains read-only, with Desktop Markdown output and LunaDrive-only diagnostic state.
+
+No code change is necessary for this simple example based on the fifth report; prioritize real-site evaluation after the remaining runtime checks.
