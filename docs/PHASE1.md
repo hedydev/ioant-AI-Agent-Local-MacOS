@@ -79,3 +79,13 @@ Sources: https://docs.openclaw.ai/cli/browser , https://docs.openclaw.ai/provide
 ## Node runtime separation (2026-10-23)
 
 The initial repository mistakenly placed OpenClaw's latest runtime floor in the **project's** `package.json` `engines.node`. This triggered `fnm --resolve-engines` automatic install prompts even when Node 24.21.0 was already available and sufficient for the stage-1 inventory/audit scripts. The project-wide engine constraint was removed; scripts/preflight.sh now checks the actual stage-1 minimum (Node 20+) and merely warns when the *current shell* Node may not satisfy OpenClaw's separate runtime requirement. OpenClaw compatibility must be verified using the runtime its own launcher actually selects. No installation, `fnm` global-default change, or other project runtime change is authorized by this fix.
+
+## Single-command operator path
+
+When `main` is synchronized, the preferred phase-1 acceptance command is:
+
+```bash
+bash scripts/bootstrap-phase1.sh
+```
+
+This installs the official **isolated** CLI only when missing and never installs a persistent Gateway service. It checks already installed Ollama models, uses a transient token-authenticated local Gateway only if another healthy Gateway is not found, and shuts down only its own process. Review `README.md` for a one-copy command including Git fast-forward pull. A nonzero result means the live browser acceptance is incomplete; inspect the bounded error and private Gateway log path.

@@ -24,6 +24,18 @@ The model receives a bounded, redacted accessibility snapshot. The model is **no
 
 This stage-1 project's local inventory, test and audit scripts support **Node 20+**; the repository intentionally has **no `package.json` `engines.node` pin**, so `fnm --resolve-engines` does not prompt to install a new Node merely on entering the project. OpenClaw is a separate tool, with its own (currently stricter) runtime/security policy. Inspect the existing OpenClaw launcher and managed Node before deciding whether anything needs upgrading. This repository never installs or switches Node.
 
+## One-command Phase-1 Mac bootstrap (recommended)
+
+With the repository already cloned, paste **only one command** into Mac Terminal:
+
+```bash
+git -C "$HOME/Documents/workspace/ioant-AI-Agent-Local-MacOS" pull --ff-only origin main && bash "$HOME/Documents/workspace/ioant-AI-Agent-Local-MacOS/scripts/bootstrap-phase1.sh"
+```
+
+The script reuses an existing OpenClaw executable when found. Otherwise it downloads the **official HTTPS** `install-cli.sh`, syntax-checks it, and installs the CLI plus its **private compatible Node runtime** using `--runtime-only --no-onboard` under `~/.openclaw`. It then runs Node tests, checks your existing Ollama service on `127.0.0.1:11435` and the installed `gpt-oss:20b` model, starts (only if required) a temporary authenticated loopback Gateway, opens an isolated OpenClaw browser profile to `https://example.com/`, and runs one read-only local audit.
+
+It never changes fnm defaults, installs a system-wide Node, installs a Gateway daemon, downloads models, imports Chrome cookies, or starts unattended monitoring. When complete, it stops only the Gateway process it started; other services are preserved. If the browser or Gateway cannot initialize it fails visibly with a private log location. This is an automation of the **first local acceptance attempt**, not proof that the live Mac will pass before testing.
+
 ## Quick start (Mac Terminal)
 
 ```bash
