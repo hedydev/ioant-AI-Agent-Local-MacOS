@@ -208,6 +208,13 @@ async function main(){
         await new Promise(r=>setTimeout(r,opts.interval*1000));
         continue;
       }
+      // Read-only browser acceptance must never execute an existing task, post
+      // feedback, or mutate task state. The old --once path incorrectly allowed
+      // a structured task to run before breaking out of the loop.
+      if(opts.mode==='once'){
+        console.log('[loop] Read-only ChatGPT probe passed: exact conversation and composer detected; no task executed or message sent.');
+        break;
+      }
       if(state.feedbackPending){
         // Commands never re-run after a crash / unclear send.
         const receipt='[IOANT-MAC-OPS RESULT '+state.feedbackPending.id+']';
