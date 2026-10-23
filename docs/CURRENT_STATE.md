@@ -33,3 +33,7 @@ After user acceptance, decide visual screenshot audit and a local dashboard. Git
 ## Environment Registry addition (2026-10-23)
 
 The first-stage project now also provides `src/environment.mjs` (`scan`, `save`, `check`) and `docs/ENVIRONMENT_REGISTRY.md`. It discovers on-PATH/off-PATH binaries and probes known local Ollama ports, so AI assistants can avoid recommending redundant installs. Private data is written only on explicit save/preflight to LunaDrive, not GitHub. Four environment-tool tests were run in a Linux Node 22 container against the same discovery logic and passed; **Mac installation state and complete repository tests remain unverified**. Cross-AI automatic consumption/cloud access is not implemented.
+
+## Node version-manager integration correction (2026-10-23)
+
+User reported that entering newly cloned repository triggered a `fnm` install prompt for `>=24.22.1`, while system Node v24.21.0 and project-specific Node runtimes already existed. Cause: the `package.json` `engines.node` mistakenly copied OpenClaw's requirement. Removed the project-wide engines requirement and separated the CLI script Node 20+ check from OpenClaw's stricter requirements. **Awaiting real Mac validation:** `cd` should no longer trigger this specific fnm prompt; Node 24.21.0 should run inventory/tests without installing a second Node. OpenClaw may still need its own patched runtime when launched; inspect it separately.

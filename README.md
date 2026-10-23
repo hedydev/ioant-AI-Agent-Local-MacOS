@@ -20,6 +20,10 @@ private Markdown report + JSONL diagnostics
 
 The model receives a bounded, redacted accessibility snapshot. The model is **not** given tool access and its output is **never** treated as a command. Stage 1 opens no tabs automatically: the operator opens an authorized page in the selected OpenClaw profile first.
 
+## Node version policy
+
+This stage-1 project's local inventory, test and audit scripts support **Node 20+**; the repository intentionally has **no `package.json` `engines.node` pin**, so `fnm --resolve-engines` does not prompt to install a new Node merely on entering the project. OpenClaw is a separate tool, with its own (currently stricter) runtime/security policy. Inspect the existing OpenClaw launcher and managed Node before deciding whether anything needs upgrading. This repository never installs or switches Node.
+
 ## Quick start (Mac Terminal)
 
 ```bash

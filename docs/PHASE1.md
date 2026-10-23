@@ -19,7 +19,7 @@ Before any install advice, run `node src/environment.mjs scan` and see [Environm
 ## Bootstrap on Mac
 
 1. Ensure `/Volumes/LunaDrive` mounted and writable. `bash scripts/dev-env.sh check` fails closed if absent or inherited cache paths mention old `/Volumes/MacDev`.
-2. Confirm `node -v` is in an officially supported OpenClaw line (currently Node 24.22.1+ or Node 26.12.1+).
+2. The repository's own read-only Node scripts work with Node 20+ and **do not pin a runtime in package.json**. OpenClaw itself has a separate, stricter runtime policy (currently Node 24.22.1+ on 24, or 26.12.1+ on 26). Inspect any existing OpenClaw-managed or version-manager runtime first; do not automatically reinstall Node solely because `cd` activated fnm.
 3. Install and onboard OpenClaw **manually** using official instructions at https://docs.openclaw.ai/install and https://docs.openclaw.ai/gateway ; do not use a second Chrome Bridge concurrently with ChatDock.
 4. Use an isolated OpenClaw browser profile. For private sites, sign in manually in that profile; do not share credentials, import your normal Chrome cookies, or expose a remote Gateway just to pass phase 1.
 5. Existing Ollama is expected at `http://127.0.0.1:11435` (not `/v1`). Use `curl -fsS http://127.0.0.1:11435/api/tags` to verify your installed model id. Default `gpt-oss:20b`; override with `IOANT_OLLAMA_MODEL` if needed. No model download is automated.
@@ -75,3 +75,7 @@ Edit `config/sites.json` to explicitly authorize further sites; these edits must
 6. A unit/integration mocked test is not proof of live OpenClaw compatibility; real Mac check still required.
 
 Sources: https://docs.openclaw.ai/cli/browser , https://docs.openclaw.ai/providers/ollama/configuration .
+
+## Node runtime separation (2026-10-23)
+
+The initial repository mistakenly placed OpenClaw's latest runtime floor in the **project's** `package.json` `engines.node`. This triggered `fnm --resolve-engines` automatic install prompts even when Node 24.21.0 was already available and sufficient for the stage-1 inventory/audit scripts. The project-wide engine constraint was removed; scripts/preflight.sh now checks the actual stage-1 minimum (Node 20+) and merely warns when the *current shell* Node may not satisfy OpenClaw's separate runtime requirement. OpenClaw compatibility must be verified using the runtime its own launcher actually selects. No installation, `fnm` global-default change, or other project runtime change is authorized by this fix.
