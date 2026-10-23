@@ -41,3 +41,8 @@ Each source excerpt is bounded and is included only for cited observations. Reda
 The user chose the Mac Desktop as the human-facing report destination. The dedicated report folder and each site folder must have private `0700` permissions; Markdown outputs are written `0600`. The exporter does not follow symlinked report files and does not overwrite or delete historical reports; machine-only diagnostics and state remain on LunaDrive.
 
 A Desktop location **may be synchronized to iCloud Drive**. This is a local user-controlled sync behavior outside the application's privacy controls. Do not inspect private/sensitive webpages in the read-only phase; browser-extracted content is only best-effort redacted and can appear in Markdown evidence excerpts.
+
+
+## Review-priority epistemic boundary
+
+The source-linked severity escalation is a **triage heuristic**, not proof of an issue. Model-proposed `issues[]` can contain mistakes even with valid line IDs. Distinguish `Model-suggested severity` from `Review priority` and retain explicit uncertainty. Do not equate missing evidence (untested contrast, keyboard navigation or screen-reader behavior) with a confirmed accessibility failure. A user must separately run relevant functional/visual checks to confirm any flagged problem.

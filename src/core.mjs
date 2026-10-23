@@ -67,17 +67,33 @@ export function parseAnalysis(content) {
   if (!obj || Array.isArray(obj) || typeof obj !== 'object') throw new Error('Invalid model response');
   const severity = ['info', 'warning', 'critical'].includes(obj.severity) ? obj.severity : 'unknown';
   const short = value => redact(typeof value === 'string' ? value.slice(0, 1200) : '');
-  const observations = Array.isArray(obj.observations) ? obj.observations.slice(0, 8).map(item => ({
+  const readClaims = (items, max) => Array.isArray(items) ? items.slice(0, max).map(item => ({
     claim: short(typeof item === 'string' ? item : item?.claim),
-    evidence_line_ids: Array.isArray(item?.evidence_line_ids) ? item.evidence_line_ids.slice(0, 4) : []
+    evidence_line_ids: Array.isArray(item?.evidence_line_ids) ? item.evidence_line_ids.slice(0, 4) : [],
+    severity: item?.severity === 'critical' ? 'critical' : item?.severity === 'warning' ? 'warning' : 'unknown'
   })).filter(item => item.claim.length) : [];
   return {
     severity,
     summary: short(obj.summary),
-    observations,
+    observations: readClaims(obj.observations, 8),
+    issues: readClaims(obj.issues, 6),
     uncertainties: Array.isArray(obj.uncertainties) ? obj.uncertainties.slice(0, 8).map(short) : [],
     recommendation: short(obj.recommendation)
   };
+}
+
+// Model-suggested issues with a valid snapshot line are *review candidates*, never
+// independently verified defects. Missing tests, absent properties, and uncertainty
+// alone must not elevate the actionable priority.
+export function assessTriage(analysis) {
+  const issues = Array.isArray(analysis?.issues) ? analysis.issues : [];
+  const candidates = issues.filter(issue => Array.isArray(issue.evidence) && issue.evidence.length > 0);
+  const priority = candidates.some(i => i.severity === 'critical') ? 'critical'
+    : candidates.some(i => i.severity === 'warning') ? 'warning' : 'info';
+  const rationale = priority === 'info'
+    ? 'No separate, source-linked issue requiring investigation was submitted; missing test evidence is not a confirmed defect.'
+    : 'Source-linked model issue candidate(s) exist; prioritization is provisional until manual verification.';
+  return { priority, rationale, candidateCount: candidates.length };
 }
 
 export function reportMarkdown({ site, time, runId, hash, analysis, truncated, evidenceLineCount = 0 }) {
@@ -89,6 +105,10 @@ export function reportMarkdown({ site, time, runId, hash, analysis, truncated, e
     '- ' + inline(item.claim) + '\n' + item.evidence.map(e => '  - ' + e.id + ': “' + quote(e.text) + '”').join('\n')
   );
   const unsupported = (analysis.unsupported ?? []).map(item => '- ' + inline(item.claim) + ' — ' + inline(item.reason));
+  const triage = assessTriage(analysis);
+  const issueRows = (analysis.issues ?? []).map(item => '- ' + inline(item.claim) + ' (model-assessed ' + inline(item.severity) + ')'
+    + '\n' + item.evidence.map(e => '  - ' + e.id + ': “' + quote(e.text) + '”').join('\n'));
+  const issueMissing = (analysis.unsupportedIssues ?? []).map(item => '- ' + inline(item.claim) + ' — ' + inline(item.reason));
   return [
     '# Website Audit — ' + clean(site.id),
     '', '- Time (UTC): ' + clean(time),
@@ -99,12 +119,18 @@ export function reportMarkdown({ site, time, runId, hash, analysis, truncated, e
     '- Snapshot truncated: ' + (truncated ? 'yes' : 'no'),
     '- Evidence protocol: evidence-v2 (numbered snapshot lines; model claims are not independently verified)',
     '- Evidence lines shown to model: ' + evidenceLineCount,
-    '- Severity (model assessment): ' + clean(analysis.severity),
+    '- Review priority (source-linked model candidates; not verified): ' + triage.priority,
+    '- Model-suggested severity (not independently verified): ' + clean(analysis.severity),
+    '- Review-priority rationale: ' + inline(triage.rationale),
     '', '## Summary (model interpretation)', inline(analysis.summary),
     '', '## Evidence-linked observations (source excerpts; verify interpretation)',
     supported.length ? supported.join('\n') : '- None',
     '', '## Model claims without valid line citations (unverified)',
     unsupported.length ? unsupported.join('\n') : '- None',
+    '', '## Source-linked issue candidates (manual verification required)',
+    issueRows.length ? issueRows.join('\n') : '- None',
+    '', '## Uncited issue proposals (not used to set priority)',
+    issueMissing.length ? issueMissing.join('\n') : '- None',
     '', '## Uncertainties', bullets(analysis.uncertainties ?? []),
     '', '## Suggested manual checks', inline(analysis.recommendation),
     '', '> Source excerpts are taken from the redacted accessibility snapshot, not written by the model. A matching source line does not prove the claim is correct. This is not a verified functional test.',

@@ -25,11 +25,11 @@ export function buildEvidenceSnapshot(raw, { maxChars = 20000, maxLines = 240, m
 }
 
 // The evidence text is ALWAYS obtained from browser material, never supplied by a model.
-export function attachEvidence(analysis, lines) {
-  const lookup = new Map(lines.map(line => [line.id, line.text]));
-  const observations = [];
-  const unsupported = [];
-  for (const item of analysis.observations) {
+// Validate references only. A valid source line supports provenance, not a factual
+// or causal judgment; every issue remains a model suggestion until verified.
+function linkClaims(items, lookup) {
+  const linked = [], unsupported = [];
+  for (const item of items ?? []) {
     const ids = Array.isArray(item.evidence_line_ids) ? item.evidence_line_ids : [];
     const unique = [...new Set(ids)].slice(0, 4);
     if (!unique.length || unique.some(id => !lookup.has(id))) {
@@ -39,10 +39,24 @@ export function attachEvidence(analysis, lines) {
       });
       continue;
     }
-    observations.push({
+    linked.push({
       claim: item.claim,
+      ...(item.severity ? { severity: item.severity } : {}),
       evidence: unique.map(id => ({ id, text: lookup.get(id) }))
     });
   }
-  return { ...analysis, observations, unsupported };
+  return { linked, unsupported };
+}
+
+export function attachEvidence(analysis, lines) {
+  const lookup = new Map(lines.map(line => [line.id, line.text]));
+  const observations = linkClaims(analysis.observations, lookup);
+  const issues = linkClaims(analysis.issues, lookup);
+  return {
+    ...analysis,
+    observations: observations.linked,
+    unsupported: observations.unsupported,
+    issues: issues.linked,
+    unsupportedIssues: issues.unsupported
+  };
 }

@@ -115,3 +115,12 @@ A sanitized, private JSON snapshot is saved on LunaDrive, **never pushed to this
 
 AI-Agent: ChatGPT
 AI-Session: k8b2q5nt
+
+
+## Calibrated review priority (analysis policy v2)
+
+The **same source snapshot SHA-256** can generate different model assessments after a prompt or report-format update; this is not evidence the website changed. The first two real reports from example.com showed exactly that: the original report said `info`, and evidence-v2 marked it `warning` solely because accessibility checks were *not demonstrated*.
+
+The newer report separates **Model-suggested severity** (unverified) from **Review priority**. Only a distinct `issues[]` model candidate with a valid source line ID can elevate the review priority to `warning` or `critical`; such items are prominently labeled **manual verification required**. No cited issues => `info`, even if the model expresses uncertainty about headings, color contrast, keyboard traversal or link function. A citation confirms only the *source line*, not that a proposed problem is true.
+
+The first run after this policy update writes a new desktop report (`analysisPolicyVersion: 2`) even when the underlying page has not changed. Subsequent identical captures are deduplicated. Legacy reports remain unchanged and are still valid historical records of the model's earlier judgments.

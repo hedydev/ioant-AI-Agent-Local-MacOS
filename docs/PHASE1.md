@@ -141,3 +141,14 @@ Actual Mac test result: `28/29` pass, with a test-fixture-only failure on suppos
 The test now first creates the fixture, explicitly `chmod(0o755)`, checks mode bits, verifies the safe rejection, then resets permissions to `0o700` and verifies success. This behavior was reproduced under `umask 077` using a local Node 22 test snippet; **full Mac tests have not yet been rerun**.
 
 To finish rollout, fast-forward `main`, run all tests, export older `.md` files to `~/Desktop/Ioant-AI-Agent-Reports`, and open that folder. The export is intentionally after tests in a `&&` chain. It preserves original LunaDrive reports and never overwrites Desktop reports.
+
+
+## Report severity calibration and evidence-based review (2026-10-24)
+
+Real-file acceptance evidence: pre-evidence and evidence-v2 Markdown reports for the same browser snapshot hash produced `info` versus `warning` severity. The second report's accessibility concerns described missing *test evidence*, not observed broken functionality; that distinction needs to be visible.
+
+The analysis policy now treats model `severity` as an unverified opinion. Model output may include `issues: [{claim, severity, evidence_line_ids}]`. Exact numbered-line IDs are resolved from the redacted snapshot and invalid references are kept as uncited proposals. Only cited issue candidates affect **Review priority** (info/warning/critical), and every such candidate remains `manual verification required`. A valid citation does not confirm the interpretation. Lack of heading/contrast/keyboard/screenreader evidence is an uncertainty and should not elevate priority.
+
+The state file keeps `evidenceSchemaVersion: 2` and now also `analysisPolicyVersion: 2`. This avoids silently skipping the first new-policy report based on unchanged SHA. Thereafter, repeated unchanged captures skip inference.
+
+This change neither adds browser actions nor introduces visual/interaction accessibility testing. Real Mac rollout/test output and confirmation of the report's judgment remain pending.

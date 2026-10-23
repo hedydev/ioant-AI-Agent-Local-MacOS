@@ -89,3 +89,16 @@ Operator ran the Desktop rollout tests: `29` total, `28` passed, `1` failed at `
 Corrected the test to `chmod(0o755)` explicitly and assert the resulting mode before expecting `privateReportDir` to reject it, then `chmod(0o700)` to verify acceptance. A separate local Node reproduction of `umask 077` and the corrected positive/negative behavior passed. Production report paths and permission validation are unchanged.
 
 **Rollout state:** the operator's previously supplied terminal sequence stopped at the failing test (it used `&&`), so old reports were **not yet copied to Desktop** by that sequence. Mac full-suite pass and actual Desktop export remain to be verified by the operator. Use one command from the updated handoff; no OpenClaw, Ollama or Node installation needed.
+
+
+## Real report comparison and calibrated triage (2026-10-24)
+
+User supplied two real Markdown reports for `https://example.com/`:
+- 2026-10-23 15:27:58 UTC (pre-evidence): `Severity: info`, no source citations.
+- 2026-10-23 16:06:30 UTC (evidence-v2): `Severity: warning`, nine numbered source lines, with cited multilingual paragraphs and an IANA link, no invalid citations.
+- Both reports had the **same SHA-256** `e1efa1a3f803749fcda6a145d3c0a1798156d1b742cb8a9d4a41b576e0970941`. The change in model severity is **not evidence of a page change**.
+- The warning came from unverified concerns (possible missing heading, no contrast/keyboard evidence), not source-linked evidence of an observed defect. A language description also compressed multiple separate paragraphs into one multilingual paragraph. Source line IDs alone do not prove factual entailment.
+
+Code introduces `analysisPolicyVersion: 2` (separate from `evidenceSchemaVersion: 2`), structured optional `issues[]`, cited issue candidates, and two distinct fields in reports: provisional review priority and model-suggested severity. If there are no cited issue candidates, priority stays `info`; invalid/missing issue IDs cannot elevate. All issue candidates still require human verification. Prompt asks the model not to treat absent tests as observed defects. The first audit after the policy revision intentionally regenerates the desktop report, while following snapshots stay deduplicated.
+
+**Status:** GitHub implementation and local V8 smoke tests only at present; real Mac v3 report generation and exact second-pass dedup remain to be tested. No OpenClaw or Ollama reinstall needed. Next operator action: run single-command bootstrap, then inspect the new desktop report.
