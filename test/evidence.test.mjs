@@ -36,7 +36,7 @@ test('model cannot invent quotes or missing source identifiers', () => {
   assert.equal(linked.observations[0].evidence[0].text,'heading Real Domain');
   const report=reportMarkdown({site:{id:'example',url:'https://example.com/',profile:'openclaw'},time:'now',runId:'run2',hash:digest(evidence.bounded),analysis:linked,truncated:evidence.truncated,evidenceLineCount:evidence.lines.length});
   assert.match(report,/L0001: “heading Real Domain”/);
-  assert.match(report,/Model claims without valid line citations/);
+  assert.match(report,/Model claims with insufficient evidence \(unverified\)/);
   assert.match(report,/Five images are visible/);
   assert.doesNotMatch(report,/L9999: “/);
 });

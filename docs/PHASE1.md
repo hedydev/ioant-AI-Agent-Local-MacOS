@@ -163,3 +163,10 @@ The deterministic guard now checks this specific, generalizable *structural* con
 The report renderer now withholds raw proposed webpage edits when there are no cited issue candidates, and substitutes an explicit `verify uncertainties first; no changes established` notice. When there are cited issue candidates, model recommendations are labelled unverified and must be manually confirmed before any change.
 
 The state now distinguishes `analysisPolicyVersion: 3` so the first run after this policy update generates a new report even if the underlying snapshot hash has not changed. Existing Desktop output and strict OpenClaw `tabs`/`snapshot` restrictions remain intact. Five additional pure-function checks passed; full macOS tests and real runtime confirmation remain outstanding.
+
+
+## Policy-v3 test-suite correction
+
+Operator Mac output after latest update: **38 total / 37 pass / 1 fail**. The sole failure was an obsolete report-heading assertion in `test/evidence.test.mjs`; this test expected `Model claims without valid line citations` after the report had deliberately renamed its section to `Model claims with insufficient evidence (unverified)`. The same test output demonstrated correct source-linked claims and the three invalid/uncited observations. Changed the assertion only; production code and semantic guard are unchanged.
+
+A targeted code-path reproduction passed. Full-suite pass, dedup proof (`UNCHANGED example`), and new v3 Desktop report still require Mac execution. Use the standard one-command bootstrap after fast-forwarding `main`.
