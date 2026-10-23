@@ -135,13 +135,51 @@ for ((i=1; i<=$#; i++)); do
 done
 if [[ -n "$CHAT_URL" ]]; then
   validated="$(cd "$ROOT" && node --input-type=module -e 'import {validateChatUrl} from "./stage2/protocol.mjs";console.log(validateChatUrl(process.argv[1]))' "$CHAT_URL")"
-  # List tab URL metadata, never content, and require exactly one target.
+  # List only extension-authorized tab URL metadata; never print browser titles or URLs.
+  # A freshly attached Chrome relay can briefly expose zero tabs after Gateway
+  # startup even though the extension is connected. Retry *only* that case.
+  # No navigation, automatic grouping, auth changes or browser restarts.
+  read_authorized_tab_counts() {
+    printf '%s' "$1" | EXPECTED_CHAT_URL="$validated" node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);const t=Array.isArray(j)?j:(j.tabs??j.result?.tabs);if(!Array.isArray(t))process.exit(2);const u=new URL(process.env.EXPECTED_CHAT_URL);const id=u.pathname.split("/").at(-1);const chat=t.filter(x=>typeof x.url==="string"&&x.url.startsWith("https://chatgpt.com/"));const same=chat.filter(x=>{try{return new URL(x.url).pathname.split("/").at(-1)===id}catch{return false}});process.stdout.write([t.filter(x=>x.url===u.href).length,t.length,chat.length,same.length].join(" "))})'
+  }
   tabs="$("$OPENCLAW_BIN" browser --browser-profile "$BROWSER_PROFILE" --json tabs)"
-  # Report counts only. Never enumerate titles or URLs from personal Chrome.
-  TAB_COUNTS="$(printf '%s' "$tabs" | EXPECTED_CHAT_URL="$validated" node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);const t=Array.isArray(j)?j:(j.tabs??j.result?.tabs);if(!Array.isArray(t))process.exit(2);const u=new URL(process.env.EXPECTED_CHAT_URL);const id=u.pathname.split("/").at(-1);const chat=t.filter(x=>typeof x.url==="string"&&x.url.startsWith("https://chatgpt.com/"));const same=chat.filter(x=>{try{return new URL(x.url).pathname.split("/").at(-1)===id}catch{return false}});process.stdout.write([t.filter(x=>x.url===u.href).length,t.length,chat.length,same.length].join(" "))})')" || {
+  TAB_COUNTS="$(read_authorized_tab_counts "$tabs")" || {
     echo '[loop] Could not safely inspect ChatGPT tabs in selected browser profile; stopping.' >&2; exit 1;
   }
   read -r TAB_COUNT TAB_VISIBLE TAB_CHATGPT TAB_SAME_ID <<<"$TAB_COUNTS"
+  if [[ "$BROWSER_PROFILE" == chrome ]] && (( TAB_VISIBLE == 0 )); then
+    echo '[loop] Chrome profile currently exposes 0 tabs; rechecking relay access 8 times at 2-second intervals (no permissions changed).'
+    log_event tab_retry_started || true
+    RETRY_QUERIES_OK=0
+    for (( retry=1; retry<=8; retry++ )); do
+      sleep 2
+      # A CLI failure is not proof of zero tabs; never convert it into an
+      # authorization success or claim that the conversation was found.
+      if ! tabs="$("$OPENCLAW_BIN" browser --browser-profile "$BROWSER_PROFILE" --json tabs 2>/dev/null)"; then
+        continue
+      fi
+      TAB_COUNTS="$(read_authorized_tab_counts "$tabs")" || {
+        log_event tab_retry_error || true
+        echo '[loop] Chrome relay returned malformed tab metadata during retry; stopping.' >&2
+        exit 1
+      }
+      RETRY_QUERIES_OK=1
+      read -r TAB_COUNT TAB_VISIBLE TAB_CHATGPT TAB_SAME_ID <<<"$TAB_COUNTS"
+      if (( TAB_VISIBLE > 0 )); then
+        log_event tab_retry_recovered || true
+        echo "[loop] Chrome relay now exposes $TAB_VISIBLE authorized tab(s) after retry $retry."
+        break
+      fi
+    done
+    if (( TAB_VISIBLE == 0 )); then
+      if (( RETRY_QUERIES_OK == 0 )); then
+        log_event tab_retry_error || true
+        echo '[loop] Chrome browser relay tab queries failed on every retry; check extension relay and Gateway while the launcher is active.' >&2
+        exit 1
+      fi
+      log_event tab_retry_timeout || true
+    fi
+  fi
   case "$TAB_COUNT" in
     1) echo "[loop] Reusing exactly one matching ChatGPT tab in browser profile: $BROWSER_PROFILE"; log_event tab_found ;;
     0)
@@ -152,7 +190,7 @@ if [[ -n "$CHAT_URL" ]]; then
         if (( TAB_SAME_ID > 0 )); then
           echo '[loop] An authorized tab has this conversation ID but a DIFFERENT project URL. Reopen the selected exact URL in that same authorized tab.' >&2
         elif (( TAB_VISIBLE == 0 )); then
-          echo '[loop] Chrome extension is connected but exposes 0 tabs. In Selected tabs mode, move the intended ChatGPT tab into the OpenClaw tab group and verify the extension is not paused.' >&2
+          echo '[loop] Chrome profile exposes 0 eligible tabs. This does not prove the relay is connected. In the extension popup, check whether it says Relay unavailable WHILE this launcher is running. If Access=All tabs, no tab group is needed. If Access=Selected tabs, authorize the target tab in the OpenClaw group; ensure it is not paused.' >&2
         else
           echo "[loop] No exact target tab among $TAB_VISIBLE authorized tabs ($TAB_CHATGPT on ChatGPT). Check the current tab URL and extension Selected tabs grant." >&2
         fi

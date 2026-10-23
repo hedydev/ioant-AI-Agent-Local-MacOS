@@ -16,6 +16,7 @@ const PART=/^run-[0-9]{8}T[0-9]{6}Z-[0-9]{1,9}-[0-9a-f]{8}(?:\.part[1-3])?\.json
 const EVENTS=new Set([
  'launcher_start','gateway_existing','gateway_temporary','gateway_stopped',
  'gateway_error','browser_profile','tab_found','tab_missing','launcher_exit',
+ 'tab_retry_started','tab_retry_recovered','tab_retry_timeout','tab_retry_error',
  'worker_start','page_ready','page_not_ready','read_only_success',
  'initialization_attempt','initialization_sent','task_seen','action_started',
  'action_finished','report_saved','feedback_pending','feedback_confirmed',
