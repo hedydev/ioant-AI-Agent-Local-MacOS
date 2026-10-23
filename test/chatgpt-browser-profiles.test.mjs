@@ -20,11 +20,13 @@ test('launcher supports exact managed/user/extension profiles but does not loose
 });
 
 test('existing Chrome must contain exactly one previously opened authorized chat; no new Chrome tabs',()=>{
-  assert.match(launcher,/TAB_COUNT=/);
+  assert.match(launcher,/TAB_COUNTS=/);
+  assert.match(launcher,/read -r TAB_COUNT TAB_VISIBLE TAB_CHATGPT TAB_SAME_ID/);
   assert.match(launcher,/t\.filter|t\.filter\(/);
   assert.match(launcher,/1\) echo "\[loop\] Reusing exactly one matching ChatGPT tab/);
   assert.match(launcher,/if \[\[ "\$BROWSER_PROFILE" == openclaw \]\]; then/);
-  assert.match(launcher,/No matching ChatGPT tab in \$BROWSER_PROFILE/);
+  assert.match(launcher,/No exact target tab among \$TAB_VISIBLE authorized tabs/);
+  assert.match(launcher,/a DIFFERENT project URL/);
   assert.match(launcher,/Found \$TAB_COUNT copies of the target ChatGPT tab/);
   assert.match(worker,/if\(!\['openclaw','user','chrome'\]\.includes\(profile\)\)/);
   assert.match(worker,/parsed\.url!==url/);

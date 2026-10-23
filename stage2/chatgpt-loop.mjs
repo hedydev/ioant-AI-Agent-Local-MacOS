@@ -223,6 +223,13 @@ async function main(){
         await new Promise(r=>setTimeout(r,opts.interval*1000));
       }
     }
+    // --once is acceptance-only. After the first successful exact-tab DOM read,
+    // exit before a second browser request, message send, or task execution.
+    // The surrounding finally still releases this conversation's lock.
+    if(opts.mode==='once'){
+      console.log('[loop] Read-only ChatGPT probe passed: exact conversation and composer detected; no task executed or message sent.');
+      return;
+    }
     if(opts.initialize&&!opts.enableAlicePreflight&&!state.initSent){
       const receipt='Ioant Mac local command feedback protocol '+PROTOCOL;
       await sendToChat(target,opts.url,INIT,receipt);
@@ -248,13 +255,6 @@ async function main(){
         console.log('[loop] ChatGPT tab not ready: '+redactFeedback(e.message));
         await new Promise(r=>setTimeout(r,opts.interval*1000));
         continue;
-      }
-      // Read-only browser acceptance must never execute an existing task, post
-      // feedback, or mutate task state. The old --once path incorrectly allowed
-      // a structured task to run before breaking out of the loop.
-      if(opts.mode==='once'){
-        console.log('[loop] Read-only ChatGPT probe passed: exact conversation and composer detected; no task executed or message sent.');
-        break;
       }
       if(state.feedbackPending){
         // Commands never re-run after a crash / unclear send.
