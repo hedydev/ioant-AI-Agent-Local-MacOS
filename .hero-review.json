@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "project": {
+    "name": "ioant-ai-agent-local-macos",
+    "platforms": [
+      "macos"
+    ],
+    "architecture": [
+      "node-cli-worker",
+      "openclaw-browser-cli",
+      "ollama-local"
+    ]
+  },
+  "hero": {
+    "config": ".hero-skills.yaml",
+    "required_skills": [
+      "track-ai-development-tasks",
+      "work-evidence-first",
+      "git-safe-delivery",
+      "build-diagnostic-sessions",
+      "structure-modular-code"
+    ],
+    "required_standards": [
+      "ai-development-task-tracking",
+      "evidence-based-fixes",
+      "git-delivery",
+      "diagnostic-sessions",
+      "code-modularity",
+      "development-environment-storage"
+    ]
+  },
+  "required_files": [
+    "AGENTS.md",
+    ".hero-skills.yaml",
+    "scripts/dev-env.sh",
+    "docs/DEVELOPMENT_ENVIRONMENT.md",
+    "docs/SECURITY.md",
+    "docs/DIAGNOSTICS.md"
+  ],
+  "source": {
+    "roots": [
+      "src",
+      "scripts"
+    ],
+    "extensions": [
+      "mjs",
+      "sh",
+      "json"
+    ],
+    "exclude": [
+      ".git/**",
+      "node_modules/**",
+      ".hero-review/**",
+      "reports/**",
+      "data/**"
+    ],
+    "large_file_warning_lines": 800
+  },
+  "evidence_checks": [
+    {
+      "id": "environment",
+      "title": "Deterministic macOS external cache contract",
+      "paths": [
+        "scripts/dev-env.sh",
+        "docs/DEVELOPMENT_ENVIRONMENT.md"
+      ],
+      "patterns": [
+        "LunaDrive",
+        "DeveloperCache",
+        "MacDev"
+      ],
+      "minimum_matches": 2,
+      "severity": "error"
+    },
+    {
+      "id": "diagnostics",
+      "title": "Correlated durable CLI audit events",
+      "paths": [
+        "src/**",
+        "docs/DIAGNOSTICS.md"
+      ],
+      "patterns": [
+        "runId",
+        "event",
+        "JSONL",
+        "audit_failed",
+        "redact"
+      ],
+      "minimum_matches": 2,
+      "severity": "error"
+    },
+    {
+      "id": "read-only",
+      "title": "No browser mutations",
+      "paths": [
+        "src/**"
+      ],
+      "patterns": [
+        "tabs",
+        "snapshot",
+        "findExactTab",
+        "parseAnalysis"
+      ],
+      "minimum_matches": 3,
+      "severity": "error"
+    }
+  ],
+  "manual_checks": [
+    {
+      "id": "live-acceptance",
+      "title": "Run on user's macOS hardware against explicitly authorized website",
+      "reference": "docs/PHASE1.md"
+    }
+  ],
+  "local_ai_artifacts": {
+    "output_directory": ".hero-review",
+    "gitignore_patterns": [
+      ".hero-review/"
+    ],
+    "exclude_from_hero_promotion": [
+      "docs/CURRENT_STATE.md",
+      "tmp/**"
+    ]
+  }
+}

@@ -1,0 +1,45 @@
+version: 1
+
+source:
+  repo: hedydev/hero-skills
+  ref: 71fc8e2d13386e338dc4e103efccc087034957c6
+  local_path: ../hero-skills
+
+required:
+  skills:
+    - track-ai-development-tasks
+    - work-evidence-first
+    - git-safe-delivery
+    - build-diagnostic-sessions
+    - structure-modular-code
+  standards:
+    - ai-development-task-tracking
+    - evidence-based-fixes
+    - git-delivery
+    - diagnostic-sessions
+    - code-modularity
+    - development-environment-storage
+
+project:
+  ai_entry: AGENTS.md
+  handoff: docs/CURRENT_STATE.md
+  review_config: .hero-review.json
+  targets:
+    - id: macos-audit-cli
+      type: cli-worker
+      label: Read-only OpenClaw browser audit orchestration
+      source_roots: [src, scripts]
+  collaboration:
+    mode: single-writer
+    patch_handoff: explicit-only
+  diagnostics_profiles:
+    - cli-worker
+  validation:
+    - node --test
+    - bash -n scripts/dev-env.sh scripts/preflight.sh
+
+contribution:
+  discover_reusable_knowledge: true
+  target_repo: hedydev/hero-skills
+  require_user_approval_before_commit: true
+  require_user_approval_before_push: true
