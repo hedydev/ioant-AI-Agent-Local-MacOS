@@ -23,6 +23,19 @@ case "$BROWSER_PROFILE" in
   *) echo "[loop] Unsupported browser profile: $BROWSER_PROFILE (choose openclaw, user, or chrome)." >&2; exit 2;;
 esac
 export IOANT_CHATGPT_BROWSER_PROFILE="$BROWSER_PROFILE"
+# Privacy-first per-run log: local LunaDrive only, no browser DOM or command output.
+# Initialization fails closed if log storage is unsafe or unavailable.
+LOG_DIR="$PROJECT_DEV_CACHE/logs/chatgpt-loop"
+export IOANT_LOOP_LOG_FILE
+IOANT_LOOP_LOG_FILE="$(node "$ROOT/stage2/diagnostic-log.mjs" init "$LOG_DIR")"
+echo "[loop] Diagnostic log: $IOANT_LOOP_LOG_FILE"
+log_event() {
+  node "$ROOT/stage2/diagnostic-log.mjs" event "$1" "${2:-}" "${3:-}" || {
+    echo '[loop] WARNING: unable to append private diagnostic event' >&2
+    return 1
+  }
+}
+log_event launcher_start
 GATEWAY_PID=''
 cleanup() {
   local rc=$?
@@ -31,7 +44,9 @@ cleanup() {
     echo '[loop] Stopping only our temporary local Gateway'
     kill "$GATEWAY_PID" 2>/dev/null || true
     wait "$GATEWAY_PID" 2>/dev/null || true
+    log_event gateway_stopped || true
   fi
+  log_event launcher_exit exitCode "$rc" || true
   exit "$rc"
 }
 trap cleanup EXIT
@@ -39,7 +54,7 @@ trap cleanup EXIT
 # isolated CLI does not have. Ask the Mac operator instead of replacing the
 # server, disabling auth, or touching browser profiles.
 GATEWAY_HEALTHY=0
-if "$OPENCLAW_BIN" gateway health >/dev/null 2>&1; then GATEWAY_HEALTHY=1; fi
+if "$OPENCLAW_BIN" gateway health >/dev/null 2>&1; then GATEWAY_HEALTHY=1; log_event gateway_existing; fi
 if (( GATEWAY_HEALTHY == 0 )) && lsof -nP -iTCP:18789 -sTCP:LISTEN 2>/dev/null | grep -q LISTEN; then
   GATEWAY_ERROR="$("$OPENCLAW_BIN" gateway health 2>&1 || true)"
   if [[ "$GATEWAY_ERROR" != *"requires credentials before opening a websocket"* ]]; then
@@ -79,7 +94,9 @@ JS
   if "$OPENCLAW_BIN" gateway health >/dev/null 2>&1; then
     GATEWAY_HEALTHY=1
     echo '[loop] Gateway credential accepted; reusing the existing service.'
+    log_event gateway_existing
   else
+    log_event gateway_error || true
     echo '[loop] Existing Gateway still rejected authentication. No restart, retry or config overwrite performed.' >&2
     exit 1
   fi
@@ -98,8 +115,10 @@ if (( GATEWAY_HEALTHY == 0 )); then
     if ! kill -0 "$GATEWAY_PID" 2>/dev/null; then break; fi
     sleep 1
   done
-  (( ready == 1 )) || { echo "[loop] Temporary Gateway not ready; private log: $GATEWAY_LOG" >&2; exit 1; }
+  (( ready == 1 )) || { log_event gateway_error || true; echo "[loop] Temporary Gateway not ready; private log: $GATEWAY_LOG" >&2; exit 1; }
+  log_event gateway_temporary
 fi
+log_event browser_profile profile "$BROWSER_PROFILE"
 # Managed Chrome is launched by OpenClaw; user attaches to already-running
 # Chrome (may require a local consent prompt); chrome uses extension relay.
 case "$BROWSER_PROFILE" in
@@ -124,7 +143,7 @@ if [[ -n "$CHAT_URL" ]]; then
   }
   read -r TAB_COUNT TAB_VISIBLE TAB_CHATGPT TAB_SAME_ID <<<"$TAB_COUNTS"
   case "$TAB_COUNT" in
-    1) echo "[loop] Reusing exactly one matching ChatGPT tab in browser profile: $BROWSER_PROFILE" ;;
+    1) echo "[loop] Reusing exactly one matching ChatGPT tab in browser profile: $BROWSER_PROFILE"; log_event tab_found ;;
     0)
       if [[ "$BROWSER_PROFILE" == openclaw ]]; then
         echo '[loop] Opening only the selected conversation in isolated managed browser.'
@@ -137,10 +156,11 @@ if [[ -n "$CHAT_URL" ]]; then
         else
           echo "[loop] No exact target tab among $TAB_VISIBLE authorized tabs ($TAB_CHATGPT on ChatGPT). Check the current tab URL and extension Selected tabs grant." >&2
         fi
+        log_event tab_missing || true
         exit 1
       fi
       ;;
-    *) echo "[loop] Found $TAB_COUNT copies of the target ChatGPT tab; close duplicates before automation." >&2; exit 1 ;;
+    *) log_event tab_missing || true; echo "[loop] Found $TAB_COUNT copies of the target ChatGPT tab; close duplicates before automation." >&2; exit 1 ;;
   esac
 fi
 (cd "$ROOT" && node stage2/chatgpt-loop.mjs "$@")

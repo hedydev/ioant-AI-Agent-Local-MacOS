@@ -224,3 +224,30 @@ A Node 22 isolated reproduction with a mock OpenClaw CLI verified that the earli
 ## 2026-10-24: Fix malformed line delimiter in --once read-only mock test
 
 The user ran the full Mac Node v24.21.0 suite: 70/71 passed; `test/chatgpt-loop-once-readonly.test.mjs` failed to parse because a source string contained an actual newline between single quotes in `.trim().split('...')`, where it needed the two-byte escaped delimiter `'\\n'`. Fixed this single malformed test expression and made `.map(line => JSON.parse(line))` explicit. Isolated Node 22 `node --check` and a targeted 1/1 mock-browser test pass; the Mac full-suite still needs verification. This change is limited to test source/docs, not the Chrome extension, browser automation, execution authorization, or Gateway auth.
+
+
+## Default private, persistent diagnostics for the Mac ChatGPT feedback loop (2026-10-24)
+
+The operator has now confirmed real Mac read-only acceptance of the exact `ai-mc-alice` ChatGPT conversation through the `chrome` extension profile: `Read-only ChatGPT probe passed: exact conversation and composer detected; no task executed or message sent`. The next explicitly requested feature is local diagnostic writing so that future Chrome relay, Gateway, DOM and Alice preflight failures can be investigated without relying on screenshots of terminal output.
+
+The foreground launcher now **automatically** creates a new 0600 JSONL file per run under:
+`/Volumes/LunaDrive/DeveloperCache/projects/ioant-ai-agent-local-macos/logs/chatgpt-loop/`.
+The directory is 0700. Each filename includes a UTC timestamp, process ID, and random nonce to avoid collisions during rapid reruns. The script prints `[loop] Diagnostic log: <path>` at startup and continues showing normal terminal messages. No cloud upload, daemon, cron, data reset, Gateway config change, or Chrome permission modification. If this private log cannot be created, launcher startup stops rather than silently writing to an untrusted path.
+
+Events capture only allowlisted metadata: timestamps, phase markers, chosen browser profile, Gateway state (existing/temporary/stop/error), exact-tab success/failure, page readiness, initialization attempt/confirmation, action type and validated task ID, status/exit code/elapsed time, report-created marker, feedback pending/confirmed, a roughly two-minute heartbeat, error class and clean termination. **Not logged:** Gateway tokens/passwords, ChatGPT message bodies, DOM snapshots, other tab URLs, terminal or SSH stdout/stderr, raw error strings, report JSON contents, cookies, or browser page HTML. Error codes are coarse (auth, tab, composer, proxy SSRF, connection, timeout, uncertain send, lock or unexpected). Existing bounded Desktop per-task reports remain available for detailed command failure output. Do not upload original Gateway raw logs without separate review.
+
+Storage is bounded to four 2 MiB segments (maximum 8 MiB per run). On new launch, same-owner private regular files older than 30 days are pruned; suspicious symlinks or inaccessible files are left untouched. The old logs are not retroactively reconstructed. A long-running session reaching the cap continues normal execution but stops appending diagnostics; this is a deliberately documented upper bound, not infinite retention.
+
+**Mac operator commands**, no credentials or browser session required:
+
+```bash
+REPO="$HOME/Documents/workspace/ioant-AI-Agent-Local-MacOS"
+cd "$REPO"
+bash scripts/chatgpt-loop-logs.sh latest   # Print newest log path
+bash scripts/chatgpt-loop-logs.sh tail     # Show last 80 timestamped safe events
+bash scripts/chatgpt-loop-logs.sh bundle   # Create private diagnostics ZIP on Desktop
+```
+
+The exported ZIP contains at most 10 newest private JSONL event segments; it deliberately excludes Gateway raw logs, browser content and AliceAI report payloads. Inspection does **not** start Gateway or touch the Chrome extension.
+
+**Local test evidence:** six Node 22 diagnostic-module tests passed in an isolated container after fixing a same-second filename collision; four additional launcher/reader contract tests are included. The complete Mac suite, real live `--watch` logging, send/receipt and Alice sync execution are **not yet accepted**.

@@ -12,6 +12,7 @@ import { privateReportDir } from '../src/report-storage.mjs';
 import { fileURLToPath } from 'node:url';
 import { PROTOCOL, validateChatUrl, chatKey, extractAction, responseForTask, redactFeedback } from './protocol.mjs';
 import { runAction } from './runner.mjs';
+import { recordDiagnosticEvent, diagnosticCode } from './diagnostic-log.mjs';
 
 const call=promisify(execFile);
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -186,6 +187,7 @@ async function main(){
   const unlock=await acquireConversationLock(workDir);
   const stateFile=join(workDir,'state.json');
   const session=randomUUID().slice(0,8);
+  let lastPageErrorEvent=0,lastHeartbeat=Date.now();
   let stopping=false;
   process.on('SIGINT',()=>{stopping=true;console.log('[loop] Stop requested; finishing current operation.');});
   process.on('SIGTERM',()=>{stopping=true;console.log('[loop] Stop requested; finishing current operation.');});
@@ -193,6 +195,7 @@ async function main(){
   console.log('[loop] Tracking only: '+opts.url);
   console.log('[loop] Actions: project-tests / project-status / project-head / environment-scan'+(opts.enableAlicePreflight?' / alice-witness-preflight (scoped Mint sync)':'')+'. Ctrl-C stops.');
   try{
+    recordDiagnosticEvent('worker_start',{mode:opts.mode,profile});
     state=await loadState(stateFile); // Must be within finally so a read failure does not leak lock.
     // A user may need to finish signing into ChatGPT in the managed browser.
     let target;
@@ -223,25 +226,31 @@ async function main(){
         await new Promise(r=>setTimeout(r,opts.interval*1000));
       }
     }
+    recordDiagnosticEvent('page_ready',{profile});
     // --once is acceptance-only. After the first successful exact-tab DOM read,
     // exit before a second browser request, message send, or task execution.
     // The surrounding finally still releases this conversation's lock.
     if(opts.mode==='once'){
+      recordDiagnosticEvent('read_only_success',{profile});
       console.log('[loop] Read-only ChatGPT probe passed: exact conversation and composer detected; no task executed or message sent.');
       return;
     }
     if(opts.initialize&&!opts.enableAlicePreflight&&!state.initSent){
       const receipt='Ioant Mac local command feedback protocol '+PROTOCOL;
+      recordDiagnosticEvent('initialization_attempt',{mode:'basic'});
       await sendToChat(target,opts.url,INIT,receipt);
       state.initSent=true;
       await atomicState(stateFile,state);
+      recordDiagnosticEvent('initialization_sent',{mode:'basic'});
       console.log('[loop] One-time protocol sent to selected ChatGPT conversation.');
     }
     if(opts.initialize && opts.enableAlicePreflight && !state.aliceInitSent){
       const receipt='Ioant Mac Alice witness workflow ioant-mac-ops-v1';
+      recordDiagnosticEvent('initialization_attempt',{mode:'alice'});
       await sendToChat(target,opts.url,INIT_ALICE,receipt);
       state.aliceInitSent=true;
       await atomicState(stateFile,state);
+      recordDiagnosticEvent('initialization_sent',{mode:'alice'});
       console.log('[loop] Alice witness-preflight workflow enabled in selected conversation.');
     }
     do {
@@ -252,6 +261,10 @@ async function main(){
         page=await readPage(nowTarget,opts.url);
       }catch(e){
         if(opts.mode==='once')throw e;
+        if(Date.now()-lastPageErrorEvent>=60000){
+          recordDiagnosticEvent('page_not_ready',{code:diagnosticCode(e)});
+          lastPageErrorEvent=Date.now();
+        }
         console.log('[loop] ChatGPT tab not ready: '+redactFeedback(e.message));
         await new Promise(r=>setTimeout(r,opts.interval*1000));
         continue;
@@ -261,6 +274,7 @@ async function main(){
         const receipt='[IOANT-MAC-OPS RESULT '+state.feedbackPending.id+']';
         if(page.users.some(msg=>msg.includes(receipt))){
           state.lastTaskId=state.feedbackPending.id;state.feedbackPending=null;await atomicState(stateFile,state);
+          recordDiagnosticEvent('feedback_confirmed',{taskId:state.lastTaskId});
           console.log('[loop] Previously sent feedback confirmed; moving on.');
         } else {
           throw Error('Feedback pending for '+state.feedbackPending.id+'; sending again could duplicate a message. Check conversation manually.');
@@ -272,22 +286,38 @@ async function main(){
         if(stable>=2){
           const task=a.task;
           const authorized=task.authorized || (task.action==='alice-witness-preflight' && opts.enableAlicePreflight);
+          recordDiagnosticEvent('task_seen',{taskId:task.id,action:task.known?task.action:'unknown'});
+          recordDiagnosticEvent('action_started',{taskId:task.id,action:task.known?task.action:'unknown'});
           const result=authorized?await runAction(task.action,ROOT,{enableAlicePreflight:opts.enableAlicePreflight}):{status:'approval_required',reason:task.known?'This operation needs separate authorization.':'Action is not recognized or authorized.'};
+          recordDiagnosticEvent('action_finished',{taskId:task.id,action:task.known?task.action:'unknown',status:result.status,...(Number.isInteger(result.exitCode)?{exitCode:result.exitCode}:{}),...(Number.isInteger(result.elapsedMs)?{elapsedMs:result.elapsedMs}:{})});
           await writeReport(workDir,task,result);
+          recordDiagnosticEvent('report_saved',{taskId:task.id});
           const feedback=responseForTask(task,result,session);
           state.feedbackPending={id:task.id,feedback};
           await atomicState(stateFile,state); // Persist BEFORE the send; no duplicate command execution.
+          recordDiagnosticEvent('feedback_pending',{taskId:task.id});
           const receipt='[IOANT-MAC-OPS RESULT '+task.id+']';
           await sendToChat(nowTarget,opts.url,feedback,receipt);
           state.lastTaskId=task.id;state.feedbackPending=null;
           await atomicState(stateFile,state);
+          recordDiagnosticEvent('feedback_confirmed',{taskId:task.id,status:result.status});
           console.log(`[loop] ${task.id}: ${result.status}. Feedback confirmed; waiting for next task.`);
           stable=0;previousFingerprint='';
         }
       } else {stable=0;previousFingerprint='';}
       if(opts.mode==='once')break;
+      if(Date.now()-lastHeartbeat>=120000){
+        recordDiagnosticEvent('watch_heartbeat',{status:'running'});
+        lastHeartbeat=Date.now();
+      }
       await new Promise(resolve=>setTimeout(resolve,opts.interval*1000));
     }while(!stopping);
-  }finally{await unlock()}
+  }finally{
+    recordDiagnosticEvent('watch_stopped');
+    await unlock();
+  }
 }
-main().catch(e=>{console.error('[loop] STOP: '+redactFeedback(e.message));process.exitCode=1});
+main().catch(e=>{
+  try{recordDiagnosticEvent('worker_error',{code:diagnosticCode(e)})}catch{}
+  console.error('[loop] STOP: '+redactFeedback(e.message));process.exitCode=1;
+});
