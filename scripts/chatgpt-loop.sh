@@ -27,10 +27,56 @@ cleanup() {
   exit "$rc"
 }
 trap cleanup EXIT
-if ! "$OPENCLAW_BIN" gateway health >/dev/null 2>&1; then
-  if lsof -nP -iTCP:18789 -sTCP:LISTEN 2>/dev/null | grep -q LISTEN; then
-    echo '[loop] Unknown listener owns OpenClaw Gateway port; refusing to disturb it' >&2; exit 1
+# A pre-existing Gateway may require a client token/password that this
+# isolated CLI does not have. Ask the Mac operator instead of replacing the
+# server, disabling auth, or touching browser profiles.
+GATEWAY_HEALTHY=0
+if "$OPENCLAW_BIN" gateway health >/dev/null 2>&1; then GATEWAY_HEALTHY=1; fi
+if (( GATEWAY_HEALTHY == 0 )) && lsof -nP -iTCP:18789 -sTCP:LISTEN 2>/dev/null | grep -q LISTEN; then
+  GATEWAY_ERROR="$("$OPENCLAW_BIN" gateway health 2>&1 || true)"
+  if [[ "$GATEWAY_ERROR" != *"requires credentials before opening a websocket"* ]]; then
+    echo '[loop] Existing listener on Gateway port is unhealthy or not authorized; it has NOT been stopped.' >&2
+    exit 1
   fi
+  if [[ ! -t 0 ]]; then
+    echo '[loop] Gateway needs credentials. Run this script in an interactive Mac terminal. Never paste token/password into ChatGPT.' >&2
+    exit 1
+  fi
+  AUTH_KIND="$(node - "$HOME/.openclaw/openclaw.json" <<'JS'
+const fs=require('node:fs');
+try {
+  const cfg=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+  const mode=cfg?.gateway?.auth?.mode;
+  process.stdout.write(mode==='password'?'password':mode==='token'?'token':'unknown');
+} catch {process.stdout.write('unknown')}
+JS
+)"
+  if [[ "$AUTH_KIND" == unknown ]]; then
+    echo '[loop] Config does not reveal Gateway auth mode. Specify the existing mode (not the secret).'
+    printf '[loop] Auth mode [token/password]: '
+    IFS= read -r AUTH_KIND || exit 1
+    [[ "$AUTH_KIND" == token || "$AUTH_KIND" == password ]] || { echo '[loop] Unsupported auth mode.' >&2; exit 1; }
+  fi
+  echo '[loop] Use the existing Gateway credential. In token mode, a second Terminal can run: openclaw gateway auth-token --show (NEVER share output).'
+  printf '[loop] Existing Gateway %s (hidden input): ' "$AUTH_KIND"
+  IFS= read -rs GATEWAY_CREDENTIAL || { printf '\n'; echo '[loop] Credential input aborted.' >&2; exit 1; }
+  printf '\n'
+  [[ -n "$GATEWAY_CREDENTIAL" ]] || { echo '[loop] Empty credential rejected.' >&2; exit 1; }
+  if [[ "$AUTH_KIND" == token ]]; then
+    export OPENCLAW_GATEWAY_TOKEN="$GATEWAY_CREDENTIAL"
+  else
+    export OPENCLAW_GATEWAY_PASSWORD="$GATEWAY_CREDENTIAL"
+  fi
+  unset GATEWAY_CREDENTIAL
+  if "$OPENCLAW_BIN" gateway health >/dev/null 2>&1; then
+    GATEWAY_HEALTHY=1
+    echo '[loop] Gateway credential accepted; reusing the existing service.'
+  else
+    echo '[loop] Existing Gateway still rejected authentication. No restart, retry or config overwrite performed.' >&2
+    exit 1
+  fi
+fi
+if (( GATEWAY_HEALTHY == 0 )); then
   command -v openssl >/dev/null || { echo '[loop] openssl missing' >&2; exit 1; }
   export OPENCLAW_GATEWAY_TOKEN
   OPENCLAW_GATEWAY_TOKEN="$(openssl rand -hex 32)"

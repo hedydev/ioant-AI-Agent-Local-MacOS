@@ -173,3 +173,12 @@ Added a **separately opted-in** structured Stage-2 action `alice-witness-preflig
 Tests: six Alice-specific cases passed, and the targeted Stage-2 suite passed 15/15 under Linux Node 22, with a simulated browser. Real Mac browser DOM and looping assistant behavior, same-chat feedback and recovery after an uncertain send **not yet physically accepted**. Documentation: `docs/CHATGPT_LOOP.md`.
 
 Important boundary: the loop is a foreground Mac process, not a task or background process running within this ChatGPT reply; requires explicit --initialize --enable-alice-preflight at startup. No literal binary attachment uploading yet; complete allowlisted report JSON is sent in message text after successful preflight.
+
+
+## Mac OpenClaw Gateway authentication blocked before browser launch (2026-10-24)
+
+Latest operator terminal evidence: `gateway health requires credentials before opening a websocket` and identical browser `status/tabs` authentication errors. The user's local `sing-box` listens at `:6789`; direct ChatGPT HTTPS HEAD timed out; proxy CONNECT returned 200 and final HTTP status 403. These observations isolate the first blocker to OpenClaw Gateway client authentication. They do **not** yet establish whether an authenticated OpenClaw-managed Chrome tab could reach ChatGPT (HTTP 403 may require a separate proxy/interactive browser diagnosis).
+
+The old Stage-2 launcher discarded the actual authentication error and treated all failures on an occupied TCP 18789 as an unknowable listener, with no safe recovery path. It now prompts interactively for an already existing Gateway token or password **only** for the specific 'requires credentials' error plus local listener. The secret is hidden, never printed or saved by the launcher, and validated before reuse. Failed validation stops without stopping the other Gateway or changing local/browser config. As a follow-up security hardening, project-command subprocesses cannot inherit Gateway token/password/URL environment variables.
+
+Added regression tests for the launcher contract and child secret stripping. Real-Mac Gateway authentication and browser ChatGPT access **remain pending**. Do not request token disclosure, gateway reset, or proxy/VPN changes.

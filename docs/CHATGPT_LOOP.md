@@ -134,3 +134,16 @@ Automatic permissions do **not** include `alice-mac.sh deploy`, `restart`, world
 ### Test coverage and limitations
 
 Six new isolated Alice-workflow tests pass: local opt-in, exact argv/order, source/SSH filtering, stop on Python import failure, rejection of copied `(1)` files, and schema/timestamp privacy filtering. Existing Stage-2 protocol and simulated browser tests also pass (15/15 for this targeted subset on Node 22 Linux). This is **not** Mac real-site acceptance. OpenClaw's browser DOM selectors, sending the structured result and the full ChatGPT reasoning/repair loop still need one Mac trial. Remote Git commits will only be picked up by fast-forward on each new task; no autonomous repo commit or code edit is performed by this Mac worker.
+
+
+## Existing Gateway authentication recovery (2026-10-24)
+
+Real Mac diagnostics showed that `openclaw gateway health` and `openclaw browser ... status/tabs` returned `requires credentials before opening a websocket`. A local `sing-box` proxy was listening on TCP 6789; a ChatGPT direct `curl` request timed out, while proxy CONNECT succeeded with an eventual HTTP 403. These do **not** prove browser connectivity or Cloudflare/login acceptance; the observed browser failure occurs earlier at Gateway authentication.
+
+The foreground `scripts/chatgpt-loop.sh` launcher now distinguishes an already-running local Gateway with missing CLI credentials from an unoccupied Gateway port. With a listener on TCP 18789 and that specific authentication-required error, it **requires an interactive Mac Terminal** and asks for the operator's **existing** Gateway token/password using hidden input. The auth mode is read from `~/.openclaw/openclaw.json` (only the mode is printed); if missing, the operator must explicitly select token/password. In token mode, the official `~/.openclaw/bin/openclaw gateway auth-token --show` command may be run in a *separate trusted terminal* to view the existing secret; **never paste it into ChatGPT or logs**. The token/password is used only in memory for that foreground session, is not written into config, and is checked by `gateway health` before any browser action. Invalid credentials fail closed: no Gateway restart, disabling authentication, config edits, or browser profile reset.
+
+The task subprocess launcher now deletes `OPENCLAW_GATEWAY_TOKEN`, `OPENCLAW_GATEWAY_PASSWORD`, and `OPENCLAW_GATEWAY_URL` from inherited environments before spawning a project/Alice task, preventing inadvertent leakage into tests or SSH sync scripts. This is independent from the existing read-only Stage-1 audit.
+
+If Gateway auth succeeds but ChatGPT still shows 403 or fails to load, investigate the isolated browser's proxy routing and interactive login separately; do not switch off NetScale, Tailscale, sing-box, or system proxy from this script. Existing browser sessions do not automatically share Chrome sign-in.
+
+**Validation:** source patch and regression tests are published, but a real Mac Gateway token/password and isolated Chrome sign-in remain to be verified by the operator. The loop is **not** claimed active in this ChatGPT conversation.

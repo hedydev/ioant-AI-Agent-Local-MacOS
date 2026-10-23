@@ -36,6 +36,10 @@ async function runFixedPlan(plan) {
     let output='',finished=false,timedOut=false;
     const done=(result)=>{if(!finished){finished=true;resolveResult({...result,elapsedMs:Math.round(performance.now()-start),output})}};
     const env={...process.env,...(plan.env??{})};
+    // Child jobs must never inherit browser Gateway credentials.
+    delete env.OPENCLAW_GATEWAY_TOKEN;
+    delete env.OPENCLAW_GATEWAY_PASSWORD;
+    delete env.OPENCLAW_GATEWAY_URL;
     delete env.NODE_TEST_CONTEXT; // Do not turn nested project tests into recursive Node test-runner skips.
     const p=spawn(plan.bin,plan.args,{cwd:plan.cwd,env,shell:false,stdio:['ignore','pipe','pipe']});
     const timer=setTimeout(()=>{timedOut=true;p.kill('SIGTERM')},plan.timeout);
