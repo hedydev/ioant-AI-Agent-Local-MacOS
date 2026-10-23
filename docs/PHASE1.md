@@ -170,3 +170,14 @@ The state now distinguishes `analysisPolicyVersion: 3` so the first run after th
 Operator Mac output after latest update: **38 total / 37 pass / 1 fail**. The sole failure was an obsolete report-heading assertion in `test/evidence.test.mjs`; this test expected `Model claims without valid line citations` after the report had deliberately renamed its section to `Model claims with insufficient evidence (unverified)`. The same test output demonstrated correct source-linked claims and the three invalid/uncited observations. Changed the assertion only; production code and semantic guard are unchanged.
 
 A targeted code-path reproduction passed. Full-suite pass, dedup proof (`UNCHANGED example`), and new v3 Desktop report still require Mac execution. Use the standard one-command bootstrap after fast-forwarding `main`.
+
+
+## Fourth report: complete evidence references for enumerated paragraph languages (2026-10-24)
+
+Fourth real local report shows the intended `info` triage, separate multilingual paragraphs, and conditional-only manual checks. Its same SHA-256 confirms no detected change in bounded page text since earlier reports. However one observation explicitly lists six languages while the report quotes source lines only for English, Arabic, Chinese, and French (four citations).
+
+Root cause: static per-observation citation truncation to four in `parseAnalysis` and `attachEvidence`, plus an equivalent model system-prompt limit. In `analysisPolicyVersion: 4`, all three limits become eight. A structural evidence-count rule prevents a claim listing several separately presented paragraph languages from appearing fully cited if the number of distinct paragraph source lines is lower than the number of languages named. A full six-line citation passes; a four-line citation for six claimed paragraph languages is explicitly moved to unsupported evidence.
+
+This is a limited structural consistency rule; it does not independently recognize each language and does not validate translation fidelity, visual appearance, keyboard navigation or accessibility. Old reports are preserved on the Mac Desktop. The first v4 run creates a new report even when the SHA is unchanged, then another identical run should return `UNCHANGED`.
+
+**Mac acceptance pending:** run project Node tests and the one-command bootstrap if another live sample is desired; record actual test output and the second `UNCHANGED` log. No reinstallation or other-device operations required.

@@ -69,7 +69,7 @@ export function parseAnalysis(content) {
   const short = value => redact(typeof value === 'string' ? value.slice(0, 1200) : '');
   const readClaims = (items, max) => Array.isArray(items) ? items.slice(0, max).map(item => ({
     claim: short(typeof item === 'string' ? item : item?.claim),
-    evidence_line_ids: Array.isArray(item?.evidence_line_ids) ? item.evidence_line_ids.slice(0, 4) : [],
+    evidence_line_ids: Array.isArray(item?.evidence_line_ids) ? item.evidence_line_ids.slice(0, 8) : [],
     severity: item?.severity === 'critical' ? 'critical' : item?.severity === 'warning' ? 'warning' : 'unknown'
   })).filter(item => item.claim.length) : [];
   return {

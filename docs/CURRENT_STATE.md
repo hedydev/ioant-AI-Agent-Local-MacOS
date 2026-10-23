@@ -121,3 +121,19 @@ This creates `analysisPolicyVersion: 3`: first new-policy run generates one Desk
 User provided real Mac bootstrap output for analysis policy v3: 38 tests ran, 37 passed, 1 failed before Gateway/browser activity. Failure: `test/evidence.test.mjs` still asserted the former section heading `Model claims without valid line citations`, while the intentionally expanded renderer now emits `Model claims with insufficient evidence (unverified)`. The report in the failing test otherwise correctly kept valid source-linked observations and grouped missing/invalid citations separately; there is no evidence of an inference regression.
 
 Corrected the **single stale test expectation**, not the report renderer or other runtime behavior. The scenario was replayed against the repository's `parseAnalysis`, `attachEvidence`, and `reportMarkdown` logic in a V8 smoke test: updated heading, valid citation and all three unsupported cases matched. Full Mac `node --test` and live browser acceptance **still require rerun**. Avoid installing or changing OpenClaw, fnm or Ollama for this test-only fix.
+
+
+## Fourth real Mac report and evidence count correction (2026-10-24)
+
+User submitted `2026-10-23T16-52-25-399Z-8d7c8aae.md`, a fourth actual `example.com` Markdown report. The snapshot SHA-256 is **unchanged** across the historical captures: `e1efa1a3f803749fcda6a145d3c0a1798156d1b742cb8a9d4a41b576e0970941`. The report showed:
+- `Review priority: info` and `Model-suggested severity: info`, no issue candidates and no insufficient-evidence observations.
+- The earlier singular-multilingual-paragraph claim was replaced by the more accurate **multiple language-specific paragraphs**.
+- The manual verification section no longer instructs a page modification without a confirmed defect.
+- One remaining provenance gap: the claim names six languages (English, Arabic, Chinese, French, Russian, Spanish), but the Markdown shows just **four** paragraph citations (L0002-L0005). The snapshot is said to have nine model input lines; the remaining languages are **not verified by this report's quoted evidence**.
+- No accompanying terminal output was supplied, so the report alone does **not** establish a passing test count or the second `UNCHANGED` audit pass.
+
+Cause found in current source: `src/core.mjs` and `src/evidence.mjs` forcibly capped every observation at **four** evidence line IDs, and the prompt also instructed the model to provide at most four. This directly prevents a single six-language observation from showing all six supporting paragraph lines.
+
+Fix: raise the per-claim cap to **eight** in the prompt/parser/evidence binding, and add a narrow deterministic structural rule: when a claim enumerates three or more named languages and plural paragraph nodes, there must be at least one distinct cited paragraph source line for every named language. Fewer citations result in "insufficient evidence". The rule checks **count**, not actual translation/language identity; manual review is still required. New source policy is `analysisPolicyVersion: 4`, requiring one new report under the updated policy (then unchanged SHA skipping resumes).
+
+**Validation:** source syntax and eleven evidence/observation pure-code regression checks ran and passed in V8 isolation. Full Node suite and physical Mac OpenClaw/Ollama browser acceptance remain pending. Do not report final Phase-1 sign-off until operator supplies test and/or unchanged output. Stage-one stays read-only; Desktop report destination unchanged.

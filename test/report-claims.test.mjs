@@ -68,3 +68,41 @@ test('cited issue candidates retain conditional recommendation label',()=>{
   assert.match(markdown,/Manually confirm source-linked issue candidates/);
   assert.match(markdown,/Unverified model suggestion: Review the error display/);
 });
+
+test('six named language paragraphs require all six distinct paragraph lines',()=>{
+  const six=buildEvidenceSnapshot([
+    '- paragraph: English example domain information',
+    '- paragraph: العربية',
+    '- paragraph: 中文',
+    '- paragraph: Français',
+    '- paragraph: Русский',
+    '- paragraph: Español'
+  ].join('\n'));
+  const ids=six.lines.map(line=>line.id);
+  const claim='Page contains multiple paragraphs in different languages (English, Arabic, Chinese, French, Russian, Spanish).';
+  const four=attachEvidence(parseAnalysis(JSON.stringify({ observations:[
+    {claim,evidence_line_ids:ids.slice(0,4)}
+  ]})),six.lines);
+  assert.equal(four.observations.length,0);
+  assert.equal(four.unsupported.length,1);
+  assert.match(four.unsupported[0].reason,/names 6 paragraph languages but cites only 4/);
+  const complete=attachEvidence(parseAnalysis(JSON.stringify({ observations:[
+    {claim,evidence_line_ids:ids}
+  ]})),six.lines);
+  assert.equal(complete.observations.length,1);
+  assert.equal(complete.observations[0].evidence.length,6);
+  assert.equal(complete.unsupported.length,0);
+});
+
+test('bounded eight-line citation references preserve invalid reference rejection',()=>{
+  const input=buildEvidenceSnapshot(Array.from({length:9},(_,i)=>'paragraph paragraph '+i).join('\n'));
+  const valid=attachEvidence(parseAnalysis(JSON.stringify({observations:[
+    {claim:'Nine paragraphs exist',evidence_line_ids:input.lines.slice(0,8).map(x=>x.id)}
+  ]})),input.lines);
+  assert.equal(valid.observations[0].evidence.length,8);
+  const invalid=attachEvidence(parseAnalysis(JSON.stringify({observations:[
+    {claim:'Nine paragraphs exist',evidence_line_ids:[...input.lines.slice(0,7).map(x=>x.id),'L9999']}
+  ]})),input.lines);
+  assert.equal(invalid.observations.length,0);
+  assert.equal(invalid.unsupported.length,1);
+});

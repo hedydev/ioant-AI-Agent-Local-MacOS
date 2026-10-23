@@ -133,3 +133,8 @@ Source line citations establish **provenance**, not general factual truth. A nar
 The report will **not** display unconditional webpage modifications when no explicit, source-linked issue candidates are present. Instead it prompts manual verification of uncertainties without recommending any page change. If issue candidates exist, the model's proposed follow-up is still marked **unverified** and conditional on review.
 
 The initial run after upgrading to analysis policy v3 regenerates an evidence report on the Desktop even when the page snapshot SHA is identical. Subsequent unchanged captures remain deduplicated. No services, packages, model downloads or filesystem relocations are needed for this update.
+
+
+## Evidence citation count (analysis policy v4)
+
+A single observation may now cite up to **eight** source lines instead of four. If an observation lists distinct languages of separate paragraph nodes, the number of paragraph citations must cover every language it names, or the claim appears in the report's insufficient-evidence section rather than masquerading as completely sourced. This general count check is **not** a semantic language detector. The v4 policy creates a fresh Desktop report once, then resumes normal unchanged-page deduplication.

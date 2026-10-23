@@ -36,6 +36,15 @@ function structuralContradiction(claim, evidence) {
   if (singleParagraph && claimsMultilingual && paragraphNodes.length > 1) {
     return 'Claim describes one multilingual paragraph but citations are separate paragraph nodes';
   }
+  // When a claim enumerates separate language-specific paragraphs, require at
+  // least one distinct paragraph source line for every named language.
+  // This counts cited nodes, not actual language correctness; cited text can
+  // still be semantically wrong and needs human review.
+  const languages = ['English','Arabic','Chinese','French','Russian','Spanish','German','Japanese','Korean','Hindi','Portuguese','Italian'];
+  const namedLanguages = languages.filter(name => new RegExp('\\b' + name + '\\b', 'i').test(claim));
+  if (/\bparagraphs\b/i.test(claim) && namedLanguages.length >= 3 && paragraphNodes.length < namedLanguages.length) {
+    return 'Claim names ' + namedLanguages.length + ' paragraph languages but cites only ' + paragraphNodes.length + ' distinct paragraph source lines';
+  }
   return null;
 }
 
@@ -46,7 +55,7 @@ function linkClaims(items, lookup) {
   const linked = [], unsupported = [];
   for (const item of items ?? []) {
     const ids = Array.isArray(item.evidence_line_ids) ? item.evidence_line_ids : [];
-    const unique = [...new Set(ids)].slice(0, 4);
+    const unique = [...new Set(ids)].slice(0, 8);
     if (!unique.length || unique.some(id => !lookup.has(id))) {
       unsupported.push({
         claim: item.claim,
