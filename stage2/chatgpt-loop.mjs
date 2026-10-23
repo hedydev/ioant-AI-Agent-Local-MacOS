@@ -210,7 +210,7 @@ async function main(){
   let stopping=false;
   process.on('SIGINT',()=>{stopping=true;console.log('[loop] Stop requested; finishing current operation.');});
   process.on('SIGTERM',()=>{stopping=true;console.log('[loop] Stop requested; finishing current operation.');});
-  let state,previousFingerprint='',stable=0;
+  let state,previousFingerprint='',stable=0,lastVisibleStatus='';
   console.log('[loop] Tracking only: '+opts.url);
   console.log('[loop] Actions: project-tests / project-status / project-head / environment-scan'+(opts.enableAlicePreflight?' / alice-witness-preflight (scoped Mint sync)':'')+'. Ctrl-C stops.');
   try{
@@ -358,9 +358,22 @@ async function main(){
           stable=0;previousFingerprint='';
         }
       } else {stable=0;previousFingerprint='';}
-      if(opts.mode==='once')break;
+      // A normal prose response or a reply with no protocol JSON is an
+      // intentional idle state. Show an operator-visible status, but never
+      // manufacture an executable task or send another ChatGPT message.
+      const watchStatus=a.status==='idle'?'idle'
+        :a.status==='generating'?'generating'
+        :a.task.id===state.lastTaskId?'handled':'candidate';
+      if(watchStatus!==lastVisibleStatus){
+        if(watchStatus==='idle')console.log('[loop] Waiting for a structured ChatGPT task; latest reply contains no executable JSON. Watch remains active.');
+        else if(watchStatus==='generating')console.log('[loop] ChatGPT is replying; watch remains active.');
+        else if(watchStatus==='handled')console.log('[loop] Latest structured task was already handled; awaiting a new task ID.');
+        else console.log('[loop] Structured task detected; verifying a second stable page read before execution.');
+        lastVisibleStatus=watchStatus;
+      }
       if(Date.now()-lastHeartbeat>=120000){
-        recordDiagnosticEvent('watch_heartbeat',{status:'running'});
+        recordDiagnosticEvent('watch_heartbeat',{status:watchStatus});
+        console.log('[loop] Watch heartbeat: '+watchStatus+'; still monitoring the exact ChatGPT conversation.');
         lastHeartbeat=Date.now();
       }
       await new Promise(resolve=>setTimeout(resolve,opts.interval*1000));
