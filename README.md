@@ -15,7 +15,7 @@ sanitize / SHA-256 / change detection
              |
 Ollama native /api/chat on 127.0.0.1:11435 [local-only]
              |
-private Markdown report + JSONL diagnostics
+Markdown report on Desktop; private JSONL diagnostics on LunaDrive
 ```
 
 The model receives a bounded, redacted accessibility snapshot. The model is **not** given tool access and its output is **never** treated as a command. Stage 1 opens no tabs automatically: the operator opens an authorized page in the selected OpenClaw profile first.
@@ -32,9 +32,22 @@ With the repository already cloned, paste **only one command** into Mac Terminal
 git -C "$HOME/Documents/workspace/ioant-AI-Agent-Local-MacOS" pull --ff-only origin main && bash "$HOME/Documents/workspace/ioant-AI-Agent-Local-MacOS/scripts/bootstrap-phase1.sh"
 ```
 
-The script reuses an existing OpenClaw executable when found. Otherwise it downloads the **official HTTPS** `install-cli.sh`, syntax-checks it, and installs the CLI plus its **private compatible Node runtime** using `--runtime-only --no-onboard` under `~/.openclaw`. It then runs Node tests, checks your existing Ollama service on `127.0.0.1:11435` and the installed `gpt-oss:20b` model, starts (only if required) a temporary authenticated loopback Gateway, opens an isolated OpenClaw browser profile to `https://example.com/`, and runs one read-only local audit.
+The script also copies existing Markdown reports from LunaDrive to the Desktop report folder without overwriting or deleting originals. New reports are written directly to Desktop; state and diagnostics remain on LunaDrive. The script reuses an existing OpenClaw executable when found. Otherwise it downloads the **official HTTPS** `install-cli.sh`, syntax-checks it, and installs the CLI plus its **private compatible Node runtime** using `--runtime-only --no-onboard` under `~/.openclaw`. It then runs Node tests, checks your existing Ollama service on `127.0.0.1:11435` and the installed `gpt-oss:20b` model, starts (only if required) a temporary authenticated loopback Gateway, opens an isolated OpenClaw browser profile to `https://example.com/`, and runs one read-only local audit.
 
 It never changes fnm defaults, installs a system-wide Node, installs a Gateway daemon, downloads models, imports Chrome cookies, or starts unattended monitoring. When complete, it stops only the Gateway process it started; other services are preserved. If the browser or Gateway cannot initialize it fails visibly with a private log location. This is an automation of the **first local acceptance attempt**, not proof that the live Mac will pass before testing.
+
+## 📁 Where to find your reports (macOS)
+
+All user-facing Markdown reports now go to **`~/Desktop/Ioant-AI-Agent-Reports/<site-id>/<timestamp>.md`**. For example, `~/Desktop/Ioant-AI-Agent-Reports/example/`. Internal SHA-state and diagnostic logs remain in `/Volumes/LunaDrive/DeveloperCache/projects/ioant-ai-agent-local-macos/audits/`.
+
+To copy **older reports** to Desktop without overwriting desktop files or deleting the LunaDrive originals (no OpenClaw or Gateway needed):
+
+```bash
+bash scripts/dev-env.sh exec node scripts/export-reports.mjs
+open "$HOME/Desktop/Ioant-AI-Agent-Reports"
+```
+
+The export is repeatable. Files and folders use owner-only permissions; the Desktop may be synced via iCloud if that feature is enabled on the Mac. **Do not audit sensitive/private sites until privacy protections are stronger.**
 
 ## Quick start (Mac Terminal)
 
@@ -88,7 +101,7 @@ A sanitized, private JSON snapshot is saved on LunaDrive, **never pushed to this
 
 - One or more explicitly configured sites, sequential read-only captures. Matching uses **exact URL**; unexpected redirects and missing tabs fail closed.
 - Manual `--once`; optional `--watch --interval 60+` while terminal remains open. Unchanged snapshots are skipped in watch mode.
-- Reports and structured diagnostic events are stored in a private directory on the selected LunaDrive development volume (see `docs/DEVELOPMENT_ENVIRONMENT.md`).
+- Human-readable Markdown reports are stored in a private folder on the Mac Desktop; SHA state and structured diagnostic events remain in the private LunaDrive directory (see `docs/DEVELOPMENT_ENVIRONMENT.md`).
 - No clicking, form filling, posting comments, subprocess execution derived from webpage contents, code editing, Mint SSH, or automatic ChatGPT feedback.
 - Only the OpenClaw **browser CLI** is used by stage 1; we do not run an unrestricted OpenClaw autonomous agent. Later stages may add constrained agent tool permissions after separate approval.
 

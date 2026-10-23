@@ -40,3 +40,19 @@ The wrapper checks resolved npm cache when npm is available; inherited environme
 | No legacy inherited paths | requires Mac |
 
 No automated deletion or relocation of existing caches or personal files.
+
+## Human-facing report destination — Desktop
+
+The operator requests all human-readable audit reports on the Mac Desktop, not buried in a development cache. New reports are written directly under:
+
+```text
+~/Desktop/Ioant-AI-Agent-Reports/
+  example/
+    2026-10-23T...-xxxxxxxx.md
+```
+
+The dedicated report directories are owner-only (`0700`) and each new Markdown report is `0600`. This destination is controlled by `IOANT_AI_AUDIT_REPORT_DIR` (default Desktop). **Internal** `state.json`, `events.jsonl`, and other diagnostics remain on the mounted LunaDrive; these are not reports and should not clutter the Desktop.
+
+To copy older LunaDrive-generated `.md` reports into the new Desktop destination, use `bash scripts/dev-env.sh exec node scripts/export-reports.mjs`. The exporter skips state/log files and symlinks, refuses to overwrite existing desktop reports, and leaves the originals untouched as a recovery backup. `scripts/bootstrap-phase1.sh` also runs this export as part of its normal flow. The exporter fails visibly if the Desktop folder is not accessible or is insecure (instead of silently falling back to the internal drive).
+
+**Privacy:** macOS Desktop can be synchronized with iCloud Drive depending on user settings. Best-effort redaction is not enough for sensitive accounts, health or banking pages; do not audit them in Phase 1.

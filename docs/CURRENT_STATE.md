@@ -73,3 +73,11 @@ The initial live report demonstrated inference but provided only free-text model
 - Add evidence/force/dedup/invalid citation tests; adjust existing mocked integration test.
 
 **Verification boundary:** existing v1 real-Mac smoke was successful. v2 changes have not yet been executed against user's Mac/OpenClaw/Ollama, so do not mark v2 accepted or presume model citation quality. Use the single copy-paste Mac command from README, review the new report, confirm `UNCHANGED` and no unwanted environment changes. Keep credential-bearing pages out of audits.
+
+## Desktop reports preference and implementation (2026-10-24)
+
+User wants **all readable audit reports visible on the Mac Desktop**. Code changes introduce a default report output directory `~/Desktop/Ioant-AI-Agent-Reports/<site-id>/`. Only Markdown reports move to Desktop; SHA deduplication state and event diagnostics remain on LunaDrive under `DeveloperCache/projects/ioant-ai-agent-local-macos/audits/`.
+
+The new `src/report-storage.mjs` validates private output folders and report names, detects whether the existing report is present on Desktop before returning `UNCHANGED`, and safely copies legacy reports. `scripts/export-reports.mjs` performs an idempotent, non-overwriting copy of old `.md` reports, leaving originals intact; `scripts/bootstrap-phase1.sh` invokes it automatically. Tests cover report destination, file permissions, repeat export and report-absent regeneration.
+
+The change is committed to GitHub but requires Mac execution to copy the user's historical report and validate the actual Desktop location. Do not claim the Mac Desktop has already been modified remotely.

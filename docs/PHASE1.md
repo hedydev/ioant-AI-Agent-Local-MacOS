@@ -125,3 +125,11 @@ The persisted state now includes `evidenceSchemaVersion: 2`. The first audit aft
 3. Stops only the Gateway it started.
 
 **Status:** code and mocked tests prepared; user has not yet run v2 on Mac. Successful v1 smoke proof remains valid, but v2 evidence quality and Mac dedup still need evidence.
+
+## Report location acceptance — Mac Desktop (2026-10-24)
+
+Human-facing Markdown reports: `~/Desktop/Ioant-AI-Agent-Reports/<site-id>/<timestamp>.md`. Private audit state, SHA hashes and diagnostics still live under the LunaDrive `audits/<site-id>` directories. New reports are written straight to Desktop; existing Markdown reports can be copied there without overwriting or deleting their LunaDrive originals via `bash scripts/dev-env.sh exec node scripts/export-reports.mjs`.
+
+The unchanged-snapshot skip requires the referenced previous report to exist at its Desktop destination. If the report is absent, it is regenerated instead of silently skipping. Unit and mocked end-to-end tests cover the new behavior.
+
+**Mac acceptance:** verify the file appears on the Desktop, old reports copied safely, new owner-only permissions and repeat unchanged behavior. This is not yet verified on the user's Mac. Desktop/iCloud sync may transmit private report excerpts depending on Mac settings; use only approved non-sensitive pages.

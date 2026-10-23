@@ -63,6 +63,9 @@ info 'Installed OpenClaw version:'
 info 'Running project tests before browser activity'
 (cd "$ROOT" && node --test) || fail 'Project tests failed; no browser audit attempted.'
 
+info 'Copying existing Markdown reports to the Desktop (no overwrite or deletion)'
+(cd "$ROOT" && node scripts/export-reports.mjs) || fail 'Could not copy existing reports to Desktop.'
+
 info 'Verifying the existing Ollama service and chosen model (no downloads)'
 OLLAMA_MODEL="${IOANT_OLLAMA_MODEL:-gpt-oss:20b}"
 export IOANT_OLLAMA_MODEL="$OLLAMA_MODEL"

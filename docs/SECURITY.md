@@ -35,3 +35,9 @@ The new read-only registry inspects bounded executable locations and Ollama loop
 Never use model-generated quotes as evidence. Construct snapshot line IDs and excerpts deterministically from redacted browser output; models may only return those IDs. Reject missing/invalid source IDs as unsupported claims rather than pretending they were verified. Source citations are provenance pointers, **not** semantic/factual, visual or functional verification. Treat even valid-citation interpretations as model assessments.
 
 Each source excerpt is bounded and is included only for cited observations. Redaction remains best-effort, so excerpts can still expose sensitive information; prohibit login/secret-bearing pages until stronger privacy controls have real tests. Preserve no raw full-page snapshot. Changes to evidence version must not silently reuse stale old-schema reports.
+
+## Report destination trust boundary
+
+The user chose the Mac Desktop as the human-facing report destination. The dedicated report folder and each site folder must have private `0700` permissions; Markdown outputs are written `0600`. The exporter does not follow symlinked report files and does not overwrite or delete historical reports; machine-only diagnostics and state remain on LunaDrive.
+
+A Desktop location **may be synchronized to iCloud Drive**. This is a local user-controlled sync behavior outside the application's privacy controls. Do not inspect private/sensitive webpages in the read-only phase; browser-extracted content is only best-effort redacted and can appear in Markdown evidence excerpts.

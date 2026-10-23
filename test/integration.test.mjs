@@ -22,6 +22,7 @@ test('mock OpenClaw->Ollama->report, deduplicate, never execute page commands', 
   const bin = join(dir, 'fake-openclaw');
   const config = join(dir, 'sites.json');
   const reportRoot = join(dir, 'audits');
+  const desktopRoot = join(dir, 'Desktop', 'Ioant-AI-Agent-Reports');
   const marker = join(dir, 'page-command-executed');
   const log = join(dir, 'browser-commands');
   await mkdir(reportRoot);
@@ -48,7 +49,7 @@ test('mock OpenClaw->Ollama->report, deduplicate, never execute page commands', 
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const port = server.address().port;
-  const opts = ['--once', '--config', config, '--data-dir', reportRoot, '--ollama-url', 'http://127.0.0.1:' + port, '--id', 'example'];
+  const opts = ['--once', '--config', config, '--data-dir', reportRoot, '--report-dir', desktopRoot, '--ollama-url', 'http://127.0.0.1:' + port, '--id', 'example'];
   try {
     const env = { IOANT_OPENCLAW_BIN: bin, IOANT_OLLAMA_MODEL: 'test-model' };
     const first = await run(opts, env);
@@ -59,10 +60,11 @@ test('mock OpenClaw->Ollama->report, deduplicate, never execute page commands', 
     assert.equal(second.code, 0, second.err);
     assert.match(second.out, /UNCHANGED/);
     assert.equal(requests, 1);
-    const files = await readdir(join(reportRoot, 'example'));
+    const files = await readdir(join(desktopRoot, 'example'));
+    assert.match(first.out, /Desktop/);
     const md = files.find(x => x.endsWith('.md'));
     assert.ok(md);
-    const content = await readFile(join(reportRoot, 'example', md), 'utf8');
+    const content = await readFile(join(desktopRoot, 'example', md), 'utf8');
     assert.match(content, /Example Domain observed/);
     assert.match(content, /Evidence protocol: evidence-v2/);
     assert.match(content, /L0001: “heading Example Domain”/);
@@ -78,6 +80,12 @@ test('mock OpenClaw->Ollama->report, deduplicate, never execute page commands', 
     assert.equal(afterForce.code, 0, afterForce.err);
     assert.match(afterForce.out, /UNCHANGED/);
     assert.equal(requests, 2);
+    const latest = JSON.parse(await readFile(join(reportRoot, 'example', 'state.json'), 'utf8'));
+    await rm(join(desktopRoot, 'example', latest.lastReport + '.md'));
+    const missingOutput = await run(opts, env);
+    assert.equal(missingOutput.code, 0, missingOutput.err);
+    assert.match(missingOutput.out, /REPORT/);
+    assert.equal(requests, 3);
     const calls = await readFile(log, 'utf8');
     assert.doesNotMatch(calls, /click|type|navigate|exec/);
     assert.match(calls, /snapshot --target-id t1/);

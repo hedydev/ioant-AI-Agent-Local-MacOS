@@ -14,6 +14,7 @@ _ioant_prepare() {
   PROJECT_DEV_CACHE="${PROJECT_DEV_CACHE:-$IOANT_DEV_CACHE_ROOT/projects/$PROJECT_DEV_SLUG}"
   IOANT_NPM_CACHE="${IOANT_NPM_CACHE:-$IOANT_DEV_CACHE_ROOT/npm-cache}"
   IOANT_AI_AUDIT_DATA_DIR="${IOANT_AI_AUDIT_DATA_DIR:-$PROJECT_DEV_CACHE/audits}"
+  IOANT_AI_AUDIT_REPORT_DIR="${IOANT_AI_AUDIT_REPORT_DIR:-$HOME/Desktop/Ioant-AI-Agent-Reports}"
   for var in NPM_CONFIG_CACHE npm_config_cache HOMEBREW_CACHE CARGO_HOME CARGO_TARGET_DIR GRADLE_USER_HOME TMPDIR; do
     old="${!var-}"
     if [[ "$old" == *"/Volumes/MacDev"* ]]; then
@@ -34,14 +35,15 @@ _ioant_prepare() {
   umask 077
   mkdir -p "$IOANT_DEV_CACHE_ROOT" "$IOANT_NPM_CACHE" "$PROJECT_DEV_CACHE" "$IOANT_AI_AUDIT_DATA_DIR" || return 1
   [[ -w "$IOANT_AI_AUDIT_DATA_DIR" ]] || { _ioant_error "audit directory not writable"; return 1; }
-  export PROJECT_DEV_SLUG IOANT_DEV_VOLUME IOANT_DEV_CACHE_ROOT PROJECT_DEV_CACHE IOANT_NPM_CACHE IOANT_AI_AUDIT_DATA_DIR
+  export PROJECT_DEV_SLUG IOANT_DEV_VOLUME IOANT_DEV_CACHE_ROOT PROJECT_DEV_CACHE IOANT_NPM_CACHE IOANT_AI_AUDIT_DATA_DIR IOANT_AI_AUDIT_REPORT_DIR
   export NPM_CONFIG_CACHE="$IOANT_NPM_CACHE"
 }
 _ioant_check() {
   local resolved
   printf '[dev-env] volume=%s\n' "$IOANT_DEV_VOLUME"
   printf '[dev-env] npm=%s\n' "$NPM_CONFIG_CACHE"
-  printf '[dev-env] audits=%s\n' "$IOANT_AI_AUDIT_DATA_DIR"
+  printf '[dev-env] audit-state=%s\n' "$IOANT_AI_AUDIT_DATA_DIR"
+  printf '[dev-env] reports=%s\n' "$IOANT_AI_AUDIT_REPORT_DIR"
   if command -v npm >/dev/null 2>&1; then
     resolved="$(npm config get cache 2>/dev/null)"
     [[ "$resolved" == "$IOANT_NPM_CACHE" ]] || { _ioant_error "npm resolves to $resolved, expected $IOANT_NPM_CACHE"; return 1; }
