@@ -133,3 +133,11 @@ Human-facing Markdown reports: `~/Desktop/Ioant-AI-Agent-Reports/<site-id>/<time
 The unchanged-snapshot skip requires the referenced previous report to exist at its Desktop destination. If the report is absent, it is regenerated instead of silently skipping. Unit and mocked end-to-end tests cover the new behavior.
 
 **Mac acceptance:** verify the file appears on the Desktop, old reports copied safely, new owner-only permissions and repeat unchanged behavior. This is not yet verified on the user's Mac. Desktop/iCloud sync may transmit private report excerpts depending on Mac settings; use only approved non-sensitive pages.
+
+## Desktop permission regression: corrected test, Mac rerun pending
+
+Actual Mac test result: `28/29` pass, with a test-fixture-only failure on supposedly public directory permission. The developer wrapper enforces `umask 077`, so requesting `0o755` during `mkdir` was insufficient to produce a world-readable directory. The safety checker correctly accepted the actual private `0o700` directory.
+
+The test now first creates the fixture, explicitly `chmod(0o755)`, checks mode bits, verifies the safe rejection, then resets permissions to `0o700` and verifies success. This behavior was reproduced under `umask 077` using a local Node 22 test snippet; **full Mac tests have not yet been rerun**.
+
+To finish rollout, fast-forward `main`, run all tests, export older `.md` files to `~/Desktop/Ioant-AI-Agent-Reports`, and open that folder. The export is intentionally after tests in a `&&` chain. It preserves original LunaDrive reports and never overwrites Desktop reports.

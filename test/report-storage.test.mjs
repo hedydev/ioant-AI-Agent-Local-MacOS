@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, stat, symlink, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, chmod, writeFile, readFile, stat, symlink, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defaultReportDir, privateReportDir, reportPath, desktopReportExists, copyLegacyReports } from '../src/report-storage.mjs';
@@ -60,7 +60,13 @@ test('reject symlinked and world-readable application report destinations', asyn
     await symlink(real,link);
     await assert.rejects(()=>privateReportDir(link),/real directory/);
     const publicDir=join(temp,'public');
-    await mkdir(publicDir,{mode:0o755});
+    await mkdir(publicDir,{mode:0o700});
+    await chmod(publicDir,0o755);
+    assert.equal((await stat(publicDir)).mode & 0o777, 0o755,
+      'Test fixture must really be world-readable, regardless of inherited umask');
     await assert.rejects(()=>privateReportDir(publicDir),/not private/);
+    await chmod(publicDir,0o700);
+    assert.equal(await privateReportDir(publicDir), publicDir,
+      'The same folder should become valid after its permissions are corrected');
   } finally { await rm(temp,{recursive:true,force:true}); }
 });

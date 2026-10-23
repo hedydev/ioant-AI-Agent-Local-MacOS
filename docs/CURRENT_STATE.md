@@ -81,3 +81,11 @@ User wants **all readable audit reports visible on the Mac Desktop**. Code chang
 The new `src/report-storage.mjs` validates private output folders and report names, detects whether the existing report is present on Desktop before returning `UNCHANGED`, and safely copies legacy reports. `scripts/export-reports.mjs` performs an idempotent, non-overwriting copy of old `.md` reports, leaving originals intact; `scripts/bootstrap-phase1.sh` invokes it automatically. Tests cover report destination, file permissions, repeat export and report-absent regeneration.
 
 The change is committed to GitHub but requires Mac execution to copy the user's historical report and validate the actual Desktop location. Do not claim the Mac Desktop has already been modified remotely.
+
+## Mac Desktop report test correction — 2026-10-24
+
+Operator ran the Desktop rollout tests: `29` total, `28` passed, `1` failed at `test/report-storage.test.mjs:64` (`Missing expected rejection`). The fixture called `mkdir({mode:0o755})` while `scripts/dev-env.sh` sets `umask 077`; the directory actually had private `0700` permissions, so correctly no rejection occurred. This was a **test fixture error**, not a failed security guard.
+
+Corrected the test to `chmod(0o755)` explicitly and assert the resulting mode before expecting `privateReportDir` to reject it, then `chmod(0o700)` to verify acceptance. A separate local Node reproduction of `umask 077` and the corrected positive/negative behavior passed. Production report paths and permission validation are unchanged.
+
+**Rollout state:** the operator's previously supplied terminal sequence stopped at the failing test (it used `&&`), so old reports were **not yet copied to Desktop** by that sequence. Mac full-suite pass and actual Desktop export remain to be verified by the operator. Use one command from the updated handoff; no OpenClaw, Ollama or Node installation needed.
