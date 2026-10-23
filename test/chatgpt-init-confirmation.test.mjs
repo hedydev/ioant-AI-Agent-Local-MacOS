@@ -56,8 +56,15 @@ async function fixture(run){
  }finally{await rm(home,{recursive:true,force:true});}
 }
 function cli(f){
- return {cwd:ROOT,env:{...process.env,HOME:f.home,PROJECT_DEV_CACHE:f.cache,IOANT_DEV_VOLUME:f.volume,MOCK_BROWSER_STATE:f.page,IOANT_OPENCLAW_BIN:f.browser,IOANT_LOOP_LOG_FILE:''}};
+ return {cwd:ROOT,env:{...process.env,HOME:f.home,PROJECT_DEV_CACHE:f.cache,IOANT_DEV_VOLUME:f.volume,MOCK_BROWSER_STATE:f.page,IOANT_OPENCLAW_BIN:f.browser,IOANT_LOOP_LOG_FILE:'',ALICE_SSH_TARGET:'mockalice@127.0.0.1'}};
 }
+test('Alice initialization mock always supplies a synthetic SSH target; no live Mint host',async()=>fixture(async f=>{
+ const configuration=cli(f);
+ assert.equal(configuration.env.ALICE_SSH_TARGET,'mockalice@127.0.0.1');
+ assert.equal(configuration.env.MOCK_BROWSER_STATE,f.page);
+ assert.equal(configuration.env.IOANT_OPENCLAW_BIN,f.browser);
+}));
+
 async function spawnedUntil(f,needle){
  const child=spawn(process.execPath,['stage2/chatgpt-loop.mjs','--chat-url',CHAT,'--initialize','--enable-alice-preflight','--watch','--interval','10'],{...cli(f),stdio:['ignore','pipe','pipe']});
  let output='',err='';
