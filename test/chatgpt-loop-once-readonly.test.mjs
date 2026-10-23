@@ -40,8 +40,7 @@ test('--once only reads the exact ChatGPT conversation even if the latest assist
    assert.equal(run.status,0,run.stderr);
    assert.match(run.stdout,/Read-only ChatGPT probe passed/);
    assert.match(run.stdout,/no task executed or message sent/);
-   const actual=(await readFile(calls,'utf8')).trim().split('
-').map(JSON.parse);
+   const actual=(await readFile(calls,'utf8')).trim().split('\n').map(line=>JSON.parse(line));
    assert.deepEqual(actual.map(a=>a.at(-1)==='tabs'?'tabs':a.includes('evaluate')?'evaluate':'mutation'),['tabs','evaluate']);
  }finally{await rm(base,{recursive:true,force:true});}
 });
