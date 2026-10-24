@@ -115,7 +115,12 @@ test('after uncertain send, existing user-role receipt reconciles without anothe
 
 test('ambiguous pending initialization without proof must fail closed, never resend',async()=>fixture(async f=>{
  await writeFile(join(f.workspace,'state.json'),JSON.stringify({lastTaskId:null,feedbackPending:null,initSent:false,aliceInitSent:false,initPending:'alice'}),{mode:0o600});
- const run=spawnSync(process.execPath,['stage2/chatgpt-loop.mjs','--chat-url',CHAT,'--initialize','--enable-alice-preflight','--watch'],{...cli(f),encoding:'utf8',timeout:9000});
+ // Eight bounded receipt reads now span ~10.5s; the 9s legacy limit
+ // interrupted the child before its fail-closed path could finish.
+ // Keep the production retry bound unchanged; only widen test deadline.
+ const run=spawnSync(process.execPath,['stage2/chatgpt-loop.mjs','--chat-url',CHAT,'--initialize','--enable-alice-preflight','--watch'],{...cli(f),encoding:'utf8',timeout:30000});
+ assert.equal(run.error,undefined,'The fixture process must finish before its test deadline');
+ assert.equal(run.signal,null,'The process must exit via its fail-closed error, not timeout');
  assert.equal(run.status,1,run.stdout);
  assert.match(run.stderr,/Previous initialization send remains unconfirmed/);
  const page=JSON.parse(await readFile(f.page,'utf8'));
