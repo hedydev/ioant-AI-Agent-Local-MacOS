@@ -20,7 +20,8 @@ export function actionPlan(action, repoRoot) {
     'openclaw-config-preflight': {bin:process.execPath,args:['stage2/openclaw-config-preflight.mjs'],cwd:root,timeout:50000},
     'openclaw-config-rpc-diagnostic': {bin:process.execPath,args:['stage2/openclaw-config-rpc-diagnostic.mjs'],cwd:root,timeout:50000},
     'openclaw-patch-failure-diagnostic': {bin:process.execPath,args:['stage2/openclaw-patch-failure-diagnostic.mjs'],cwd:root,timeout:50000},
-    'openclaw-ollama-dryrun': {bin:process.execPath,args:['stage2/openclaw-ollama-dryrun.mjs'],cwd:root,timeout:90000}
+    'openclaw-ollama-dryrun': {bin:process.execPath,args:['stage2/openclaw-ollama-dryrun.mjs'],cwd:root,timeout:90000},
+    'openclaw-rejection-evidence': {bin:process.execPath,args:['stage2/openclaw-rejection-evidence.mjs'],cwd:root,timeout:210000}
   };
   return plans[action] ?? null;
 }
