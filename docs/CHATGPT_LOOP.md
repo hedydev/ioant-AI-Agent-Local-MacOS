@@ -563,3 +563,7 @@ Mac parity task 032 confirmed CLI=Gateway `2026.10.6`. In that exact tag, `Confi
 ## 2026-10-25 — Ollama Provider registered and independently verified
 
 One-shot provider registration task 034 returned applied with private backup and Gateway acknowledgment. Separate preflight task 035 returned provider target, Ollama reachable and both installed models; Alice Agent absent. No reason to retry provider writing. New config-nonmutating `openclaw-ollama-smoke` checks the pinned live Gateway `models.list` RPC catalog and, only when no resident models are detected, sequential local `/api/chat` prompts for gemma4 and gpt-oss. Inference consumes compute but never forwards generated text or runs Agent tools; never write config or change default model. Prioritize full Mac tests and gated deployment before smoke, then minimally permissioned Agent validation.
+
+## 2026-10-25 — Completed local model smoke; Alice preflight is read-only
+
+Real task 037 returned listed/available/local=yes and nonempty reply received for both Gemma4 26B and GPT-OSS 20B. The next fixed task `openclaw-alice-agent-preflight` inspects only current Agent roster structure and LunaDrive workspace readiness, returning sanitized flags/counts (no raw config or private names). Upstream v2026.10.6 explicit agent ownership and main roster migration require inspection before creation; model inference alone does not authorize Agent tools. This task is non-mutating; write/create tasks will be separately gated after interpreting this evidence. Full Mac tests remain prerequisite.

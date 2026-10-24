@@ -23,7 +23,8 @@ export function actionPlan(action, repoRoot) {
     'openclaw-ollama-dryrun': {bin:process.execPath,args:['stage2/openclaw-ollama-dryrun.mjs'],cwd:root,timeout:90000},
     'openclaw-rejection-evidence': {bin:process.execPath,args:['stage2/openclaw-rejection-evidence.mjs'],cwd:root,timeout:210000},
     'openclaw-version-parity': {bin:process.execPath,args:['stage2/openclaw-version-parity.mjs'],cwd:root,timeout:80000},
-    'openclaw-ollama-smoke': {bin:process.execPath,args:['stage2/openclaw-ollama-smoke.mjs'],cwd:root,timeout:255000}
+    'openclaw-ollama-smoke': {bin:process.execPath,args:['stage2/openclaw-ollama-smoke.mjs'],cwd:root,timeout:255000},
+    'openclaw-alice-agent-preflight': {bin:process.execPath,args:['stage2/openclaw-alice-agent-preflight.mjs'],cwd:root,timeout:65000}
   };
   return plans[action] ?? null;
 }
