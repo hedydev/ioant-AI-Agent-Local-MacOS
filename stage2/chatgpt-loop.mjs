@@ -12,6 +12,7 @@ import { privateReportDir } from '../src/report-storage.mjs';
 import { fileURLToPath } from 'node:url';
 import { PROTOCOL, validateChatUrl, chatKey, extractAction, responseForTask, redactFeedback } from './protocol.mjs';
 import { runAction } from './runner.mjs';
+import { reserveDevDiscussion } from './dev-discussion-claim.mjs';
 import { recordDiagnosticEvent, diagnosticCode } from './diagnostic-log.mjs';
 
 const call=promisify(execFile);
@@ -492,6 +493,19 @@ async function main(){
               recordDiagnosticEvent('lab_probe_claimed',{taskId:task.id});
               console.log('[loop] One-shot 17880 lab probe claimed. Never auto-retry this probe.');
               result=await runAction(task.action,ROOT,{enableAliceLabStartupProbe:true});
+            }
+          }else if(task.action==='openclaw-alice-dev-discuss'){
+            // Reserve before invoking Gateway. After interruption, the old ID
+            // remains permanently claimed and must never trigger inference.
+            const claim=reserveDevDiscussion(state,task.id);
+            if(!claim.ok){
+              result={status:'inconclusive',reason:claim.reason};
+            }else{
+              await atomicState(stateFile,claim.state);
+              state=claim.state;
+              recordDiagnosticEvent('dev_discussion_claimed',{taskId:task.id});
+              result=await runAction(task.action,ROOT,{
+                prompt:task.prompt,chatDigest:chatKey(opts.url)});
             }
           }else{
             result=await runAction(task.action,ROOT,{enableAlicePreflight:opts.enableAlicePreflight,enableMintDiagnostics:opts.enableMintDiagnostics,
