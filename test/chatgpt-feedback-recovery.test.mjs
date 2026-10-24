@@ -77,8 +77,23 @@ test('prepared feedback recovers from snapshot timeout without task reexecution'
    if(child.exitCode!==null)break;
    await new Promise(r=>setTimeout(r,150));
   }
+  // Mock browser persistence precedes worker's user-role receipt polling
+  // and durable state commit. Do not treat seeing a user message as proof
+  // that state.json was already atomically updated.
+  let committed=false;
+  const receiptDeadline=Date.now()+6000;
+  while(Date.now()<receiptDeadline){
+   const current=JSON.parse(await readFile(f.stateFile,'utf8'));
+   if(current.lastTaskId===ID&&current.feedbackPending===null){
+    committed=true;
+    break;
+   }
+   if(child.exitCode!==null)break;
+   await new Promise(r=>setTimeout(r,100));
+  }
   const b=JSON.parse(await readFile(f.browserFile,'utf8'));
   const s=JSON.parse(await readFile(f.stateFile,'utf8'));
+  assert.equal(committed,true,JSON.stringify({stdout,stderr,lastTaskId:s.lastTaskId,pendingPhase:s.feedbackPending?.phase}).slice(0,1800));
   assert.equal(b.types,1,JSON.stringify({stdout,stderr}).slice(0,1300));
   assert.equal(b.presses,1);
   assert.equal(b.snapshots,2);

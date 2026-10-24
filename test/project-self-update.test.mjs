@@ -44,7 +44,11 @@ test('feedback is confirmed and task state persisted BEFORE explicit reload exit
  const persist=worker.indexOf('await atomicState(stateFile,state);',lastState);
  const reload=worker.indexOf('process.exitCode=75;',persist);
  assert.ok(lastState>=0&&persist>lastState&&reload>persist);
- assert.match(worker,/await sendToChat\(nowTarget,opts\.url,feedback,receipt\)/);
+ // The new fifth argument persists press_intent before Enter.
+ assert.match(worker,/await sendToChat\(nowTarget,opts\.url,feedback,receipt,\{/);
+ assert.match(worker,/beforePress:async\(\)=>\{/);
+ assert.match(worker,/state\.feedbackPending\.phase='press_intent';\s*await atomicState\(stateFile,state\)/);
+ assert.match(worker,/await beforePress\(\);\s*await browser\('press'/);
  assert.match(worker,/result\.reloadRequired===true/);
  assert.match(worker,/process\.exitCode=75;\s*break;/);
 });
