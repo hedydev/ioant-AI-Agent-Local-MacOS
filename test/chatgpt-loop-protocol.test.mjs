@@ -62,7 +62,14 @@ test('real allowlisted project-head and tests run without shell in isolated temp
     assert.match(head.output,/^[a-f0-9]{40}\s*$/);
     const tests=await runAction('project-tests',root);
     assert.equal(tests.status,'passed');
-    assert.match(tests.output,/pass 1/);
+    // project-tests now returns a privacy-bounded JSON evidence summary.
+    const evidence=JSON.parse(tests.output);
+    assert.equal(evidence.audit,'IOANT_TEST_EVIDENCE');
+    assert.equal(evidence.schemaVersion,1);
+    assert.equal(evidence.tests,1);
+    assert.equal(evidence.pass,1);
+    assert.equal(evidence.fail,0);
+    assert.deepEqual(evidence.failingLocations,[]);
     const denied=await runAction('delete-files',root);
     assert.equal(denied.status,'approval_required');
   } finally {await rm(root,{recursive:true,force:true});}
