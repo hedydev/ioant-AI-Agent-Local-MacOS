@@ -153,11 +153,11 @@ bash scripts/chatgpt-loop.sh --list
 bash scripts/chatgpt-loop.sh --chat-url 'https://chatgpt.com/c/REPLACE_WITH_YOUR_ACTUAL_ID' --initialize --watch
 ```
 
-If ChatGPT is not signed in within the **isolated OpenClaw profile**, complete the one-time login in that profile. Real ChatGPT DOM/receipt behavior is not yet Mac-verified; simulated browser tests must not be reported as live acceptance.
+If ChatGPT is not signed in within the **isolated OpenClaw profile**, complete the one-time login in that profile. **Live Mac acceptance:** the separately opted-in Stage-2 fixed self-update loop completed a 159/159 pretested Git fast-forward, posted a verified ChatGPT response, reloaded under a new session, and processed a new `project-head` task on 2026-10-24. Other browser and AliceAI integrations are not thereby accepted; see [the detailed canary record](docs/SELF_UPDATE_CANARY_20261024.md). Do not use `--initialize` when restarting an already initialized conversation.
 
 See [complete Phase-2 architecture, security, setup and validation](docs/CHATGPT_LOOP.md).
 
 
 ## Opt-in ChatGPT ↔ AliceAI automatic command/report loop
 
-For a recurring ChatGPT discussion that asks you to update AliceAI, run Mint tests and generate BDS witness-preflight reports, see [ChatGPT command feedback loop](docs/CHATGPT_LOOP.md). After explicit `--enable-alice-preflight` startup, the bounded worker handles Git ff-only sync, tests, read-only witness generation, and posting the sanitized JSON result back to the **same** ChatGPT conversation without repeated manual copying. It never accepts raw shell commands from the page and does not restart BDS or edit a world. Mac/ChatGPT browser interaction remains real-device-unverified.
+For a recurring ChatGPT discussion that asks you to update AliceAI, run Mint tests and generate BDS witness-preflight reports, see [ChatGPT command feedback loop](docs/CHATGPT_LOOP.md). After explicit `--enable-alice-preflight` startup, the bounded worker handles Git ff-only sync, tests, read-only witness generation, and posting the sanitized JSON result back to the **same** ChatGPT conversation without repeated manual copying. It never accepts raw shell commands from the page and does not restart BDS or edit a world. The Stage-2 **self-update** live workflow is verified, but this separate AliceAI witness-preflight workflow is not covered by that specific acceptance; see [the canary evidence](docs/SELF_UPDATE_CANARY_20261024.md).
