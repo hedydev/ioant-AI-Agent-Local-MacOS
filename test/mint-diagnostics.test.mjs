@@ -57,7 +57,7 @@ test('inconclusive privileged result stays inconclusive',async()=>{
  assert.equal(r.status,'inconclusive');assert.equal(r.exitCode,0);
 });
 test('Python helper synthetic socket and proc tests run without sudo',()=>{
- const r=spawnSync('python3',['-I','-S','test/test_mint_bds_helper.py'],{
+ const r=spawnSync('python3',['-I','-B','-S','test/test_mint_bds_helper.py'],{
   cwd:resolve(import.meta.dirname,'..'),encoding:'utf8',timeout:15000});
  assert.equal(r.status,0,r.stderr||String(r.error));
  assert.match(r.stderr,/Ran 5 tests/);

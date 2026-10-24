@@ -9,3 +9,7 @@ tmp/
 *.log
 config/sites.local.json
 .hero-review/
+
+# Python bytecode generated when mock helper tests import local scripts.
+__pycache__/
+*.py[cod]
