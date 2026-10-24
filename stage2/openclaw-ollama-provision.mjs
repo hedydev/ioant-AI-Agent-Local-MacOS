@@ -19,7 +19,9 @@ const MODELS=Object.freeze([
  {id:'gemma4:26b-a4b',name:'gemma4:26b-a4b',input:['text'],contextTokens:32768},
  {id:'gpt-oss:20b',name:'gpt-oss:20b',input:['text'],contextTokens:32768}
 ]);
-const ALLOWED_KEY=/^[0-9a-f]{32,128}$/i;
+// config.get hash is an opaque authored-revision token, NOT necessarily
+// a hexadecimal digest. Pass the exact value back as baseHash, never log it.
+const OPAQUE_REVISION=/^[\x21-\x7e]{8,256}$/;
 function error(code){throw Error(code)}
 function safeStateName(e){return /^[a-z_]{3,64}$/.test(e?.message??'')?e.message:'precondition_or_rpc_failed'}
 export function safeAudit(state,more={}) {
@@ -49,10 +51,16 @@ export function rpcEnvelope(response){
 export function validSnapshot(value){
  const doc=rpcEnvelope(value);
  const hash=doc?.hash;
- if(typeof hash!=='string'||hash.length>128||!ALLOWED_KEY.test(hash))return null;
- const resolved=doc?.config??doc?.parsed??doc?.resolved;
- if(!resolved||typeof resolved!=='object'||Array.isArray(resolved))return null;
- if(resolved?.models?.providers?.ollama!==undefined)return null; // no replacement
+ // Refuse known-invalid or missing config snapshots; only a valid, already
+ // existing authored revision may be patched by this single-write workflow.
+ if(doc?.valid===false||doc?.exists===false||
+    typeof hash!=='string'||!OPAQUE_REVISION.test(hash))return null;
+ const roots=['config','parsed','resolved','sourceConfig']
+   .map(key=>doc?.[key])
+   .filter(value=>value!==undefined&&value!==null);
+ if(roots.length===0||roots.some(value=>typeof value!=='object'||Array.isArray(value)))return null;
+ // All available config representations must agree the target is absent.
+ if(roots.some(value=>Object.hasOwn(value?.models?.providers??{},'ollama')))return null;
  return {hash};
 }
 async function privateFile(path){

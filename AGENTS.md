@@ -110,3 +110,7 @@ Real Mac witnessed `STOP: too many consecutive self-update reloads` following a 
 ## OpenClaw config.get shape: diagnose before a retry
 
 When `openclaw-ollama-provision` returned `config_revision_or_provider_changed` in real Mac feedback, it had not passed its `config.get` snapshot guard or made a write. Never weaken the baseHash conflict gate or retry the same mutating operation blindly. The new fixed `openclaw-config-rpc-diagnostic` task is strictly read-only, emits only fixed structural categories from the live config.get response, and cannot expose raw hashes, credentials, config bodies or arbitrary property names. Correlate it with the current CLI/version before making an evidence-based repair. It does not change the separate opt-in for provider writes or project Agent creation.
+
+## OpenClaw config.get opaque revision evidence and safe fix (2026-10-24)
+
+The read-only live `openclaw-config-rpc-diagnostic` returned `hashKind=opaque_non_hex` with valid/existing structured snapshot, and an absent Ollama subtree. This isolates the rejected `openclaw-ollama-provision` to an incorrect hex-only revision validation predicate. Pass safe bounded opaque revision tokens unchanged to `config.patch.baseHash`; retain exact revision conflict protection, provider-absence checks across all snapshot layers, private backup, explicit opt-in and no arbitrary shell/UI access. After full predeployment tests, a newly identified provider task can be separately attempted once, with receipt/readback inspection before any other changes.
