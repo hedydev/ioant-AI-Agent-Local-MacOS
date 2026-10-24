@@ -9,6 +9,9 @@ if [[ " $* " == *" --enable-alice-preflight " ]]; then
   echo '[loop] Alice workflow explicitly enabled: fetch/ff-only pull + non-destructive Mint sync + read-only witness preflight.'
   echo '[loop] No BDS restart or world-pack install actions are authorized.'
 fi
+if [[ " $* " == *" --enable-self-update "* ]]; then
+  echo '[loop] Project self-update enabled: fixed origin/main, clean tree, candidate tests before fast-forward; no arbitrary commands.'
+fi
 if [[ " $* " == *" --enable-mint-diagnostics "* ]]; then
   [[ -n "${ALICE_SSH_TARGET:-}" ]] || { echo '[loop] Set ALICE_SSH_TARGET before enabling Mint read-only diagnostics' >&2; exit 2; }
   echo '[loop] Mint diagnostic identity only: no PID/command args from chat, no process termination, no sudo password automation.'
@@ -211,4 +214,20 @@ if [[ -n "$CHAT_URL" ]]; then
     *) log_event tab_missing || true; echo "[loop] Found $TAB_COUNT copies of the target ChatGPT tab; close duplicates before automation." >&2; exit 1 ;;
   esac
 fi
-(cd "$ROOT" && node stage2/chatgpt-loop.mjs "$@")
+# Reload only on worker exit code 75, which can be set solely after
+# a pretested fast-forward AND confirmed ChatGPT feedback. The existing
+# Gateway, exact tab and launcher scope remain unchanged.
+reloads=0
+while :; do
+  worker_rc=0
+  (cd "$ROOT" && node stage2/chatgpt-loop.mjs "$@") || worker_rc=$?
+  if (( worker_rc != 75 )); then
+    exit "$worker_rc"
+  fi
+  reloads=$((reloads+1))
+  if (( reloads > 3 )); then
+    echo '[loop] STOP: too many consecutive self-update reloads.' >&2
+    exit 1
+  fi
+  echo "[loop] Starting updated worker in this same foreground session (reload $reloads)."
+done

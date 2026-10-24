@@ -78,7 +78,7 @@ const readPageFunction=`() => {
 }`;
 
 function argsOf(argv){
-  const out={mode:'watch',interval:15,url:null,initialize:false,enableAlicePreflight:false,enableAliceLabStartupProbe:false,enableMintDiagnostics:false};
+  const out={mode:'watch',interval:15,url:null,initialize:false,enableAlicePreflight:false,enableAliceLabStartupProbe:false,enableMintDiagnostics:false,enableSelfUpdate:false};
   for(let i=0;i<argv.length;i++){
     if(argv[i]==='--once')out.mode='once';
     else if(argv[i]==='--watch')out.mode='watch';
@@ -87,6 +87,7 @@ function argsOf(argv){
     else if(argv[i]==='--enable-alice-preflight')out.enableAlicePreflight=true;
     else if(argv[i]==='--enable-alice-lab-startup-probe')out.enableAliceLabStartupProbe=true;
     else if(argv[i]==='--enable-mint-diagnostics')out.enableMintDiagnostics=true;
+    else if(argv[i]==='--enable-self-update')out.enableSelfUpdate=true;
     else if(argv[i]==='--chat-url')out.url=validateChatUrl(argv[++i]??'');
     else if(argv[i]==='--interval'){out.interval=Number(argv[++i]); if(!Number.isInteger(out.interval)||out.interval<10||out.interval>3600)throw Error('--interval must be 10..3600 seconds');}
     else throw Error('Unknown flag: '+argv[i]);
@@ -277,7 +278,8 @@ async function main(){
   process.on('SIGTERM',()=>{stopping=true;console.log('[loop] Stop requested; finishing current operation.');});
   let state,previousFingerprint='',stable=0,lastVisibleStatus='';
   console.log('[loop] Tracking only: '+opts.url);
-  console.log('[loop] Actions: project-tests / project-status / project-head / environment-scan'+(opts.enableAlicePreflight?' / alice-witness-preflight (scoped Mint sync)':'')+(opts.enableAliceLabStartupProbe?' / alice-lab-startup-probe (one-shot 17880 only)':'')+(opts.enableMintDiagnostics?' / mint-bds-process-identity / mint-bds-process-lineage (read-only, fixed SSH target)':'')+'. Ctrl-C stops.');
+  console.log('[loop] Actions: project-tests / project-status / project-head / environment-scan'+(opts.enableAlicePreflight?' / alice-witness-preflight (scoped Mint sync)':'')+(opts.enableAliceLabStartupProbe?' / alice-lab-startup-probe (one-shot 17880 only)':'')+(opts.enableMintDiagnostics?' / mint-bds-process-identity / mint-bds-process-lineage (read-only, fixed SSH target)':'')
+    +(opts.enableSelfUpdate?' / project-update-verify (clean main, pretested fast-forward only)':'')+'. Ctrl-C stops.');
   try{
     recordDiagnosticEvent('worker_start',{mode:opts.mode,profile});
     state=await loadState(stateFile); // Must be within finally so a read failure does not leak lock.
@@ -408,7 +410,8 @@ async function main(){
           const task=a.task;
           const authorized=task.authorized || (task.action==='alice-witness-preflight' && opts.enableAlicePreflight)
             || (task.action==='alice-lab-startup-probe' && opts.enableAliceLabStartupProbe)
-            || ((task.action==='mint-bds-process-identity'||task.action==='mint-bds-process-lineage') && opts.enableMintDiagnostics);
+            || ((task.action==='mint-bds-process-identity'||task.action==='mint-bds-process-lineage') && opts.enableMintDiagnostics)
+            || (task.action==='project-update-verify' && opts.enableSelfUpdate);
           recordDiagnosticEvent('task_seen',{taskId:task.id,action:task.known?task.action:'unknown'});
           recordDiagnosticEvent('action_started',{taskId:task.id,action:task.known?task.action:'unknown'});
           let result;
@@ -428,7 +431,8 @@ async function main(){
               result=await runAction(task.action,ROOT,{enableAliceLabStartupProbe:true});
             }
           }else{
-            result=await runAction(task.action,ROOT,{enableAlicePreflight:opts.enableAlicePreflight,enableMintDiagnostics:opts.enableMintDiagnostics});
+            result=await runAction(task.action,ROOT,{enableAlicePreflight:opts.enableAlicePreflight,enableMintDiagnostics:opts.enableMintDiagnostics,
+              enableSelfUpdate:opts.enableSelfUpdate});
           }
           recordDiagnosticEvent('action_finished',{taskId:task.id,action:task.known?task.action:'unknown',status:result.status,...(Number.isInteger(result.exitCode)?{exitCode:result.exitCode}:{}),...(Number.isInteger(result.elapsedMs)?{elapsedMs:result.elapsedMs}:{})});
           await writeReport(workDir,task,result);
@@ -443,6 +447,14 @@ async function main(){
           await atomicState(stateFile,state);
           recordDiagnosticEvent('feedback_confirmed',{taskId:task.id,status:result.status});
           console.log(`[loop] ${task.id}: ${result.status}. Feedback confirmed; waiting for next task.`);
+          // Only a validated, finished fast-forward with positively confirmed
+          // chat receipt may ask the parent launcher to reload Node modules.
+          // The conversation lock is released in finally before respawning.
+          if(task.action==='project-update-verify'&&result.status==='passed'&&result.reloadRequired===true){
+            console.log('[loop] Validated update feedback delivered; requesting one controlled self-reload.');
+            process.exitCode=75;
+            break;
+          }
           stable=0;previousFingerprint='';
         }
       } else {stable=0;previousFingerprint='';}

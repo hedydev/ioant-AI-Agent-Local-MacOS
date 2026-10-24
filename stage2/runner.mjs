@@ -38,6 +38,28 @@ export async function runAction(action, repoRoot, options={}) {
       return {status:'approval_required',reason:'Mint read-only identity checks require explicit --enable-mint-diagnostics.'};
     return mintBdsProcessIdentity({execute:executeStep,sshTarget:process.env.ALICE_SSH_TARGET});
   }
+  if (action==='project-update-verify') {
+    if(options.enableSelfUpdate!==true)
+      return {status:'approval_required',reason:'Self-update requires the separate --enable-self-update Mac launcher flag.'};
+    const r=await runFixedPlan({bin:process.execPath,args:['stage2/project-self-update.mjs'],
+      cwd:resolve(repoRoot),timeout:270000});
+    let audit;
+    try{audit=JSON.parse((r.output??'').trim());}catch{}
+    if(!audit||audit.audit!=='IOANT_PROJECT_SELF_UPDATE'||audit.schemaVersion!==1||
+      !['updated','up_to_date','blocked'].includes(audit.state))
+      return {status:'inconclusive',reason:'Updater returned no valid, bounded audit.'};
+    if(audit.state==='blocked')
+      return {status:'failed',reason:'Safe update declined: '+String(audit.reason??'unknown').slice(0,64),
+        output:JSON.stringify({audit:audit.audit,state:'blocked',reason:audit.reason})};
+    const sha=/^[0-9a-f]{40}$/;
+    if(r.status!=='passed'||!sha.test(audit.from)||!sha.test(audit.to)||
+      typeof audit.updated!=='boolean'||typeof audit.reloadRequired!=='boolean'||
+      audit.updated!==audit.reloadRequired||audit.updated!==(audit.state==='updated'))
+      return {status:'inconclusive',reason:'Self-update result is inconsistent.'};
+    return {status:'passed',reloadRequired:audit.reloadRequired,
+      output:JSON.stringify({audit:audit.audit,state:audit.state,from:audit.from,
+        to:audit.to,tests:audit.tests??null,reloadRequired:audit.reloadRequired})};
+  }
   if (action==='mint-bds-process-lineage') {
     if(options.enableMintDiagnostics!==true)
       return {status:'approval_required',reason:'Mint read-only lineage checks require explicit --enable-mint-diagnostics.'};
