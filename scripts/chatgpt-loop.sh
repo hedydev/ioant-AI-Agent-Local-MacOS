@@ -220,17 +220,26 @@ fi
 # Reload only on worker exit code 75, which can be set solely after
 # a pretested fast-forward AND confirmed ChatGPT feedback. The existing
 # Gateway, exact tab and launcher scope remain unchanged.
-reloads=0
+# Count *progress*, not total lifetime updates: repeated legitimate canaries
+# must not make the launcher stop on the fourth success.
+source "$ROOT/scripts/self-update-reload-guard.sh"
 while :; do
+  before_head="$(git -C "$ROOT" rev-parse --verify HEAD 2>/dev/null)" || {
+    echo '[loop] STOP: cannot establish starting Git HEAD for reload.' >&2
+    exit 1
+  }
   worker_rc=0
   (cd "$ROOT" && node stage2/chatgpt-loop.mjs "$@") || worker_rc=$?
   if (( worker_rc != 75 )); then
     exit "$worker_rc"
   fi
-  reloads=$((reloads+1))
-  if (( reloads > 3 )); then
-    echo '[loop] STOP: too many consecutive self-update reloads.' >&2
+  after_head="$(git -C "$ROOT" rev-parse --verify HEAD 2>/dev/null)" || {
+    echo '[loop] STOP: cannot establish updated Git HEAD after exit 75.' >&2
+    exit 1
+  }
+  if ! ioant_validated_reload_progress "$ROOT" "$before_head" "$after_head"; then
+    echo '[loop] STOP: exit 75 without a validated main fast-forward; refusing reload.' >&2
     exit 1
   fi
-  echo "[loop] Starting updated worker in this same foreground session (reload $reloads)."
+  echo '[loop] Verified a new fast-forward revision; starting updated worker in this same foreground session.'
 done
