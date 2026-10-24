@@ -44,6 +44,25 @@ export async function execNative(method,params,{cli=CLI,execImpl=exec}={}){
  if(typeof r.stdout!=='string'||r.stdout.length>MAX_OUTPUT)error('invalid_rpc_response');
  try{return JSON.parse(r.stdout)}catch{error('invalid_rpc_response')}
 }
+// RPC failures can contain secrets or full config fragments. Inspect only
+// bounded local text and return a fixed enum; never expose stdout/stderr.
+export function patchFailureLabel(err){
+ const raw=[err?.message,err?.stderr,err?.stdout]
+  .filter(x=>typeof x==='string').map(x=>x.slice(0,4096)).join('\n');
+ if(/(?:baseHash|hash mismatch|revision.{0,30}conflict|stale.{0,30}revision)/i.test(raw))
+  return 'patch_rpc_revision_conflict';
+ if(/(?:operator\.admin|missing.{0,40}scope|insufficient.{0,40}permission|unauthorized|forbidden)/i.test(raw))
+  return 'patch_rpc_auth_denied';
+ if(/(?:READONLY|read-only|immutable config|NIX_MODE)/i.test(raw))
+  return 'patch_rpc_readonly';
+ if(/(?:invalid config|schema validation|config.{0,30}validation failed|failed to validate config)/i.test(raw))
+  return 'patch_rpc_config_validation';
+ if(/(?:invalid.{0,40}params|unexpected.{0,30}(?:field|param)|unknown.{0,30}(?:field|param))/i.test(raw))
+  return 'patch_rpc_invalid_params';
+ if(/(?:ECONNRESET|ETIMEDOUT|ECONNREFUSED|websocket.{0,30}closed|connection.{0,30}lost)/i.test(raw))
+  return 'patch_rpc_transport';
+ return 'patch_receipt_unavailable';
+}
 export function rpcEnvelope(response){
  if(response&&typeof response==='object'&&response.payload&&typeof response.payload==='object')return response.payload;
  return response;
@@ -121,8 +140,8 @@ export async function provisionOllama({
    raw:JSON.stringify(patch),baseHash:revision.hash,response:'summary',
    note:'Operator approved local-only Ollama provider registration'
   },{cli}));
- }catch{
-  return safeAudit('inconclusive',{backup:true,note:'patch_receipt_unavailable'});
+ }catch(e){
+  return safeAudit('inconclusive',{backup:true,note:patchFailureLabel(e)});
  }
  if(!result||typeof result!=='object'||!Array.isArray(result.changedPaths)||
     !result.changedPaths.every(x=>typeof x==='string')||result.error||result.ok===false)

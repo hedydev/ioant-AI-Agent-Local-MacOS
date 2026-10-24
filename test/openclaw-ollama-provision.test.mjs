@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {safeAudit,validSnapshot,provisionOllama} from '../stage2/openclaw-ollama-provision.mjs';
+import {safeAudit,validSnapshot,patchFailureLabel,provisionOllama} from '../stage2/openclaw-ollama-provision.mjs';
 import {actionFromJson} from '../stage2/protocol.mjs';
 import {runAction} from '../stage2/runner.mjs';
 import {readFileSync} from 'node:fs';
@@ -158,4 +158,42 @@ test('ambiguous patch does not retry and does not claim success',async()=>{
  assert.equal(h.calls.filter(x=>x.name==='config.patch').length,1);
  assert.equal(h.files.length,1);
  assert.equal(JSON.stringify(r).includes('Bearer'),false);
+});
+
+test('patch RPC errors are reduced to bounded fixed reason labels without emitting secrets',()=>{
+ const cases=[
+  ['Gateway config.patch invalid params: invalid config models.providers.ollama foo Bearer SECRET',
+   'patch_rpc_config_validation'],
+  ['config.patch invalid params: unknown param redirect=PRIVATE_VALUE','patch_rpc_invalid_params'],
+  ['config.patch stale baseHash mismatch 01234567890abcdef','patch_rpc_revision_conflict'],
+  ['Permission denied: missing operator.admin scope token SECRET','patch_rpc_auth_denied'],
+  ['Gateway config readonly OPENCLAW_CONFIG_READONLY=1','patch_rpc_readonly'],
+  ['RPC ECONNRESET after submit token SECRET','patch_rpc_transport'],
+  ['Some unexpected error contains PRIVATE_PASSWORD','patch_receipt_unavailable']
+ ];
+ for(const [raw,expected] of cases){
+  const label=patchFailureLabel({message:raw,stderr:raw,stdout:'password=VERY_PRIVATE'});
+  assert.equal(label,expected);
+  assert.match(label,/^patch_[a-z_]+$/);
+  assert.doesNotMatch(label,/SECRET|PRIVATE|PASSWORD|01234567890/);
+ }
+});
+
+test('single Ollama provider failure returns categorized status without raw error output',async()=>{
+ const h=harness();
+ const rpc=h.opt.callRpc;
+ h.opt.callRpc=async(method,args)=>{
+  if(method==='config.patch'){
+   const e=Error('Gateway RPC error with secret=PRIVATE_KEY');
+   e.stderr='Gateway config.patch invalid params: invalid config on unknown key with private path /Users/me/SECRET';
+   throw e;
+  }
+  return rpc(method,args);
+ };
+ const report=await provisionOllama(h.opt);
+ assert.equal(report.state,'inconclusive');
+ assert.equal(report.note,'patch_rpc_config_validation');
+ assert.equal(report.backup,true);
+ assert.equal(h.files.length,1);
+ assert.doesNotMatch(JSON.stringify(report),/PRIVATE_KEY|SECRET|\/Users\/me/);
 });
