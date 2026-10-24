@@ -118,3 +118,7 @@ The read-only live `openclaw-config-rpc-diagnostic` returned `hashKind=opaque_no
 ## Post-patch reconciliation and read-only error classification (2026-10-24)
 
 The local Ollama patch attempt `openclaw-ollama-provision-20261024-016` returned `patch_receipt_unavailable` after a successful private backup; a subsequent read-only `openclaw-config-preflight` saw `provider=absent`. This does not prove the exact RPC failure reason. Add fixed read-only `openclaw-patch-failure-diagnostic` to inspect only recent Gateway `logs.tail` for `config.patch` and report bounded error **categories and counts only**; never output original logs or retry a write. Do not treat an observed absent provider as blanket authority to patch again. Any future configuration attempt must remain one-shot, revision-checked, separately opted in and preceded by model/schema validation.
+
+## Fixed category overlap in local Gateway log diagnosis (2026-10-24)
+
+A real `logs.tail` task returned `matchedPatchLines=1,category=unclassified,recentErrorEvidence=true`. With the old fixed regex Set implementation this indicates multiple matching labels in that one record, not missing log evidence. Improve the **read-only** diagnostic to output only an enum array of `matchedCategories` and enum `ambiguity`, never raw logs or secret values; keep `unclassified` when ambiguous and request correlated evidence before any further configuration write. This does not widen the Stage-2 action allowlist or permit new configuration mutations.

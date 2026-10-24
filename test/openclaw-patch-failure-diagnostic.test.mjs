@@ -61,4 +61,38 @@ test('multiple correlated but ambiguous classes do not speculate',()=>{
  assert.equal(r.category,'unclassified');
  assert.equal(r.recentErrorEvidence,true);
  assert.equal(r.matchedPatchLines,2);
+ assert.deepEqual(r.matchedCategories,['admin_scope_missing','config_validation']);
+ assert.equal(r.ambiguity,'multiple_categories_multiple_records');
+});
+
+test('one Gateway config.patch log record with two hints discloses ONLY two fixed labels',()=>{
+ const privateLog={
+  payload:{entries:[{
+   level:'error',method:'config.patch',
+   message:'config.patch invalid params: unknown field from missing operator.admin scope; Bearer SUPERSECRET_TOKEN_123',
+   auth:{token:'MOST_PRIVATE'},filename:'/Users/private/.openclaw/openclaw.json'
+  }]}
+ };
+ const r=classifyPatchLogs(privateLog);
+ assert.equal(r.status,'observed');
+ assert.equal(r.scannedLines,1);
+ assert.equal(r.matchedPatchLines,1);
+ assert.equal(r.category,'unclassified');
+ assert.equal(r.ambiguity,'multiple_categories_same_record');
+ assert.deepEqual(r.matchedCategories,['admin_scope_missing','invalid_rpc_params']);
+ assert.equal(r.recentErrorEvidence,true);
+ const output=JSON.stringify(r);
+ for(const secret of ['SUPERSECRET_TOKEN_123','MOST_PRIVATE','/Users/private','unknown field','config.patch invalid params'])
+   assert.equal(output.includes(secret),false,'raw Gateway payload must never escape');
+});
+
+test('no recognized hint is distinct from several hints and malformed diagnostic input',()=>{
+ const missing=classifyPatchLogs({lines:['config.patch operation started']});
+ assert.equal(missing.category,'unclassified');
+ assert.equal(missing.ambiguity,'none');
+ assert.deepEqual(missing.matchedCategories,[]);
+ assert.equal(missing.recentErrorEvidence,false);
+ const unknown=classifyPatchLogs({payload:{unknown:'PRIVATE'}}); 
+ assert.equal(unknown.status,'unsupported_log_shape');
+ assert.equal(unknown.matchedCategories,undefined);
 });

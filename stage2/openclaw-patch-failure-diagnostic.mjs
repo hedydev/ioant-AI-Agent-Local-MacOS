@@ -18,10 +18,15 @@ const LABELS=Object.freeze([
 ]);
 function result(status,extra={}){
  const out={audit:AUDIT,schemaVersion:1,readOnly:true,status};
- for(const key of ['scannedLines','matchedPatchLines','category','recentErrorEvidence']){
+ // Enumeration only: no original log fields or matched text leave this function.
+ for(const key of ['scannedLines','matchedPatchLines','category','recentErrorEvidence','matchedCategories','ambiguity']){
   const v=extra[key];
-  if(key==='category'&&['admin_scope_missing','write_lock_or_readonly','invalid_rpc_params',
-    'config_validation','revision_conflict','rate_limited','gateway_transport','unclassified'].includes(v))out[key]=v;
+  if(key==='category'&&[...LABELS.map(([name])=>name),'unclassified'].includes(v))out[key]=v;
+  else if(key==='matchedCategories'&&Array.isArray(v)&&v.length<=LABELS.length&&
+    v.every(name=>LABELS.some(([known])=>known===name))&&new Set(v).size===v.length)
+    out[key]=v;
+  else if(key==='ambiguity'&&['none','single_category','multiple_categories_same_record',
+    'multiple_categories_multiple_records'].includes(v))out[key]=v;
   else if(key==='recentErrorEvidence'&&typeof v==='boolean')out[key]=v;
   else if(['scannedLines','matchedPatchLines'].includes(key)&&Number.isInteger(v)&&v>=0&&v<=MAX_LINES)out[key]=v;
  }
@@ -50,10 +55,15 @@ export function classifyPatchLogs(input){
  }
  const hints=new Set();
  for(const line of matches)for(const [name,re] of LABELS)if(re.test(line))hints.add(name);
- // Multiple error classes in different records are ambiguous without request ID.
- const category=hints.size===1?[...hints][0]:'unclassified';
+ // The log is not correlated by request ID. Do not choose a "winner" when
+ // regexes overlap in the same record; report only the matched enum names.
+ const matchedCategories=LABELS.map(([name])=>name).filter(name=>hints.has(name));
+ const category=matchedCategories.length===1?matchedCategories[0]:'unclassified';
+ const ambiguity=matchedCategories.length===0?'none':matchedCategories.length===1?
+   'single_category':matches.length===1?
+   'multiple_categories_same_record':'multiple_categories_multiple_records';
  return result('observed',{scannedLines:lines.length,matchedPatchLines:matches.length,category,
-   recentErrorEvidence:hints.size>0});
+   matchedCategories,ambiguity,recentErrorEvidence:hints.size>0});
 }
 export async function diagnosePatchFailure({rpc=execNative}={}){
  try{
