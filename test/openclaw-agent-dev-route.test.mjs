@@ -17,7 +17,11 @@ function config(agentId){
  if(agentId==='openclaw-dev')entries['openclaw-dev']=agentPolicy('openclaw-dev');
  const layer={agents:{ownership:'explicit',defaults:{systemAgent:{agentId:'main'}},
   entries},bindings:[{agentId:'main'}]};
- return {valid:true,exists:true,sourceConfig:layer,config:layer,parsed:layer,resolved:layer};
+ // These must simulate four independent Gateway snapshots.
+ // A shared object wrongly makes a parsed-only mutation also modify source/config.
+ return {valid:true,exists:true,
+  sourceConfig:structuredClone(layer),config:structuredClone(layer),
+  parsed:structuredClone(layer),resolved:structuredClone(layer)};
 }
 test('only Mac-pinned fixed dev agents can be routed',()=>{
  assert.equal(validDevAgent('openclaw-dev'),true);
@@ -133,6 +137,10 @@ test('selected Alice rejects an unsafe Dev, and selected Dev rejects an unsafe A
  assert.equal(verifyBoundAgentConfig(boundOther,'openclaw-dev'),false);
 });
 test('inconsistent Agent roster across four Gateway snapshots is rejected',()=>{
+ const snap=config('openclaw-dev');
+ assert.notStrictEqual(snap.sourceConfig,snap.config);
+ assert.notStrictEqual(snap.parsed,snap.config);
+ assert.notStrictEqual(snap.parsed.agents.entries,snap.sourceConfig.agents.entries);
  const partial=structuredClone(config('openclaw-dev'));
  delete partial.parsed.agents.entries['openclaw-dev'];
  assert.equal(verifyBoundAgentConfig(partial,'alice-ai'),false);
