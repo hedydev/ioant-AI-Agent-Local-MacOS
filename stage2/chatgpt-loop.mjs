@@ -18,34 +18,48 @@ const call=promisify(execFile);
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MARKER='IOANT_MAC_LOOP_RESULT::';
 const readPageFunction=`() => {
-  const select='[data-message-author-role="assistant"]';
-  const elements=Array.from(document.querySelectorAll(select));
+  // ChatGPT has two observed renderer families. Exact explicit role markers
+  // only; never search all page text or code blocks for task JSON.
+  const oldAssistant=Array.from(document.querySelectorAll('[data-message-author-role="assistant"]'));
+  const newAssistant=oldAssistant.length?[]:Array.from(document.querySelectorAll('[data-content-search-unit-key$=":assistant"]'));
+  const roleAssistant=(oldAssistant.length||newAssistant.length)?[]:
+    Array.from(document.querySelectorAll('[data-conversation-role="assistant"]'));
+  const assistantSource=oldAssistant.length?'legacy':newAssistant.length?'content_unit':roleAssistant.length?'role_unit':'absent';
+  const elements=oldAssistant.length?oldAssistant:newAssistant.length?newAssistant:roleAssistant;
   const messages=elements.slice(-6).map(el=>({
     codes:Array.from(el.querySelectorAll('pre code')).slice(0,8).map(code=>(code.textContent||'').slice(0,5000))
   }));
-  // Read only allowlisted *prefix receipts* from all currently rendered user
-  // turns. An arbitrary last-five window is insufficient for delayed replies.
-  // Do not return ordinary user messages or their text to the local worker.
-  const userRoleNodes=Array.from(document.querySelectorAll('[data-message-author-role="user"]')).slice(-100);
+  const oldUser=Array.from(document.querySelectorAll('[data-message-author-role="user"]'));
+  // New renderer: content-search units have explicit :user suffix; if a
+  // unit is not available, its dedicated user-message bubble is role-scoped.
+  const newUser=oldUser.length?[]:Array.from(document.querySelectorAll('[data-content-search-unit-key$=":user"]'));
+  const bubbleUser=(oldUser.length||newUser.length)?[]:
+    Array.from(document.querySelectorAll('[data-user-message-bubble="true"]'));
+  const userRoleNodes=(oldUser.length?oldUser:newUser.length?newUser:bubbleUser).slice(-100);
   const users=userRoleNodes.map(el=>{
-      // Prefer the actual user message body over optional UI labels in the
-      // enclosing user-role element. All prefixes remain start-anchored.
-      const body=typeof el.querySelector==='function'
-        ?(el.querySelector('[data-message-content]')||el.querySelector('.whitespace-pre-wrap')):null;
-      for(const candidate of [body,el].filter(Boolean)){
-        const text=String(candidate.innerText||candidate.textContent||'').trimStart();
-        const match=text.match(/^(Ioant Mac (?:local command feedback protocol ioant-mac-ops-v1|Alice witness workflow ioant-mac-ops-v1|Alice isolated 17880 startup probe ioant-mac-ops-v1|Mint read-only diagnostics ioant-mac-ops-v1)|\\[IOANT-MAC-OPS RESULT [a-zA-Z0-9_-]{4,80}\\])/);
-        if(match)return match[1];
-      }
-      return null;
-    }).filter(Boolean);
-  // Return only bounded structural evidence, never user text or DOM payloads.
+    // Prefer the actual message body over UI labels on the role wrapper.
+    const body=typeof el.querySelector==='function'
+      ?(el.querySelector('[data-user-message-bubble="true"]')||
+        el.querySelector('[data-message-content]')||
+        el.querySelector('.whitespace-pre-wrap')):null;
+    for(const candidate of [body,el].filter(Boolean)){
+      const value=String(candidate.innerText||candidate.textContent||'').trimStart();
+      const match=value.match(/^(Ioant Mac (?:local command feedback protocol ioant-mac-ops-v1|Alice witness workflow ioant-mac-ops-v1|Alice isolated 17880 startup probe ioant-mac-ops-v1|Mint read-only diagnostics ioant-mac-ops-v1)|\[IOANT-MAC-OPS RESULT [a-zA-Z0-9_-]{4,80}\])/);
+      if(match)return match[1];
+    }
+    return null;
+  }).filter(Boolean);
   const receiptEvidence={
     userRoleNodes:userRoleNodes.length,
     bodyNodes:userRoleNodes.filter(el=>typeof el.querySelector==='function'&&
-      !!(el.querySelector('[data-message-content]')||el.querySelector('.whitespace-pre-wrap'))).length,
+      !!(el.querySelector('[data-user-message-bubble="true"]')||
+         el.querySelector('[data-message-content]')||
+         el.querySelector('.whitespace-pre-wrap'))).length,
     mintPhrasePresent:userRoleNodes.some(el=>String(el.textContent||el.innerText||'').includes('Ioant Mac Mint read-only diagnostics ioant-mac-ops-v1')),
-    mintReceiptRecognized:users.includes('Ioant Mac Mint read-only diagnostics ioant-mac-ops-v1')
+    mintReceiptRecognized:users.includes('Ioant Mac Mint read-only diagnostics ioant-mac-ops-v1'),
+    legacyUserNodes:oldUser.length,contentUserNodes:newUser.length,bubbleUserNodes:bubbleUser.length,
+    legacyAssistantNodes:oldAssistant.length,contentAssistantNodes:newAssistant.length,roleAssistantNodes:roleAssistant.length,
+    assistantSource
   };
   // ChatGPT has used both an id and a data-testid on its contenteditable composer.
   // Keep selectors narrow to the prompt area; never treat global search inputs as chat.
@@ -173,7 +187,15 @@ async function confirmUserReceipt(url,receipt,{initialDelay=false}={}){
     console.log('[loop] Receipt read-only evidence: userRoleNodes='+safeCount(lastEvidence.userRoleNodes)+
       ', bodyNodes='+safeCount(lastEvidence.bodyNodes)+
       ', mintPhrasePresent='+(lastEvidence.mintPhrasePresent===true)+
-      ', mintReceiptRecognized='+(lastEvidence.mintReceiptRecognized===true));
+      ', mintReceiptRecognized='+(lastEvidence.mintReceiptRecognized===true)+
+      ', legacyUserNodes='+safeCount(lastEvidence.legacyUserNodes)+
+      ', contentUserNodes='+safeCount(lastEvidence.contentUserNodes)+
+      ', bubbleUserNodes='+safeCount(lastEvidence.bubbleUserNodes)+
+      ', legacyAssistantNodes='+safeCount(lastEvidence.legacyAssistantNodes)+
+      ', contentAssistantNodes='+safeCount(lastEvidence.contentAssistantNodes)+
+      ', roleAssistantNodes='+safeCount(lastEvidence.roleAssistantNodes)+
+      ', assistantSource='+(typeof lastEvidence.assistantSource==='string'&&
+        ['legacy','content_unit','role_unit','absent'].includes(lastEvidence.assistantSource)?lastEvidence.assistantSource:'unknown'));
   }
   recordDiagnosticEvent('receipt_unconfirmed',{code:pageSeen?'user_receipt_not_visible':readErrors?'page_unavailable':'unexpected'});
   return false;

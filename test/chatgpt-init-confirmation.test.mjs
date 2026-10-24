@@ -228,6 +228,11 @@ test('receipt evidence consists only of counters and booleans when message not v
   querySelector:q=>q==='#prompt-textarea'?{matches:()=>false,innerText:'',textContent:''}:null
  };
  const parsed=JSON.parse(run(doc,{href:CHAT}).slice('IOANT_MAC_LOOP_RESULT::'.length));
- assert.deepEqual(parsed.receiptEvidence,{userRoleNodes:1,bodyNodes:0,mintPhrasePresent:false,mintReceiptRecognized:false});
+ assert.deepEqual(parsed.receiptEvidence,{
+  userRoleNodes:1,bodyNodes:0,mintPhrasePresent:false,mintReceiptRecognized:false,
+  legacyUserNodes:1,contentUserNodes:0,bubbleUserNodes:0,
+  legacyAssistantNodes:0,contentAssistantNodes:0,roleAssistantNodes:0,
+  assistantSource:'absent'
+ });
  assert.doesNotMatch(JSON.stringify(parsed),/private content/);
 });
