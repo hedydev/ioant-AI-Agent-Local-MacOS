@@ -1,0 +1,70 @@
+// Local operator-selected development Agent route. Never use agentId from ChatGPT page.
+import {isDeepStrictEqual} from 'node:util';
+import {lstat,realpath} from 'node:fs/promises';
+import {join} from 'node:path';
+import {rpcEnvelope} from './openclaw-ollama-provision.mjs';
+import {fixedPatch} from './openclaw-alice-create.mjs';
+
+export const DEV_AGENT_IDS=Object.freeze(['alice-ai','openclaw-dev']);
+const BASE='/Volumes/LunaDrive/DeveloperCache/openclaw-agents';
+const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
+export function validDevAgent(agentId){return DEV_AGENT_IDS.includes(agentId);}
+export function isBoundDevDiscussion(action,agentId){
+ return validDevAgent(agentId)&&(
+  action==='openclaw-agent-dev-discuss'||
+  (action==='openclaw-alice-dev-discuss'&&agentId==='alice-ai'));
+}
+export function agentPolicy(agentId){
+ if(!validDevAgent(agentId))throw Error('agent_not_allowlisted');
+ const src=fixedPatch().agents.entries['alice-ai'];
+ return {...structuredClone(src),name:agentId==='alice-ai'?'AliceAI':'OpenClaw Dev',
+  workspace:join(BASE,agentId)};
+}
+// Fail closed on altered provider, model policy, tool permission or routing.
+// Runtime representations can normalize fields but must retain all deny rules.
+export function verifyBoundAgentConfig(snapshot,agentId){
+ if(!validDevAgent(agentId))return false;
+ const doc=rpcEnvelope(snapshot);
+ if(!object(doc)||doc.valid!==true||doc.exists===false)return false;
+ const expected=agentPolicy(agentId);
+ for(const layer of ['sourceConfig','config','parsed','resolved']){
+  const root=doc[layer];
+  if(!object(root)||!object(root.agents)||root.agents.ownership!=='explicit'||
+     root.agents.defaults?.systemAgent?.agentId!=='main'||
+     !object(root.agents.entries)||!object(root.agents.entries.main))return false;
+  const entries=root.agents.entries;
+  if(Object.keys(entries).some(id=>!['main',...DEV_AGENT_IDS].includes(id)))return false;
+  const agent=entries[agentId];
+  if(!object(agent)||agent.model!==expected.model||agent.workspace!==expected.workspace||
+    !isDeepStrictEqual(agent.modelPolicy,expected.modelPolicy)||
+    !object(agent.tools)||agent.tools.profile!=='minimal'||
+    !Array.isArray(agent.tools.deny)||!agent.tools.deny.includes('*')||
+    agent.tools.codeMode!==false||agent.tools.exec?.mode!=='deny'||
+    agent.tools.elevated?.enabled!==false||agent.tools.fs?.workspaceOnly!==true||
+    !isDeepStrictEqual(agent.tools.agentToAgent?.send,[])||
+    !isDeepStrictEqual(agent.subagents?.allowAgents,[])||
+    !isDeepStrictEqual(agent.skills,[]))return false;
+  if(['sourceConfig','config'].includes(layer)&&
+     (!isDeepStrictEqual(agent.tools,expected.tools)||
+      !isDeepStrictEqual(agent.modelPolicy,expected.modelPolicy)))return false;
+  if(root.bindings!==undefined&&
+     (!Array.isArray(root.bindings)||root.bindings.some(b=>b?.agentId===agentId)))return false;
+ }
+ return true;
+}
+const isPrivateDir=st=>st.isDirectory()&&!st.isSymbolicLink()&&
+ (st.mode&0o077)===0&&(typeof process.getuid!=='function'||st.uid===process.getuid());
+const isPrivateFile=st=>st.isFile()&&!st.isSymbolicLink()&&
+ (st.mode&0o077)===0&&st.size<=512*1024&&
+ (typeof process.getuid!=='function'||st.uid===process.getuid());
+export async function inspectBoundWorkspace(agentId,{stat=lstat,canonical=realpath}={}){
+ if(!validDevAgent(agentId))return 'invalid_agent';
+ const dir=join(BASE,agentId);
+ try{
+  if(await canonical(BASE)!==BASE||!isPrivateDir(await stat(BASE))||
+     await canonical(dir)!==dir||!isPrivateDir(await stat(dir))||
+     !isPrivateFile(await stat(join(dir,'AGENTS.md'))))
+   return 'unsafe_or_missing';
+  return 'present_private';
+ }catch{return 'unavailable';}
+}

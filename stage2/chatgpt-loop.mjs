@@ -13,6 +13,8 @@ import { fileURLToPath } from 'node:url';
 import { PROTOCOL, validateChatUrl, chatKey, extractAction, responseForTask, redactFeedback } from './protocol.mjs';
 import { runAction } from './runner.mjs';
 import { reserveDevDiscussion } from './dev-discussion-claim.mjs';
+import { tabVisibility } from './tab-visibility.mjs';
+import { isBoundDevDiscussion } from './development-agent-route.mjs';
 import { recordDiagnosticEvent, diagnosticCode } from './diagnostic-log.mjs';
 
 const call=promisify(execFile);
@@ -79,7 +81,7 @@ const readPageFunction=`() => {
 }`;
 
 function argsOf(argv){
-  const out={mode:'watch',interval:15,url:null,initialize:false,enableAlicePreflight:false,enableAliceLabStartupProbe:false,enableMintDiagnostics:false,enableSelfUpdate:false,enableOpenClawProvision:false,enableOpenClawAgentCreate:false};
+  const out={mode:'watch',interval:15,url:null,initialize:false,enableAlicePreflight:false,enableAliceLabStartupProbe:false,enableMintDiagnostics:false,enableSelfUpdate:false,enableOpenClawProvision:false,enableOpenClawAgentCreate:false,devAgent:null};
   for(let i=0;i<argv.length;i++){
     if(argv[i]==='--once')out.mode='once';
     else if(argv[i]==='--watch')out.mode='watch';
@@ -91,6 +93,11 @@ function argsOf(argv){
     else if(argv[i]==='--enable-self-update')out.enableSelfUpdate=true;
     else if(argv[i]==='--enable-openclaw-provision')out.enableOpenClawProvision=true;
     else if(argv[i]==='--enable-openclaw-agent-create')out.enableOpenClawAgentCreate=true;
+    else if(argv[i]==='--dev-agent'){
+      const id=argv[++i];
+      if(!['alice-ai','openclaw-dev'].includes(id))throw Error('--dev-agent must be alice-ai or openclaw-dev');
+      out.devAgent=id;
+    }
     else if(argv[i]==='--chat-url')out.url=validateChatUrl(argv[++i]??'');
     else if(argv[i]==='--interval'){out.interval=Number(argv[++i]); if(!Number.isInteger(out.interval)||out.interval<10||out.interval>3600)throw Error('--interval must be 10..3600 seconds');}
     else throw Error('Unknown flag: '+argv[i]);
@@ -118,8 +125,13 @@ async function exactTab(url){
   const tabs=Array.isArray(result)?result:result?.tabs??result?.result?.tabs;
   if(!Array.isArray(tabs))throw Error('OpenClaw tab list not available');
   if(!url)return tabs;
+  const details=tabVisibility(tabs,url,profile);
   const matches=tabs.filter(t=>t.url===url);
-  if(matches.length!==1)throw Error(`Expected one open target ChatGPT tab in isolated OpenClaw profile; found ${matches.length}. Open and sign in to ${url} in that profile.`);
+  if(details.matchingTabs!==1)
+    throw Error('Authorized ChatGPT tab unavailable: '+details.code+
+     ' (profile='+details.profile+', visible='+details.visibleTabs+
+     ', chatgpt='+details.chatgptTabs+', sameConversationId='+details.sameIdTabs+
+     ', exact='+details.matchingTabs+'). Verify exact tab URL and extension access; no automatic navigation or profile change.');
   const id=matches[0].suggestedTargetId??matches[0].tabId??matches[0].targetId;
   if(typeof id!=='string'||!/^[a-zA-Z0-9_:-]{1,128}$/.test(id))throw Error('Browser has no safe exact target handle');
   return id;
@@ -299,7 +311,7 @@ async function writeReport(dir,task,result){
   console.log('[loop] Desktop report: '+filename);
 }
 
-const INIT=`Ioant Mac local command feedback protocol ${PROTOCOL}\n启用本地命令反馈。你可以讨论任何工作；只有需要本机自动执行安全检查时，才输出一个独立 JSON 代码块，字段必须恰好为 protocol、id、action。例如 {"protocol":"${PROTOCOL}","id":"test-001","action":"project-tests"}。可自动执行的 action 仅有 project-tests、project-status、project-head、environment-scan，作用于 ioant-AI-Agent-Local-MacOS 仓库。其他操作会被明确拒绝/要求审批。不要输出 shell 字符串、cwd、argv、密钥或敏感文件内容。收到以 [IOANT-MAC-OPS RESULT id] 开头的执行结果后再判断下一步，需要下一项检查就输出新的唯一 id；无任务就正常回答。不要重复先前 id。唯一例外是安全的本地 AI 开发讨论：action=openclaw-alice-dev-discuss 时必须额外包含 prompt 字符串（最多1600字符/2600字节），不得含敏感资料或任意 shell 代码；它只向无工具权限的 alice-ai 发送技术讨论文本，结果是未经验证的模型建议，不能当作执行命令、Git提交、测试或游戏行为已成功的证据。`;
+const INIT=`Ioant Mac local command feedback protocol ${PROTOCOL}\n启用本地命令反馈。你可以讨论任何工作；只有需要本机自动执行安全检查时，才输出一个独立 JSON 代码块，字段必须恰好为 protocol、id、action。例如 {"protocol":"${PROTOCOL}","id":"test-001","action":"project-tests"}。可自动执行的 action 仅有 project-tests、project-status、project-head、environment-scan，作用于 ioant-AI-Agent-Local-MacOS 仓库。其他操作会被明确拒绝/要求审批。不要输出 shell 字符串、cwd、argv、密钥或敏感文件内容。收到以 [IOANT-MAC-OPS RESULT id] 开头的执行结果后再判断下一步，需要下一项检查就输出新的唯一 id；无任务就正常回答。不要重复先前 id。唯一例外是安全的本地 AI 开发讨论：action=openclaw-agent-dev-discuss 时必须额外包含 prompt 字符串（最多1600字符/2600字节），不得含敏感资料或任意 shell 代码；它只向由 Mac 启动参数 --dev-agent 固定绑定并经无工具权限预检的 Agent 发送技术讨论文本，结果是未经验证的模型建议，不能当作执行命令、Git提交、测试或游戏行为已成功的证据。`;
 
 const INIT_MINT=`Ioant Mac Mint read-only diagnostics ioant-mac-ops-v1. 本对话已连接 Mac OpenClaw 受控执行器，用户授权对预先配置的 Linux Mint 做只读 BDS 17879/17880 进程归属排查，禁止停止或重启服务、修改世界、删除锁或重试实验服启动。若当前仍需要确认 17880 的进程身份，请只输出一个独立 JSON 代码块：{"protocol":"ioant-mac-ops-v1","id":"mint-唯一新任务编号","action":"mint-bds-process-identity"}。这项任务不接收 PID、host、shell、cwd、argv；由 Mac 使用本地固定 SSH 目标重新读取 ss，再核实 PID 的父进程、启动身份、可执行文件和工作目录，并与 17879 对比。如果 sudo -n 无权读取，执行器将返回 approval_required，绝不自动输入密码或改变 sudoers。收到 [IOANT-MAC-OPS RESULT id] 后根据脱敏 JSON 继续分析。若不需要检查就正常回复，不要制造重复任务。`;
 
@@ -337,7 +349,7 @@ async function main(){
   console.log('[loop] Actions: project-tests / project-status / project-head / environment-scan'+(opts.enableAlicePreflight?' / alice-witness-preflight (scoped Mint sync)':'')+(opts.enableAliceLabStartupProbe?' / alice-lab-startup-probe (one-shot 17880 only)':'')+(opts.enableMintDiagnostics?' / mint-bds-process-identity / mint-bds-process-lineage (read-only, fixed SSH target)':'')
     +(opts.enableSelfUpdate?' / project-update-verify (clean main, pretested fast-forward only)':'')
     +(opts.enableOpenClawProvision?' / openclaw-ollama-provision (local model provider write only)':'')
-    +(opts.enableOpenClawAgentCreate?' / openclaw-alice-create (private text-only Agent once)':'')+' / openclaw-alice-dev-discuss (no-tools development advice)'+'. Ctrl-C stops.');
+    +(opts.enableOpenClawAgentCreate?' / openclaw-alice-create (private text-only Agent once)':'')+(opts.devAgent?' / openclaw-agent-dev-discuss (bound to '+opts.devAgent+', no tools)':' / AI discussion disabled (requires --dev-agent)')+'. Ctrl-C stops.');
   try{
     recordDiagnosticEvent('worker_start',{mode:opts.mode,profile});
     state=await loadState(stateFile); // Must be within finally so a read failure does not leak lock.
@@ -470,7 +482,10 @@ async function main(){
         if(a.fingerprint===previousFingerprint)stable++; else {previousFingerprint=a.fingerprint;stable=1;}
         if(stable>=2){
           const task=a.task;
-          const authorized=task.authorized || (task.action==='alice-witness-preflight' && opts.enableAlicePreflight)
+          const isDevDiscussion=['openclaw-alice-dev-discuss','openclaw-agent-dev-discuss'].includes(task.action);
+           const devBindingOk=isBoundDevDiscussion(task.action,opts.devAgent);
+           const authorized=(task.authorized&&(!isDevDiscussion||devBindingOk)) ||
+             (task.action==='alice-witness-preflight' && opts.enableAlicePreflight)
             || (task.action==='alice-lab-startup-probe' && opts.enableAliceLabStartupProbe)
             || ((task.action==='mint-bds-process-identity'||task.action==='mint-bds-process-lineage') && opts.enableMintDiagnostics)
             || (task.action==='project-update-verify' && opts.enableSelfUpdate)
@@ -494,7 +509,7 @@ async function main(){
               console.log('[loop] One-shot 17880 lab probe claimed. Never auto-retry this probe.');
               result=await runAction(task.action,ROOT,{enableAliceLabStartupProbe:true});
             }
-          }else if(task.action==='openclaw-alice-dev-discuss'){
+          }else if(isDevDiscussion){
             // Reserve before invoking Gateway. After interruption, the old ID
             // remains permanently claimed and must never trigger inference.
             const claim=reserveDevDiscussion(state,task.id);
@@ -505,13 +520,12 @@ async function main(){
               state=claim.state;
               recordDiagnosticEvent('dev_discussion_claimed',{taskId:task.id});
               result=await runAction(task.action,ROOT,{
-                prompt:task.prompt,chatDigest:chatKey(opts.url)});
+                agentId:opts.devAgent,prompt:task.prompt,chatDigest:chatKey(opts.url)});
             }
           }else{
             result=await runAction(task.action,ROOT,{enableAlicePreflight:opts.enableAlicePreflight,enableMintDiagnostics:opts.enableMintDiagnostics,
               enableSelfUpdate:opts.enableSelfUpdate,enableOpenClawProvision:opts.enableOpenClawProvision,
-              enableOpenClawAgentCreate:opts.enableOpenClawAgentCreate,
-              ...(task.action==='openclaw-alice-dev-discuss'?{prompt:task.prompt,chatDigest:chatKey(opts.url)}:{})});
+              enableOpenClawAgentCreate:opts.enableOpenClawAgentCreate});
           }
           recordDiagnosticEvent('action_finished',{taskId:task.id,action:task.known?task.action:'unknown',status:result.status,...(Number.isInteger(result.exitCode)?{exitCode:result.exitCode}:{}),...(Number.isInteger(result.elapsedMs)?{elapsedMs:result.elapsedMs}:{})});
           await writeReport(workDir,task,result);

@@ -3,7 +3,8 @@ import { aliceLabStartupProbe } from './alice-lab-startup.mjs';
 import { mintBdsProcessIdentity } from './mint-diagnostics.mjs';
 import { mintBdsProcessLineage } from './mint-lineage.mjs';
 import {safeAudit} from './openclaw-ollama-provision.mjs';
-import {discussAlice} from './openclaw-alice-dev-discuss.mjs';
+import {discussBoundAgent} from './openclaw-agent-dev-discuss.mjs';
+import {isBoundDevDiscussion} from './development-agent-route.mjs';
 import { spawn } from 'node:child_process';
 import { summarizeTestEvidence,validTestEvidence } from './test-failure-evidence.mjs';
 import { resolve } from 'node:path';
@@ -38,8 +39,11 @@ export async function executeStep(plan) {
 }
 
 export async function runAction(action, repoRoot, options={}) {
-  if(action==='openclaw-alice-dev-discuss'){
-    const result=await discussAlice({prompt:options.prompt,chatDigest:options.chatDigest});
+  if(action==='openclaw-alice-dev-discuss'||action==='openclaw-agent-dev-discuss'){
+    if(!isBoundDevDiscussion(action,options.agentId))
+      return {status:'approval_required',reason:'A matching local --dev-agent binding is required.'};
+    const result=await discussBoundAgent({agentId:options.agentId,
+      prompt:options.prompt,chatDigest:options.chatDigest});
     if(result.state==='answered'){
       // The returned text is only model advice. Never interpret it as an action
       // or success evidence for code/tests/gameplay. Keep bounded for same-chat
