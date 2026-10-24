@@ -53,6 +53,7 @@ test('unprivileged lineage runs exactly six scoped SSH reads, fresh privileged w
  assert.equal(json.parentPidOfParent,1);
  assert.equal(json.parentCwdCategory,'other_tedz_home_directory');
  assert.equal(json.parentSameCwd,false);
+ assert.equal(json.parentageDoubleChecked,true);
  assert.doesNotMatch(result.output,/\/home\/tedz|minecraft-bedrock-alice-lab-instance/);
 });
 test('rejects alternate hosts before any SSH operation',async()=>{
@@ -66,12 +67,22 @@ test('sudo helper unavailable does not run unprivileged follow-up',async()=>{
  const r=await mintBdsProcessLineage({execute:f.execute,sshTarget:'tedz@192.168.0.104',now:()=>NOW});
  assert.equal(r.status,'approval_required');assert.equal(f.calls.length,1);
 });
-test('unprivileged cwd permission denied fails without widening sudo',async()=>{
+test('real-world child cwd denial still verifies parent ps and root-witnessed PID without sudo escalation',async()=>{
  const f=fixture({[C]:null});
  const r=await mintBdsProcessLineage({execute:f.execute,sshTarget:'tedz@192.168.0.104',now:()=>NOW});
  assert.equal(r.status,'inconclusive');
- assert.equal(JSON.parse(r.output).reason,'unprivileged_child_cwd_unavailable');
+ const partial=JSON.parse(r.output);
+ assert.equal(partial.state,'partial');
+ assert.equal(partial.reason,'unprivileged_child_cwd_unavailable');
+ assert.equal(partial.childCwdCategory,'unavailable');
+ assert.equal(partial.childCwdHash,null);
+ assert.equal(partial.parentSameCwd,null);
+ assert.equal(partial.parentProcess,'bash');
+ assert.equal(partial.parentPidOfParent,1);
+ assert.equal(partial.parentageDoubleChecked,true);
+ assert.deepEqual(f.calls.map(p=>p.args.at(-1)),sample);
  assert.ok(f.calls.every(p=>!p.args.at(-1).startsWith('sudo ')||p.args.at(-1)===H));
+ assert.doesNotMatch(r.output,/\/home\/tedz|permission denied/);
 });
 test('inaccessible parent cwd does not prevent bounded ancestry from ps',async()=>{
  const f=fixture({[A]:null});
@@ -106,4 +117,32 @@ test('lineage requires explicit Mint opt-in; ChatGPT cannot supply PID or paths'
  assert.throws(()=>actionFromJson(JSON.stringify({protocol:t.protocol,id:t.id,action:t.action,pid:1712655})));
  const r=await runAction('mint-bds-process-lineage',process.cwd(),{enableMintDiagnostics:false});
  assert.equal(r.status,'approval_required');
+});
+
+test('both cwd paths denied still produces only verified ps parent metadata',async()=>{
+ const f=fixture({[C]:null,[A]:null});
+ const r=await mintBdsProcessLineage({execute:f.execute,sshTarget:'tedz@192.168.0.104',now:()=>NOW});
+ const partial=JSON.parse(r.output);
+ assert.equal(r.status,'inconclusive');
+ assert.equal(partial.state,'partial');
+ assert.equal(partial.parentCwdCategory,'unavailable');
+ assert.equal(partial.parentSameCwd,null);
+ assert.equal(partial.parentProcess,'bash');
+ assert.equal(partial.parentageDoubleChecked,true);
+});
+
+test('no partial parent evidence escapes if PID birth changes after inaccessible cwd',async()=>{
+ const f=fixture({[C]:null});
+ let count=0;
+ const wrapped=async plan=>{
+  if(plan.args.at(-1)===H){
+   count++;
+   if(count===2)return {status:'passed',output:JSON.stringify({...ROOT,birthTag:'bbbbbbbbbbbb'})};
+  }
+  return f.execute(plan);
+ };
+ const r=await mintBdsProcessLineage({execute:wrapped,sshTarget:'tedz@192.168.0.104',now:()=>NOW});
+ assert.equal(r.status,'inconclusive');
+ assert.equal(JSON.parse(r.output).reason,'process_or_parent_changed_during_audit');
+ assert.doesNotMatch(r.output,/parentProcess|parentStartTag/);
 });

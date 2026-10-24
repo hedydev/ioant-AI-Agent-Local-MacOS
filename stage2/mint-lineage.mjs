@@ -68,16 +68,18 @@ export async function mintBdsProcessLineage({execute,sshTarget,now=()=>Date.now(
   const before=await call(psCmd);
   if(before===null)return fail('unprivileged_ps_unavailable');
   const ps1=parseLineagePs(before,pid,parentPid);
+  // The real Mint host can deny unprivileged /proc/PID/cwd reads.
+  // This is a known, explicit partial-evidence case, not a reason to
+  // abandon the otherwise readable ps parent-chain or escalate sudo.
   const childCwdRaw=await call('/usr/bin/readlink /proc/'+pid+'/cwd');
-  if(childCwdRaw===null)return fail('unprivileged_child_cwd_unavailable');
-  const cwd=childCwdRaw.trim();
-  const childCwdCategory=classifyMintCwd(cwd);
+  const cwd=childCwdRaw===null?null:childCwdRaw.trim();
+  const childCwdCategory=cwd===null?'unavailable':classifyMintCwd(cwd);
   const parentCwdRaw=await call('/usr/bin/readlink /proc/'+parentPid+'/cwd');
-  let parentCwdCategory='unavailable',parentSameCwd=false;
+  let parentCwdCategory='unavailable',parentSameCwd=null;
   if(parentCwdRaw!==null){
    const parentCwd=parentCwdRaw.trim();
    parentCwdCategory=classifyMintCwd(parentCwd);
-   parentSameCwd=parentCwd===cwd;
+   if(cwd!==null)parentSameCwd=parentCwd===cwd;
   }
   const afterPs=await call(psCmd);
   if(afterPs===null)return fail('unprivileged_ps_unavailable');
@@ -89,15 +91,23 @@ export async function mintBdsProcessLineage({execute,sshTarget,now=()=>Date.now(
      last.birthTag!==original.birthTag||last.classification!==original.classification||
      JSON.stringify(ps1)!==JSON.stringify(ps2))
     return fail('process_or_parent_changed_during_audit');
-  return {status:'passed',exitCode:0,output:JSON.stringify({
-   audit:AUDIT,schemaVersion:1,readOnly:true,state:'observed',port:17880,
-   observedAtUnix:last.observedAtUnix,pid,parentPid,
-   process:'bedrock_server',birthTag:last.birthTag,
-   rootWitnessClassification:last.classification,
-   childCwdCategory,childCwdHash:digest(cwd),
-   parentProcess:ps2.parent.process,parentPidOfParent:ps2.parent.ppid,
-   parentStartTag:ps2.parent.start,parentCwdCategory,parentSameCwd,
-   note:'unprivileged_lineage_only_no_permission_to_stop_or_reprobe'})};
+  const verifiedCwd=cwd!==null;
+  return {
+   status:verifiedCwd?'passed':'inconclusive',exitCode:0,
+   ...(verifiedCwd?{}:{reason:'Child cwd inaccessible without sudo; independently verified parent process only.'}),
+   output:JSON.stringify({
+    audit:AUDIT,schemaVersion:1,readOnly:true,
+    state:verifiedCwd?'observed':'partial',port:17880,
+    ...(verifiedCwd?{}:{reason:'unprivileged_child_cwd_unavailable'}),
+    observedAtUnix:last.observedAtUnix,pid,parentPid,
+    process:'bedrock_server',birthTag:last.birthTag,
+    rootWitnessClassification:last.classification,
+    childCwdCategory,childCwdHash:verifiedCwd?digest(cwd):null,
+    parentProcess:ps2.parent.process,parentPidOfParent:ps2.parent.ppid,
+    parentStartTag:ps2.parent.start,parentCwdCategory,parentSameCwd,
+    parentageDoubleChecked:true,
+    note:'unprivileged_lineage_only_no_permission_to_stop_or_reprobe'})
+  };
  }catch{
   return fail('lineage_evidence_unverifiable');
  }

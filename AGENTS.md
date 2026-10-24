@@ -69,3 +69,8 @@ The user approved a one-time, scoped read-only privilege installation on Linux M
 ## Mint 17880 read-only parent lineage (2026-10-24)
 
 The separately authorized `mint-bds-process-lineage` action reuses the existing root-owned fixed `mint-bds-diagnostics.py` as immutable first/final witness. Any PID/PPID in a subsequent unprivileged `ps`/`readlink` command must come from freshly validated witness JSON and be revalidated after all reads. It runs only on approved `tedz@192.168.0.104` and only under existing `--enable-mint-diagnostics`; it must never widen sudoers, install anything on Mint, return raw cwd/argv, kill any PID or retry Alice startup. Unknown or inaccessible process evidence must fail closed with a bounded reason. The installed privileged helper and sudoers are unchanged by this action.
+
+
+## Read-only lineage partial evidence on /proc cwd denial
+
+Real Mint evidence: unprivileged `readlink /proc/PID/cwd` for BDS returned nonzero, previously causing premature lineage abort. This is a documented, expected permission boundary. Allow the unprivileged `ps` parent snapshot to complete, recheck parentage, then recheck the exact fixed root-witness helper. Report parent identity **only** as bounded partial/inconclusive evidence if child cwd remained inaccessible; explicitly label missing cwd/hash/comparison as unavailable/null and never claim full success. Do not broaden sudoers or modify the root helper, servers or worlds. A changed PID, PPID or birth must invalidate all partial results.
