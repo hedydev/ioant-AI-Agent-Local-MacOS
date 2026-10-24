@@ -203,25 +203,78 @@ async function confirmUserReceipt(url,receipt,{initialDelay=false}={}){
 }
 
 async function sendToChat(target,url,content,receipt,{beforePress=async()=>{}}={}){
-  // Cannot mistake a pending uncertain send for a fresh task; always verify first.
-  let state=await readPage(target,url);
-  if(state.users.some(msg=>msg.startsWith(receipt)))return {confirmed:true,alreadySent:true};
-  if(state.generating||!state.composerPresent||!state.composerEmpty)throw Error('ChatGPT is generating or composer is not empty/available; no automatic send');
-  const snap=await browser('snapshot','--target-id',target,'--interactive');
-  const ref=composerRef(snap);
+  // Safe retry boundary: only readPage / snapshot before any typing, never
+  // retry Enter. Every attempt re-verifies exact tab and empty composer.
+  let ref;
+  for(let attempt=0;attempt<3;attempt++){
+    const currentTarget=await exactTab(url);
+    const page=await readPage(currentTarget,url);
+    if(page.users.some(msg=>msg.startsWith(receipt)))return {confirmed:true,alreadySent:true};
+    if(page.generating||!page.composerPresent||!page.composerEmpty)
+      throw Error('ChatGPT composer is not safely available; no automatic send');
+    try{
+      ref=composerRef(await browser('snapshot','--target-id',currentTarget,'--interactive'));
+      target=currentTarget;
+      break;
+    }catch(e){
+      if(attempt===2)throw Error('Browser snapshot unavailable before typing; safe to retry later.');
+      console.log('[loop] Browser snapshot temporarily unavailable before typing; read-only retry '+(attempt+1)+'/2.');
+      await new Promise(r=>setTimeout(r,1200));
+    }
+  }
   await browser('type','--target-id',target,ref,content);
-  // Ensure text actually landed in the intended field before pressing Send.
-  state=await readPage(target,url);
-  if(state.composerEmpty||state.generating)throw Error('Composer did not accept text or assistant is still generating; no Enter sent');
-  // Write any durable send-intent before the first action that may submit text.
-  // If the browser call times out, the chat may already have received Enter.
+  const state=await readPage(target,url);
+  if(state.composerEmpty||state.generating)
+    throw Error('Composer did not accept text or assistant is generating; no Enter sent');
+  // Durable press-intent MUST be written before Enter. From then on, receipt
+  // recovery is read-only, because a timed-out press may have delivered.
   await beforePress();
   await browser('press','--target-id',target,'Enter');
-  // ChatGPT DOM commit is asynchronous; success requires a user-role receipt,
-  // not an assistant reply or a cleared composer. Never send Enter again.
   if(await confirmUserReceipt(url,receipt,{initialDelay:true}))
     return {confirmed:true,alreadySent:false};
-  throw Error('Message send could not be confirmed after bounded read-only checks; potential delivery, no automatic retry.');
+  throw Error('Message send could not be confirmed; potential delivery, no automatic retry.');
+}
+
+// Recovery of an already-executed task MUST NOT execute the task again.
+// Prepared means Enter was provably never pressed (press-intent not saved);
+// uncertain/legacy/press_intent requires receipt-only polling.
+async function reconcileFeedback(state,stateFile,url,{afterConfirmed=async()=>{}}={}){
+  const pending=state.feedbackPending;
+  if(!pending)return {outcome:'none'};
+  const receipt='[IOANT-MAC-OPS RESULT '+pending.id+']';
+  const found=await confirmUserReceipt(url,receipt);
+  if(found){
+    state.lastTaskId=pending.id;
+    state.feedbackPending=null;
+    await atomicState(stateFile,state);
+    await afterConfirmed(pending);
+    return {outcome:'confirmed'};
+  }
+  if(pending.phase==='prepared'){
+    try{
+      const target=await exactTab(url);
+      await sendToChat(target,url,pending.feedback,receipt,{
+        beforePress:async()=>{
+          pending.phase='press_intent';
+          await atomicState(stateFile,state);
+        }
+      });
+      state.lastTaskId=pending.id;
+      state.feedbackPending=null;
+      await atomicState(stateFile,state);
+      await afterConfirmed(pending);
+      return {outcome:'confirmed'};
+    }catch(e){
+      // If the snapshot failed before typing, pending remains prepared.
+      // If typing left a draft, the next attempt refuses a nonempty composer.
+      // If Enter might have happened, press_intent forbids another send.
+      console.log('[loop] Pending feedback is not yet deliverable; phase='+
+        (pending.phase==='prepared'?'prepared':'press_intent')+'. No task replay.');
+      return {outcome:'waiting'};
+    }
+  }
+  console.log('[loop] Previous feedback may have been submitted; receipt not visible. Read-only recovery only, no resend.');
+  return {outcome:'waiting'};
 }
 
 async function atomicState(file,state){
@@ -393,14 +446,18 @@ async function main(){
         continue;
       }
       if(state.feedbackPending){
-        // Commands never re-run after a crash / unclear send.
-        const receipt='[IOANT-MAC-OPS RESULT '+state.feedbackPending.id+']';
-        if(page.users.some(msg=>msg.startsWith(receipt))){
-          state.lastTaskId=state.feedbackPending.id;state.feedbackPending=null;await atomicState(stateFile,state);
-          recordDiagnosticEvent('feedback_confirmed',{taskId:state.lastTaskId});
-          console.log('[loop] Previously sent feedback confirmed; moving on.');
-        } else {
-          throw Error('Feedback pending for '+state.feedbackPending.id+'; sending again could duplicate a message. Check conversation manually.');
+        const recovery=await reconcileFeedback(state,stateFile,opts.url,{
+          afterConfirmed:async pending=>{
+            recordDiagnosticEvent('feedback_confirmed',{taskId:pending.id});
+            console.log('[loop] Previously executed feedback confirmed; no task replay.');
+            if(pending.reloadRequired===true&&pending.action==='project-update-verify')
+              process.exitCode=75;
+          }
+        });
+        if(process.exitCode===75)break;
+        if(recovery.outcome!=='confirmed'){
+          await new Promise(r=>setTimeout(r,opts.interval*1000));
+          continue; // Never run a new task while previous feedback unresolved.
         }
       }
       const a=extractAction(page);
@@ -438,11 +495,24 @@ async function main(){
           await writeReport(workDir,task,result);
           recordDiagnosticEvent('report_saved',{taskId:task.id});
           const feedback=responseForTask(task,result,session);
-          state.feedbackPending={id:task.id,feedback};
+          state.feedbackPending={id:task.id,action:task.action,
+            reloadRequired:task.action==='project-update-verify'&&result.status==='passed'&&result.reloadRequired===true,
+            phase:'prepared',feedback};
           await atomicState(stateFile,state); // Persist BEFORE the send; no duplicate command execution.
           recordDiagnosticEvent('feedback_pending',{taskId:task.id});
           const receipt='[IOANT-MAC-OPS RESULT '+task.id+']';
-          await sendToChat(nowTarget,opts.url,feedback,receipt);
+          try{
+            await sendToChat(nowTarget,opts.url,feedback,receipt,{
+              beforePress:async()=>{
+                state.feedbackPending.phase='press_intent';
+                await atomicState(stateFile,state);
+              }
+            });
+          }catch(e){
+            console.log('[loop] Feedback send deferred: browser unavailable or delivery uncertain; task not repeated.');
+            await new Promise(r=>setTimeout(r,opts.interval*1000));
+            continue; // Pending state controls read-only recovery or safe retry.
+          }
           state.lastTaskId=task.id;state.feedbackPending=null;
           await atomicState(stateFile,state);
           recordDiagnosticEvent('feedback_confirmed',{taskId:task.id,status:result.status});
