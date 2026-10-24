@@ -579,3 +579,7 @@ Mac task 042 was authorized and ran; it produced `state:inconclusive`, `backup:t
 ## 2026-10-25 — Alice confirmed in four Gateway roots; main preimage changed
 
 Reconcile task 044 confirms exact target Alice Agent + deny-all/tool permissions in source/config/parsed/resolved, and main system pointer preserved; local before/current comparison says `mainPreserved=no` while bindings, model defaults, providers are equal. Do not treat `review_required` as failed Alice creation or replay create. New read-only `openclaw-alice-main-diff` compares only preimage/current `agents.entries.main`, reporting allowlisted field and nested-field change *names* and counts, never config values/unknown field names. Gate with full Mac self-update tests and interpret real difference before any write or end-to-end Agent call.
+
+## 2026-10-25 — Task 047 main was missing on at least one DISK side
+
+Read-only 047 reports `disk.main.status=missing_main`, **not** a main field-value diff. Gateway `main_and_alice` in all four views; bindings and model defaults/providers unchanged. Existing `openclaw-alice-main-diff` is now extended to emit before/after main presence and entries/ownership enums without secret values, so one can distinguish a previously implicit main from loss of a present main. Run Mac `project-update-verify` then a fresh read-only main-diff task. Do not mutate config or replay Agent creation.

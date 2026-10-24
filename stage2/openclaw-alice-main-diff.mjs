@@ -42,6 +42,25 @@ function privateFile(st){return st.isFile()&&!st.isSymbolicLink()&&(st.mode&0o07
 function privateDirectory(st){return st.isDirectory()&&!st.isSymbolicLink()&&(st.mode&0o077)===0&&
   (typeof process.getuid!=='function'||st.uid===process.getuid())}
 const own=(o,k)=>object(o)&&Object.hasOwn(o,k);
+// Presence is not equality: a disk preimage may have no authored main even
+// when Gateway synthesizes one in config.get. Never output entry contents.
+function entriesState(config) {
+ const agents=config?.agents;
+ if(!object(agents))return agents===undefined?'agents_absent':'agents_invalid';
+ const entries=agents.entries;
+ return object(entries)?'object':entries===undefined?'entries_absent':'entries_invalid';
+}
+function mainState(config) {
+ if(entriesState(config)!=='object')return 'not_explicit';
+ const entries=config.agents.entries;
+ if(!Object.hasOwn(entries,'main'))return 'not_explicit';
+ return object(entries.main)?'explicit_object':'invalid_entry';
+}
+function ownerState(config) {
+ const ownership=config?.agents?.ownership;
+ return ownership==='explicit'?'explicit':ownership===undefined?'unset':'other';
+}
+
 const changed=(a,b,k)=>own(a,k)!==own(b,k)||!isDeepStrictEqual(a?.[k],b?.[k]);
 function kind(before,after,key){
  if(!own(before,key))return 'added';
@@ -95,6 +114,11 @@ export async function readPrivateBeforeAfter({stat=lstat,list=readdir,canonical=
   if(!object(oldDoc)||!object(newDoc))return {status:'invalid_json_root'};
   const diff=summarizeMainDifference(oldDoc.agents?.entries?.main,newDoc.agents?.entries?.main);
   return {status:'compared',main:diff,
+   // Fixed enums only: which side actually contains the authored main object?
+   // A missing preimage is not evidence that current main was deleted.
+   diskMain:{before:mainState(oldDoc),after:mainState(newDoc),
+    beforeEntries:entriesState(oldDoc),afterEntries:entriesState(newDoc),
+    ownerBefore:ownerState(oldDoc),ownerAfter:ownerState(newDoc)},
    otherAgentsBefore:Object.keys(oldDoc.agents?.entries??{}).filter(k=>k!=='main').length,
    otherAgentsAfter:Object.keys(newDoc.agents?.entries??{}).filter(k=>k!=='main').length,
    mainOwnerConfirmed:newDoc.agents?.defaults?.systemAgent?.agentId==='main',

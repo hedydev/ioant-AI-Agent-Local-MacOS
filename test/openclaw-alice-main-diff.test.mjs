@@ -65,6 +65,10 @@ test('private before image and active disk must be safely parsed and counted',as
  const d=await readPrivateBeforeAfter(fixture());
  assert.equal(d.status,'compared');
  assert.equal(d.main.status,'changed');
+ assert.deepEqual(d.diskMain,{
+  before:'explicit_object',after:'explicit_object',
+  beforeEntries:'object',afterEntries:'object',
+  ownerBefore:'unset',ownerAfter:'explicit'});
  assert.equal(d.otherAgentsBefore,0);
  assert.equal(d.otherAgentsAfter,1);
  assert.equal(d.mainOwnerConfirmed,true);
@@ -72,6 +76,39 @@ test('private before image and active disk must be safely parsed and counted',as
  assert.equal(d.providersUnchanged,true);
  assert.doesNotMatch(JSON.stringify(d),/DO_NOT_LEAK|MY_PRIVATE_NAME|VERY_SECRET|DIFFERENT_SECRET/);
 });
+test('missing main in preimage but explicit in current is distinguished from lost main',async()=>{
+ const before={...OLD,agents:{entries:{}}};
+ const d=await readPrivateBeforeAfter(fixture(before,NEW));
+ assert.equal(d.status,'compared');
+ assert.equal(d.main.status,'missing_main');
+ assert.deepEqual(d.diskMain,{
+  before:'not_explicit',after:'explicit_object',
+  beforeEntries:'object',afterEntries:'object',
+  ownerBefore:'unset',ownerAfter:'explicit'});
+ assert.equal(d.bindingsUnchanged,true);
+ assert.equal(d.providersUnchanged,true);
+ assert.doesNotMatch(JSON.stringify(d),/DO_NOT_LEAK|MY_PRIVATE_NAME|VERY_SECRET/);
+});
+test('missing main in current but explicit in preimage remains a distinct adverse state',async()=>{
+ const after={...NEW,agents:{...NEW.agents,entries:{'alice-ai':NEW.agents.entries['alice-ai']}}};
+ const d=await readPrivateBeforeAfter(fixture(OLD,after));
+ assert.equal(d.status,'compared');
+ assert.equal(d.main.status,'missing_main');
+ assert.equal(d.diskMain.before,'explicit_object');
+ assert.equal(d.diskMain.after,'not_explicit');
+ assert.equal(d.diskMain.ownerAfter,'explicit');
+});
+test('absent agent entries and malformed main record are not mistaken for explicit main',async()=>{
+ const old={...OLD,agents:{}};
+ const after={...NEW,agents:{...NEW.agents,entries:{...NEW.agents.entries,main:null}}};
+ const d=await readPrivateBeforeAfter(fixture(old,after));
+ assert.equal(d.status,'compared');
+ assert.equal(d.diskMain.beforeEntries,'entries_absent');
+ assert.equal(d.diskMain.before,'not_explicit');
+ assert.equal(d.diskMain.after,'invalid_entry');
+ assert.equal(d.main.status,'missing_main');
+});
+
 test('ambiguous or unsafe backups fail closed before any raw value is returned',async()=>{
  for(const [override,expected] of [
   [{list:async()=>[]},'backup_missing'],
