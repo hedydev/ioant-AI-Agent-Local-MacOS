@@ -130,7 +130,7 @@ test('direct DOM snapshot extracts only known user-role receipts, not message bo
  assert.match(loop,/\.slice\(-100\)/);
  assert.match(loop,/\.trimStart\(\)/);
  assert.match(loop,/Ioant Mac Alice witness workflow/);
- assert.match(loop,/return match\?\.\[1\]\?\?null/);
+ assert.match(loop,/if\(match\)return match\[1\]/);
  assert.doesNotMatch(loop,/slice\(-5\)\s*\n\s*\.map\(el=>\(el\.innerText/);
  const tick=String.fromCharCode(96);
  const start=loop.indexOf('const readPageFunction='+tick);
@@ -154,3 +154,56 @@ test('direct DOM snapshot extracts only known user-role receipts, not message bo
  assert.deepEqual(parsed.users,[INIT,'[IOANT-MAC-OPS RESULT alice-sample-123]']);
  assert.doesNotMatch(JSON.stringify(parsed),/supersecret|private command output/);
 });
+
+
+const MINT_INIT='Ioant Mac Mint read-only diagnostics ioant-mac-ops-v1';
+test('nested user-role body recognizes Mint receipt without returning private contents or quoted text',async()=>{
+ const loop=await readFile(resolve(ROOT,'stage2/chatgpt-loop.mjs'),'utf8');
+ const tick=String.fromCharCode(96);
+ const start=loop.indexOf('const readPageFunction='+tick);
+ const end=loop.indexOf(tick+';\n\nfunction argsOf',start);
+ assert.ok(start>=0&&end>start);
+ const fn=Function('MARKER',loop.slice(start,end+2)+';return readPageFunction;')('IOANT_MAC_LOOP_RESULT::');
+ const read=Function('document','location','return ('+fn+')()');
+ const entries=[
+  {innerText:'You said:\n'+MINT_INIT,querySelector:q=>q==='[data-message-content]'?{innerText:MINT_INIT+' payload secret',textContent:MINT_INIT+' payload secret'}:null},
+  {innerText:'Quoted '+MINT_INIT,querySelector:()=>null},
+  {innerText:'Unrelated password=private',querySelector:()=>null}
+ ];
+ const document={
+  readyState:'complete',
+  querySelectorAll:q=>q==='[data-message-author-role="user"]'?entries:[],
+  querySelector:q=>q==='#prompt-textarea'?{matches:()=>false,innerText:'',textContent:''}:q==='main'?{}:null
+ };
+ const raw=read(document,{href:CHAT});
+ const parsed=JSON.parse(raw.slice('IOANT_MAC_LOOP_RESULT::'.length));
+ assert.deepEqual(parsed.users,[MINT_INIT]);
+ assert.doesNotMatch(JSON.stringify(parsed),/payload secret|password=private|Quoted/);
+});
+
+test('Mint pending initialization is reconciled after delayed DOM hydration with zero repeated sends',async()=>fixture(async f=>{
+ const state={lastTaskId:null,feedbackPending:null,initSent:false,mintInitSent:false,initPending:'mint'};
+ await writeFile(join(f.workspace,'state.json'),JSON.stringify(state),{mode:0o600});
+ await writeFile(f.page,JSON.stringify({...f.original,pending:MINT_INIT,delayed:true}));
+ const child=spawn(process.execPath,['stage2/chatgpt-loop.mjs','--chat-url',CHAT,'--initialize','--enable-mint-diagnostics','--watch','--interval','10'],{...cli(f),stdio:['ignore','pipe','pipe']});
+ let output='',err='';child.stdout.on('data',d=>output+=d);child.stderr.on('data',d=>err+=d);
+ try{
+  const deadline=Date.now()+12000;
+  while(Date.now()<deadline&&!output.includes('Previous initialization found in ChatGPT user messages')&&child.exitCode===null)
+   await new Promise(ok=>setTimeout(ok,120));
+  assert.match(output,/Previous initialization found in ChatGPT user messages/,err);
+  const page=JSON.parse(await readFile(f.page,'utf8'));
+  const stateNext=JSON.parse(await readFile(join(f.workspace,'state.json'),'utf8'));
+  assert.equal(page.presses,0);
+  assert.equal(page.types,0);
+  assert.equal(stateNext.initPending,null);
+  assert.equal(stateNext.mintInitSent,true);
+  assert.ok(page.readAfterPress>=4);
+ }finally{
+  if(child.exitCode===null){
+    child.kill('SIGTERM');
+    await new Promise(ok=>{child.once('close',ok);setTimeout(ok,2500)});
+    if(child.exitCode===null)child.kill('SIGKILL');
+  }
+ }
+}));

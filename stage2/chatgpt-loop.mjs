@@ -28,9 +28,16 @@ const readPageFunction=`() => {
   // Do not return ordinary user messages or their text to the local worker.
   const users=Array.from(document.querySelectorAll('[data-message-author-role="user"]')).slice(-100)
     .map(el=>{
-      const text=(el.innerText||'').trimStart();
-      const match=text.match(/^(Ioant Mac (?:local command feedback protocol ioant-mac-ops-v1|Alice witness workflow ioant-mac-ops-v1|Alice isolated 17880 startup probe ioant-mac-ops-v1|Mint read-only diagnostics ioant-mac-ops-v1)|\\[IOANT-MAC-OPS RESULT [a-zA-Z0-9_-]{4,80}\\])/);
-      return match?.[1]??null;
+      // Prefer the actual user message body over optional UI labels in the
+      // enclosing user-role element. All prefixes remain start-anchored.
+      const body=typeof el.querySelector==='function'
+        ?(el.querySelector('[data-message-content]')||el.querySelector('.whitespace-pre-wrap')):null;
+      for(const candidate of [body,el].filter(Boolean)){
+        const text=String(candidate.innerText||candidate.textContent||'').trimStart();
+        const match=text.match(/^(Ioant Mac (?:local command feedback protocol ioant-mac-ops-v1|Alice witness workflow ioant-mac-ops-v1|Alice isolated 17880 startup probe ioant-mac-ops-v1|Mint read-only diagnostics ioant-mac-ops-v1)|\\[IOANT-MAC-OPS RESULT [a-zA-Z0-9_-]{4,80}\\])/);
+        if(match)return match[1];
+      }
+      return null;
     }).filter(Boolean);
   // ChatGPT has used both an id and a data-testid on its contenteditable composer.
   // Keep selectors narrow to the prompt area; never treat global search inputs as chat.
@@ -135,6 +142,26 @@ function composerRef(snapshot){
   return matches[0][1];
 }
 
+// Shared bounded, read-only receipt verification for post-send and restart.
+// Never sends, re-presses Enter, or executes a task.
+async function confirmUserReceipt(url,receipt,{initialDelay=false}={}){
+  let pageSeen=false,readErrors=0;
+  for(let attempt=0;attempt<8;attempt++){
+    if(initialDelay||attempt>0)await new Promise(resolve=>setTimeout(resolve,1500));
+    try{
+      const currentTarget=await exactTab(url);
+      const page=await readPage(currentTarget,url);
+      pageSeen=true;
+      if(page.users.some(msg=>msg.startsWith(receipt)))return true;
+    }catch(err){
+      readErrors++;
+      if(attempt===7)recordDiagnosticEvent('page_not_ready',{code:diagnosticCode(err)});
+    }
+  }
+  recordDiagnosticEvent('receipt_unconfirmed',{code:pageSeen?'user_receipt_not_visible':readErrors?'page_unavailable':'unexpected'});
+  return false;
+}
+
 async function sendToChat(target,url,content,receipt,{beforePress=async()=>{}}={}){
   // Cannot mistake a pending uncertain send for a fresh task; always verify first.
   let state=await readPage(target,url);
@@ -152,17 +179,8 @@ async function sendToChat(target,url,content,receipt,{beforePress=async()=>{}}={
   await browser('press','--target-id',target,'Enter');
   // ChatGPT DOM commit is asynchronous; success requires a user-role receipt,
   // not an assistant reply or a cleared composer. Never send Enter again.
-  for(let attempt=0;attempt<8;attempt++){
-    await new Promise(resolve=>setTimeout(resolve,1500));
-    try{
-      const currentTarget=await exactTab(url);
-      state=await readPage(currentTarget,url);
-      if(state.users.some(msg=>msg.startsWith(receipt)))return {confirmed:true,alreadySent:false};
-    }catch(err){
-      // The action is now ambiguous: re-read only, never retry the send.
-      if(attempt===7)recordDiagnosticEvent('page_not_ready',{code:diagnosticCode(err)});
-    }
-  }
+  if(await confirmUserReceipt(url,receipt,{initialDelay:true}))
+    return {confirmed:true,alreadySent:false};
   throw Error('Message send could not be confirmed after bounded read-only checks; potential delivery, no automatic retry.');
 }
 
@@ -274,8 +292,9 @@ async function main(){
     if(state.initPending!==undefined&&state.initPending!==null){
       const pending=initMeta[state.initPending];
       if(!pending)throw Error('Unrecognized pending initialization state; no automatic send');
-      const observed=await readPage(target,opts.url);
-      if(!observed.users.some(msg=>msg.startsWith(pending.receipt))){
+      // Delivered user messages may render after page hydration. Recheck
+      // only the same exact ChatGPT tab, without sending any more messages.
+      if(!await confirmUserReceipt(opts.url,pending.receipt)){
         recordDiagnosticEvent('initialization_uncertain',{mode:state.initPending});
         throw Error('Previous initialization send remains unconfirmed; no automatic resend. Verify the exact user message in ChatGPT before resuming.');
       }

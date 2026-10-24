@@ -19,7 +19,7 @@ const EVENTS=new Set([
  'tab_retry_started','tab_retry_recovered','tab_retry_timeout','tab_retry_error',
  'worker_start','page_ready','page_not_ready','read_only_success',
  'initialization_attempt','initialization_pending','initialization_sent',
- 'initialization_reconciled','initialization_uncertain','lab_probe_claimed','task_seen','action_started',
+ 'initialization_reconciled','initialization_uncertain','receipt_unconfirmed','lab_probe_claimed','task_seen','action_started',
  'action_finished','report_saved','feedback_pending','feedback_confirmed',
  'watch_heartbeat','watch_stopped','worker_error','log_capacity_reached'
 ]);

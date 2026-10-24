@@ -346,3 +346,12 @@ IOANT_CHATGPT_BROWSER_PROFILE=chrome ALICE_SSH_TARGET='tedz@192.168.0.104' \
 ```
 
 Do not copy the literal placeholder URL; use the conversation already authorized in the browser. `Ctrl-C` stops only this watcher and its owned temporary Gateway. It does not restart Chrome, BDS, Alice, MCSManager, VPN or the production 17879 world. Tests added under `test/mint-diagnostics.test.mjs` exercise live-PID rediscovery, production collision classification, invalid SSH targets, missing owner, sudo refusal, mid-sample PID churn, restricted port parsing and explicit protocol authorization. **Only isolated local mock tests have run so far; real Mac/Gateway/SSH/sudo and same-chat roundtrip remain unverified.**
+
+
+## 2026-10-24 — Delivered Mint initialization, but read-back timed out
+
+Operator confirmed that OpenClaw successfully sent the `Ioant Mac Mint read-only diagnostics ioant-mac-ops-v1` initialization into the exact selected ChatGPT conversation. The watcher nonetheless stopped with `Message send could not be confirmed after bounded read-only checks`. This is **message delivery without local confirmation**, not proof of Mint diagnostic execution. The specific DOM visibility cause is unverified. Do not repost, reset state, bypass the pending receipt, or launch any one-shot lab probe.
+
+The watcher now extracts anchored allowlisted receipts from user-role message-content children when present, with a role-container fallback. Only receipt prefixes, never raw user message text, leave the browser. Its shared read-only verifier makes eight bounded exact-chat checks after Enter and during recovery of a persisted `initPending`; no Enter retries, command reruns, or automatic sudo/password changes occur. An exhausted check logs one sanitized `receipt_unconfirmed` reason (`user_receipt_not_visible` or `page_unavailable`) on private LunaDrive, without DOM/text/URLs.
+
+Run full Mac Node tests after fast-forward. Relaunch the existing exact conversation with `--enable-mint-diagnostics --watch` and the same local SSH target (no `--initialize` needed to reconcile `initPending`). Require `Previous initialization found in ChatGPT user messages; no duplicate sent.` before expecting a new diagnostic task. If not confirmed, leave state untouched and inspect `bash scripts/chatgpt-loop-logs.sh tail`; actual Mac Chrome UI remains unverified until this operator check.
