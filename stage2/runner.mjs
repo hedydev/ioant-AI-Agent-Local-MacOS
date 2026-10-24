@@ -18,7 +18,8 @@ export function actionPlan(action, repoRoot) {
     'project-head': {bin:'git',args:['rev-parse','HEAD'],cwd:root,timeout:15000},
     'environment-scan': {bin:process.execPath,args:['src/environment.mjs','scan'],cwd:root,timeout:30000},
     'openclaw-config-preflight': {bin:process.execPath,args:['stage2/openclaw-config-preflight.mjs'],cwd:root,timeout:50000},
-    'openclaw-config-rpc-diagnostic': {bin:process.execPath,args:['stage2/openclaw-config-rpc-diagnostic.mjs'],cwd:root,timeout:50000}
+    'openclaw-config-rpc-diagnostic': {bin:process.execPath,args:['stage2/openclaw-config-rpc-diagnostic.mjs'],cwd:root,timeout:50000},
+    'openclaw-patch-failure-diagnostic': {bin:process.execPath,args:['stage2/openclaw-patch-failure-diagnostic.mjs'],cwd:root,timeout:50000}
   };
   return plans[action] ?? null;
 }

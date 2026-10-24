@@ -1,0 +1,67 @@
+#!/usr/bin/env node
+// Read-only Gateway RPC log diagnostic for a previously inconclusive config.patch.
+// Do not issue config.patch; never return raw log text, user content or credentials.
+import {resolve} from 'node:path';
+import {execNative,rpcEnvelope} from './openclaw-ollama-provision.mjs';
+
+const MAX_LINES=200;
+const MAX_BYTES=128*1024;
+const AUDIT='IOANT_OPENCLAW_PATCH_FAILURE_DIAGNOSTIC';
+const LABELS=Object.freeze([
+ ['admin_scope_missing',/(?:operator\.admin|missing.{0,60}scope|insufficient.{0,60}(?:scope|permission)|permission.{0,60}denied|forbidden|not authorized|authorization required)/i],
+ ['write_lock_or_readonly',/(?:READONLY|read-only|immutable|write lock|state owner|owner conflict|another.{0,30}owner)/i],
+ ['invalid_rpc_params',/(?:invalid.{0,30}(?:params|request)|unknown.{0,30}(?:field|param)|unexpected.{0,30}param)/i],
+ ['config_validation',/(?:invalid config|config.{0,25}(?:validation|schema)|unsupported model|invalid model|failed to validate)/i],
+ ['revision_conflict',/(?:baseHash|hash mismatch|config.{0,20}(?:changed|conflict)|stale revision)/i],
+ ['rate_limited',/(?:rate limit|retryAfterMs|too many requests)/i],
+ ['gateway_transport',/(?:ECONNRESET|ECONNREFUSED|socket.{0,30}closed|connection.{0,30}(?:closed|lost)|gateway.{0,30}restart)/i]
+]);
+function result(status,extra={}){
+ const out={audit:AUDIT,schemaVersion:1,readOnly:true,status};
+ for(const key of ['scannedLines','matchedPatchLines','category','recentErrorEvidence']){
+  const v=extra[key];
+  if(key==='category'&&['admin_scope_missing','write_lock_or_readonly','invalid_rpc_params',
+    'config_validation','revision_conflict','rate_limited','gateway_transport','unclassified'].includes(v))out[key]=v;
+  else if(key==='recentErrorEvidence'&&typeof v==='boolean')out[key]=v;
+  else if(['scannedLines','matchedPatchLines'].includes(key)&&Number.isInteger(v)&&v>=0&&v<=MAX_LINES)out[key]=v;
+ }
+ return out;
+}
+function linesFrom(input){
+ const doc=rpcEnvelope(input);
+ const candidates=[doc?.lines,doc?.logs,doc?.entries];
+ const raw=candidates.find(x=>Array.isArray(x));
+ if(!raw||raw.length>MAX_LINES*2)return null;
+ return raw.slice(-MAX_LINES);
+}
+function rowText(item){
+ // Only inspect bounded text in RAM. NEVER return these strings.
+ if(typeof item==='string')return item.slice(0,4096);
+ if(!item||typeof item!=='object')return '';
+ try{return JSON.stringify(item).slice(0,4096)}catch{return ''}
+}
+export function classifyPatchLogs(input){
+ const lines=linesFrom(input);
+ if(!lines)return result('unsupported_log_shape');
+ const matches=[];
+ for(const item of lines){
+  const line=rowText(item);
+  if(line.includes('config.patch')||line.includes('config\\.patch'))matches.push(line);
+ }
+ const hints=new Set();
+ for(const line of matches)for(const [name,re] of LABELS)if(re.test(line))hints.add(name);
+ // Multiple error classes in different records are ambiguous without request ID.
+ const category=hints.size===1?[...hints][0]:'unclassified';
+ return result('observed',{scannedLines:lines.length,matchedPatchLines:matches.length,category,
+   recentErrorEvidence:hints.size>0});
+}
+export async function diagnosePatchFailure({rpc=execNative}={}){
+ try{
+  const response=await rpc('logs.tail',{limit:MAX_LINES,maxBytes:MAX_BYTES});
+  return classifyPatchLogs(response);
+ }catch{return result('logs_unavailable')}
+}
+if(process.argv[1]&&resolve(process.argv[1])===resolve(new URL(import.meta.url).pathname)){
+ diagnosePatchFailure().then(s=>console.log(JSON.stringify(s))).catch(()=>
+  console.log(JSON.stringify(result('diagnostic_unavailable'))));
+}
