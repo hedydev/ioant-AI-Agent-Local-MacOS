@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {inspectRejectionMarkers,classifyLiveSchema,inspectRejectionEvidence} from '../stage2/openclaw-rejection-evidence.mjs';
+import {inspectRejectionMarkers,classifyLiveSchema,inspectRejectionEvidence,classifyProviderRoots,validateLocalConfig} from '../stage2/openclaw-rejection-evidence.mjs';
 import {actionFromJson} from '../stage2/protocol.mjs';
 import {actionPlan} from '../stage2/runner.mjs';
 const READY={config:'regular_private',provider:'absent',agents:'absent'};
@@ -48,12 +48,16 @@ test('five fixed read-only Gateway schema calls provide only enums and typed res
  const calls=[];
  const r=await inspectRejectionEvidence({preflight:async()=>READY,
   files:async()=>({state:'observed',rejected:1,clobbered:0,latestAge:'last_day',countsCapped:false}),
-  rpc:async(method,params)=>{calls.push([method,params]);return {path:params.path,schema:{type:'object',secret:'NO_EXPORT'}}}
+  rpc:async(method,params)=>{calls.push([method,params]);return method==='config.get'?
+    {valid:true,exists:true,config:{models:{providers:{}}}}:
+    {path:params.path,schema:{type:'object',secret:'NO_EXPORT'}};},
+  validate:async()=>({status:'valid'})
  });
  assert.equal(r.status,'observed');
  assert.deepEqual(r.lookups.map(x=>x.key),['provider','timeout','models','model_context','model_id']);
- assert.ok(calls.every(([method])=>method==='config.schema.lookup'));
- assert.equal(calls.length,5);
+ assert.equal(calls.filter(([method])=>method==='config.schema.lookup').length,5);
+ assert.equal(calls.filter(([method])=>method==='config.get').length,1);
+ assert.equal(calls.length,6);
  assert.doesNotMatch(JSON.stringify(r),/NO_EXPORT|openclaw\.json|\.openclaw/);
 });
 test('provider conflict blocks lookups and gateway errors never expose freeform text',async()=>{
@@ -64,8 +68,78 @@ test('provider conflict blocks lookups and gateway errors never expose freeform 
  assert.equal(called,0);
  const failed=await inspectRejectionEvidence({preflight:async()=>READY,
   files:async()=>({state:'metadata_unavailable'}),
-  rpc:async()=>{throw Error('Bearer CREDENTIAL_NOT_FOR_CHAT')}});
+  rpc:async()=>{throw Error('Bearer CREDENTIAL_NOT_FOR_CHAT')},
+  validate:async()=>({status:'unavailable'})});
  assert.equal(failed.lookups.length,5);
  assert.ok(failed.lookups.every(x=>x.state==='rpc_unavailable'));
  assert.doesNotMatch(JSON.stringify(failed),/CREDENTIAL_NOT_FOR_CHAT/);
+});
+
+test('Gateway provider roots show only bounded other-provider shape flags without names or credentials',()=>{
+ const sensitive={
+  valid:true,exists:true,
+  sourceConfig:{models:{providers:{}}},
+  config:{models:{providers:{}}},
+  parsed:{models:{providers:{}}},
+  resolved:{models:{providers:{
+   anthropic:{baseUrl:'',apiKey:'VERY_PRIVATE',models:[]},
+   openai:{api:'openai-completions',apiKey:'DONT_SHARE',models:[]}
+  }}}
+ };
+ const result=classifyProviderRoots({payload:sensitive});
+ assert.equal(result.status,'observed');
+ assert.equal(result.targetPresent,false);
+ assert.deepEqual(result.roots.sourceConfig,{state:'observed',countBand:'none',targetPresent:false,
+  otherProviderMissingBaseUrl:false,otherProviderEmptyBaseUrl:false,otherProviderInvalidShape:false});
+ assert.equal(result.roots.resolved.otherProviderEmptyBaseUrl,true);
+ assert.equal(result.roots.resolved.otherProviderMissingBaseUrl,true);
+ assert.equal(result.roots.resolved.countBand,'multiple');
+ assert.doesNotMatch(JSON.stringify(result),/VERY_PRIVATE|DONT_SHARE|anthropic|openai|baseUrl.*http/);
+});
+
+test('malformed runtime provider roots fail structurally without outputting values',()=>{
+ const result=classifyProviderRoots({valid:true,exists:true,config:{models:{providers:'Bearer SECRET_TOKEN'}}});
+ assert.equal(result.roots.config.state,'invalid_provider_container');
+ assert.equal(result.roots.parsed.state,'unresolved');
+ assert.doesNotMatch(JSON.stringify(result),/SECRET_TOKEN/);
+ assert.equal(classifyProviderRoots({valid:false,config:{}}).status,'invalid_snapshot');
+});
+
+test('read-only local config validator uses exact binary and emits only validation state',async()=>{
+ const calls=[];
+ const good=await validateLocalConfig({home:'/fixed/home',run:async(bin,args,opts)=>{
+  calls.push({bin,args,opts});
+  return {stdout:JSON.stringify({valid:true,issues:[{message:'PRIVATE_SECRET'}]})};
+ }});
+ assert.deepEqual(good,{status:'valid'});
+ assert.equal(calls[0].bin,'/fixed/home/.openclaw/bin/openclaw');
+ assert.deepEqual(calls[0].args,['config','validate','--json']);
+ assert.equal(calls[0].opts.env.OPENCLAW_GATEWAY_TOKEN,undefined);
+ assert.equal(calls[0].opts.timeout,30000);
+ const bad=await validateLocalConfig({home:'/fixed/home',run:async()=>{
+  throw {stdout:JSON.stringify({valid:false,issues:[{message:'PRIVATE_SECRET'}]})};
+ }});
+ assert.deepEqual(bad,{status:'invalid'});
+ assert.doesNotMatch(JSON.stringify({good,bad}),/PRIVATE_SECRET/);
+});
+
+test('rejection evidence composes read-only snapshot and validate probes; no extra RPC writes',async()=>{
+ const commands=[];
+ const r=await inspectRejectionEvidence({
+  preflight:async()=>READY,
+  files:async()=>({state:'observed',rejected:0,clobbered:0,latestAge:'none',countsCapped:false}),
+  rpc:async(method,params)=>{
+   commands.push([method,params]);
+   if(method==='config.get')return {valid:true,exists:true,config:{models:{providers:{}}}};
+   return {path:params.path,schema:{type:'object',notes:'PRIVATE_DATA'}};
+  },
+  validate:async()=>({status:'valid',secret:'PRIVATE_DATA'})
+ });
+ assert.equal(r.status,'observed');
+ assert.equal(r.providerRoots.status,'observed');
+ assert.equal(r.configValidation.status,'valid');
+ assert.equal(commands.filter(([method])=>method==='config.get').length,1);
+ assert.equal(commands.filter(([method])=>method==='config.schema.lookup').length,5);
+ assert.ok(commands.every(([method])=>['config.get','config.schema.lookup'].includes(method)));
+ assert.doesNotMatch(JSON.stringify(r),/PRIVATE_DATA/);
 });
