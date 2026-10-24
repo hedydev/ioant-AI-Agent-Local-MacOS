@@ -375,3 +375,27 @@ A real operator Mac Chrome run produced `userRoleNodes=0, bodyNodes=0, mintPhras
 The Stage-2 DOM reader now selects **only role-marked** message units: legacy `data-message-author-role=user|assistant`; otherwise `data-content-search-unit-key$=':user'|':assistant'`; with separate explicit user bubble `data-user-message-bubble=true` and assistant `data-conversation-role=assistant` fallbacks. **User-role text is never searched for executable task JSON**. The assistant code parser sees only assistant-marked `pre code` snippets. Existing finished-assistant and twice-stable-action safety gates remain. Browser extraction exports only bounded user-receipt prefixes and code candidates from assistant elements. It never dumps conversation text or cookies.
 
 The `receiptEvidence` output now includes new/old role element counters and a fixed `assistantSource` enum, so if the exact user receipt still fails it is possible to distinguish `legacy`, `content_unit`, `role_unit` or `absent` without dumping DOM. No state file removal, repeated initialization, automatic sudo escalation or BDS startup is permitted. Mock regressions verify user-only command text cannot reach the assistant action queue. **Real Mac testing and new-layout role recognition still require operator validation.**
+
+## 2026-10-24: Operator-approved least-privilege Mint BDS diagnostic
+
+**Approval and measured need:** The real ChatGPT → OpenClaw → Mac → Mint request `mint-20261024-identity-006` returned `approval_required` because arbitrary `sudo -n ss` was not permitted. The operator explicitly approved deploying a *separate, narrow, read-only helper*. This is not authorization to stop processes or start any experimental BDS.
+
+**Fixed privilege:** `scripts/mint-bds-diagnostics.py` is installed root-owned at `/usr/local/libexec/ioant/mint-bds-diagnostics.py`. The only non-interactive root invocation allowed for `tedz` is exactly `sudo -n /usr/bin/python3 -I -S /usr/local/libexec/ioant/mint-bds-diagnostics.py`. Its `/etc/sudoers.d/ioant-mint-bds-readonly` rule contains no command wildcards and grants no generic root shell, no `sudo ss`, no `sudo readlink`, and no caller-chosen PID or paths. The installed helper and its parent directory must be root-owned, unreadjustable by `tedz`, and sudoers mode 0440.
+
+**Data contract:** The helper reads only UDP 17879/17880/17881 with an absolute `/usr/bin/ss`, selects one visible BDS process owner from current 17880 socket evidence, reads its `/proc/PID/stat`, `comm`, `cwd` and `exe`, double-checks the Linux PID start tick and socket owner, and emits compact schemaVersion 1 JSON. It never exposes absolute paths, raw socket lines, credentials or command lines. `production_port_owner`, `production_directory`, `isolated_lab_directory`, `other_or_unverified_directory` are classifications, **not authority to stop**. Missing or changing evidence becomes `inconclusive`. The Mac validator rejects malformed, stale, contradictory or oversized responses and never forwards failed sudo stderr to ChatGPT.
+
+**One-time interactive Mac install** (only the approved `tedz@192.168.0.104`, an exact clean Git `main`; no server restart):
+
+```bash
+cd "$HOME/Documents/workspace/ioant-AI-Agent-Local-MacOS"
+git fetch origin main && git pull --ff-only origin main
+bash scripts/dev-env.sh exec node --test
+bash -n scripts/install-mint-bds-readonly-mac.sh scripts/mint-bds-setup.sh
+ALICE_SSH_TARGET="tedz@192.168.0.104" bash scripts/install-mint-bds-readonly-mac.sh
+```
+
+The Mac installer securely stages only its three owned helper/config/install files under a newly created private Mint directory. Mint setup prompts for local sudo authentication, validates sudoers syntax before/after installation, ensures root ownership, refuses to overwrite a differing installed helper/rule, then runs a read-only smoke check. It does not change existing services, worlds, VPN, ports or MCSManager. A failed prerequisite does not authorize widening permissions. Installation is **not** complete until the operator reports the smoke check and tests.
+
+**Runtime:** Start the existing foreground ChatGPT watcher with `--enable-mint-diagnostics --watch`, `ALICE_SSH_TARGET` locally defined, and the already-authorized exact ChatGPT conversation URL; omit `--initialize`. A new ChatGPT `mint-bds-process-identity` task runs one fixed SSH command, no arbitrary sudo and no command from the page. Fresh JSON returns to the same chat. **No automatic root grant bootstrapping or recurring privilege changes**.
+
+**Rollback:** After separate explicit approval and identity/ownership verification, an operator can remove only `/etc/sudoers.d/ioant-mint-bds-readonly` and `/usr/local/libexec/ioant/mint-bds-diagnostics.py`, and revalidate `/etc/sudoers`. Do not remove broad sudoers directories, stop BDS, clear Alice lab one-shot locks, or alter production 17879. Existing differing files are not overwritten by installer; re-review is required for upgrades.

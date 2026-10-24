@@ -1,80 +1,70 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
 import {resolve} from 'node:path';
-import {mintBdsProcessIdentity,parseBdsSockets} from '../stage2/mint-diagnostics.mjs';
+import {mintBdsProcessIdentity,sanitizeMintHelperReport} from '../stage2/mint-diagnostics.mjs';
 import {actionFromJson,isSafeAction} from '../stage2/protocol.mjs';
 
-const owner=(p,pid)=>`UNCONN 0 0 0.0.0.0:${p} 0.0.0.0:* users:(("bedrock_server",pid=${pid},fd=5))`;
-const socket=owner(17879,100)+'\n'+owner(17880,1712655)+'\n';
-const process='1712655 1 bedrock_server Sat Oct 24 08:03:01 2026\n';
-function fake(answers){
+const now=1792800907000;
+const report={audit:'IOANT_MINT_BDS_PROCESS_IDENTITY',schemaVersion:1,
+ readOnly:true,observedAtUnix:1792800907,port:17880,state:'observed',
+ pid:1712655,parentPid:31,process:'bedrock_server',birthTag:'abcdef012345',
+ classification:'isolated_lab_directory',sharesProductionPort:false,
+ productionPortOwnerVisible:true,executableMatches:true,
+ note:'point_in_time_identity_only_no_permission_to_stop_or_reprobe'};
+function fixture(r={status:'passed',output:JSON.stringify(report)}){
  const calls=[];
- return {calls,execute:async plan=>{
-   calls.push(plan);
-   return {status:'passed',output:answers[calls.length-1]};
- }};
+ return {calls,execute:async plan=>{calls.push(plan);return r}};
 }
-test('read-only identity from fresh ports, fixed SSH, double PID check, no remote path in feedback',async()=>{
- const mock=fake([socket,process,'/home/tedz/minecraft-bedrock-alice-lab\n','/home/tedz/minecraft-bedrock-alice-lab/bedrock_server\n',process,socket]);
- const r=await mintBdsProcessIdentity({execute:mock.execute,sshTarget:'tedz@192.168.0.104'});
- assert.equal(r.status,'passed');
- const j=JSON.parse(r.output);
- assert.equal(j.pid,1712655);
- assert.equal(j.classification,'isolated_lab_directory');
- assert.equal(j.sharesProductionPort,false);
- assert.ok(j.birthTag);
- assert.ok(mock.calls.every(p=>p.bin==='ssh' && p.args[0]==='-T' && p.args[7]==='tedz@192.168.0.104' && p.timeout<=20000));
- assert.equal(mock.calls.filter(p=>p.args.at(-1).includes('ss -H')).length,2);
- assert.ok(!r.output.includes('/home/tedz/'));
+test('one SSH command runs only the root-owned exact Python helper',async()=>{
+ const mock=fixture();
+ const r=await mintBdsProcessIdentity({execute:mock.execute,sshTarget:'tedz@192.168.0.104',now:()=>now});
+ assert.equal(r.status,'passed');assert.equal(mock.calls.length,1);
+ assert.equal(mock.calls[0].bin,'ssh');
+ assert.deepEqual(mock.calls[0].args.slice(0,7),
+  ['-T','-o','BatchMode=yes','-o','ConnectTimeout=10','-o','StrictHostKeyChecking=yes']);
+ assert.equal(mock.calls[0].args[7],'tedz@192.168.0.104');
+ assert.equal(mock.calls[0].args[8],
+  'sudo -n /usr/bin/python3 -I -S /usr/local/libexec/ioant/mint-bds-diagnostics.py');
 });
-test('production-owner comparison takes precedence over lab hypothesis',async()=>{
- const both=owner(17879,1712655)+'\n'+owner(17880,1712655);
- const mock=fake([both,process,'/home/tedz/minecraft-bedrock\n','/home/tedz/minecraft-bedrock/bedrock_server\n',process,both]);
- const r=await mintBdsProcessIdentity({execute:mock.execute,sshTarget:'tedz@192.168.0.104'});
- assert.equal(JSON.parse(r.output).classification,'production_port_owner');
+test('only explicitly approved Mint destination accepted',async()=>{
+ for(const target of ['root@192.168.0.104','tedz@192.168.0.105','invalid']){
+  const mock=fixture();const r=await mintBdsProcessIdentity({execute:mock.execute,sshTarget:target});
+  assert.equal(r.status,'approval_required');assert.equal(mock.calls.length,0);
+ }
 });
-test('invalid remote target never reaches SSH',async()=>{
- const mock=fake([]);
- const r=await mintBdsProcessIdentity({execute:mock.execute,sshTarget:'-oProxyCommand=evil'});
+test('permission denial is redacted without sudo text',async()=>{
+ const mock=fixture({status:'failed',output:'sudo: a password is required'});
+ const r=await mintBdsProcessIdentity({execute:mock.execute,sshTarget:'tedz@192.168.0.104'});
  assert.equal(r.status,'approval_required');
- assert.equal(mock.calls.length,0);
+ assert.doesNotMatch(JSON.stringify(r),/password is required/);
 });
-test('hidden owner remains inconclusive, not a free port',async()=>{
- const mock=fake(['UNCONN 0 0 0.0.0.0:17880 0.0.0.0:*']);
- const r=await mintBdsProcessIdentity({execute:mock.execute,sshTarget:'tedz@192.168.0.104'});
- assert.equal(r.status,'inconclusive');
- assert.equal(mock.calls.length,1);
+test('fresh helper report is bounded and excludes unknown private fields',()=>{
+ const r=sanitizeMintHelperReport(JSON.stringify({...report,privatePath:'/home/tedz/secret'}),now);
+ assert.equal(r.classification,'isolated_lab_directory');
+ assert.doesNotMatch(JSON.stringify(r),/privatePath|secret/);
 });
-test('sudo rejection never forwards a password prompt, and never launches a probe',async()=>{
- const calls=[];
- const r=await mintBdsProcessIdentity({execute:async p=>{calls.push(p);return {status:'failed',output:'sudo: a password is required'}},sshTarget:'tedz@192.168.0.104'});
- assert.equal(r.status,'approval_required');
- assert.equal(calls.length,1);
- assert.ok(!JSON.stringify(r).includes('sudo: a password'));
- assert.ok(!JSON.stringify(calls).includes('startup-probe'));
+test('stale, inconsistent or forged success fails closed',()=>{
+ for(const r of [{...report,pid:0},{...report,classification:'kill_now'},
+  {...report,sharesProductionPort:true},{...report,readOnly:false}])
+  assert.throws(()=>sanitizeMintHelperReport(JSON.stringify(r),now));
+ assert.throws(()=>sanitizeMintHelperReport(JSON.stringify(report),now+900000));
 });
-test('PID replacement during audit is refused without stale provenance',async()=>{
- const mock=fake([socket,process,'/home/tedz/minecraft-bedrock-alice-lab\n','/home/tedz/minecraft-bedrock-alice-lab/bedrock_server\n','1712655 1 bedrock_server Sat Oct 24 08:05:01 2026\n',socket]);
- const r=await mintBdsProcessIdentity({execute:mock.execute,sshTarget:'tedz@192.168.0.104'});
- assert.equal(r.status,'inconclusive');
- assert.equal(JSON.parse(r.output).reason,'process_or_socket_changed_during_audit');
+test('inconclusive privileged result stays inconclusive',async()=>{
+ const mock=fixture({status:'passed',output:JSON.stringify({
+  ...report,state:'inconclusive',reason:'no_unique_visible_owner'})});
+ const r=await mintBdsProcessIdentity({execute:mock.execute,sshTarget:'tedz@192.168.0.104',now:()=>now});
+ assert.equal(r.status,'inconclusive');assert.equal(r.exitCode,0);
 });
-test('ss parser strictly excludes other port evidence',()=>{
- assert.deepEqual(parseBdsSockets(owner(17880,1712655)),[{port:17880,owners:[{pid:1712655,process:'bedrock_server'}]}]);
- assert.throws(()=>parseBdsSockets(owner(18789,42)));
+test('Python helper synthetic socket and proc tests run without sudo',()=>{
+ const r=spawnSync('python3',['-I','-S','test/test_mint_bds_helper.py'],{
+  cwd:resolve(import.meta.dirname,'..'),encoding:'utf8',timeout:15000});
+ assert.equal(r.status,0,r.stderr||String(r.error));
+ assert.match(r.stderr,/Ran 5 tests/);
 });
-test('protocol is known but requires separately enabled Mint read-only flag',()=>{
- const task=actionFromJson(JSON.stringify({protocol:'ioant-mac-ops-v1',id:'mint-read-0001',action:'mint-bds-process-identity'}));
- assert.equal(task.known,true);
- assert.equal(task.authorized,false);
+test('ChatGPT task remains known but not automatically authorized',()=>{
+ const task=actionFromJson(JSON.stringify({protocol:'ioant-mac-ops-v1',
+ id:'mint-root-helper-001',action:'mint-bds-process-identity'}));
+ assert.equal(task.known,true);assert.equal(task.authorized,false);
  assert.equal(isSafeAction(task.action),false);
- const root=resolve(import.meta.dirname,'..');
- const launcher=readFileSync(resolve(root,'scripts/chatgpt-loop.sh'),'utf8');
- const worker=readFileSync(resolve(root,'stage2/chatgpt-loop.mjs'),'utf8');
- const runner=readFileSync(resolve(root,'stage2/runner.mjs'),'utf8');
- assert.match(launcher,/--enable-mint-diagnostics/);
- assert.match(worker,/opts\.enableMintDiagnostics/);
- assert.match(worker,/Mint read-only diagnostics ioant-mac-ops-v1/);
- assert.match(runner,/options\.enableMintDiagnostics!==true/);
 });
