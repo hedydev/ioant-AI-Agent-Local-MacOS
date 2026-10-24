@@ -16,15 +16,46 @@ const LABELS=Object.freeze([
  ['rate_limited',/(?:rate limit|retryAfterMs|too many requests)/i],
  ['gateway_transport',/(?:ECONNRESET|ECONNREFUSED|socket.{0,30}closed|connection.{0,30}(?:closed|lost)|gateway.{0,30}restart)/i]
 ]);
+// Classify validation *location* and error *shape* without ever returning the
+// offending key/value, raw message, paths, identifiers or a log excerpt.
+const ISSUE_SCOPES=Object.freeze([
+ ['ollama_models',/models\.providers\.ollama\.models(?:\.|\[|\b)/i],
+ ['ollama_provider',/models\.providers\.ollama\b/i],
+ ['other_model_provider',/models\.providers\.(?!ollama\b)[a-z0-9_-]+/i],
+ ['model_catalog',/models\.(?!providers\.)[a-z][a-z0-9_.-]*/i],
+ ['agent_configuration',/agents\.(?:defaults|entries|list)\b/i],
+ ['gateway_configuration',/gateway\.(?:auth|bind|port|reload|mode|remote|controlUi)\b/i],
+ ['plugin_configuration',/plugins\.(?:entries|allow|deny|installs)\b/i],
+ ['secrets_configuration',/secrets\.(?:providers|defaults)\b/i],
+ ['config_root',/(?:<root>|\broot\s*:)/i]
+]);
+const ISSUE_KINDS=Object.freeze([
+ ['unknown_key',/(?:unrecognized keys?|unknown (?:keys?|fields?)|unexpected (?:keys?|fields?))/i],
+ ['missing_required',/(?:missing required|\brequired\b|missing (?:field|key|property))/i],
+ ['invalid_type',/(?:invalid_type|invalid type|expected (?:string|object|number|array|boolean).{0,80}received (?:string|object|number|array|boolean))/i],
+ ['value_too_small',/(?:too small|too short|minimum length|at least \d+ characters|\bmin\s*:\s*\d+)/i],
+ ['invalid_choice',/(?:invalid enum|invalid literal|invalid choice|unsupported (?:value|api))/i],
+ ['write_guard',/(?:write rejected|last-known-good|missing-meta|size-drop|clobber|preserve existing)/i]
+]);
+function approvedMatches(lines,labels){
+ const matched=new Set();
+ for(const line of lines)for(const [id,pattern] of labels)if(pattern.test(line))matched.add(id);
+ return labels.map(([id])=>id).filter(id=>matched.has(id));
+}
 function result(status,extra={}){
  const out={audit:AUDIT,schemaVersion:1,readOnly:true,status};
  // Enumeration only: no original log fields or matched text leave this function.
- for(const key of ['scannedLines','matchedPatchLines','category','recentErrorEvidence','matchedCategories','ambiguity']){
+ for(const key of ['scannedLines','matchedPatchLines','category','recentErrorEvidence','matchedCategories','ambiguity','issueScopes','issueKinds']){
   const v=extra[key];
   if(key==='category'&&[...LABELS.map(([name])=>name),'unclassified'].includes(v))out[key]=v;
   else if(key==='matchedCategories'&&Array.isArray(v)&&v.length<=LABELS.length&&
     v.every(name=>LABELS.some(([known])=>known===name))&&new Set(v).size===v.length)
     out[key]=v;
+  else if((key==='issueScopes'||key==='issueKinds')&&Array.isArray(v)){
+    const vocabulary=key==='issueScopes'?ISSUE_SCOPES:ISSUE_KINDS;
+    if(v.length<=vocabulary.length&&new Set(v).size===v.length&&
+       v.every(x=>vocabulary.some(([id])=>id===x)))out[key]=v;
+  }
   else if(key==='ambiguity'&&['none','single_category','multiple_categories_same_record',
     'multiple_categories_multiple_records'].includes(v))out[key]=v;
   else if(key==='recentErrorEvidence'&&typeof v==='boolean')out[key]=v;
@@ -62,8 +93,10 @@ export function classifyPatchLogs(input){
  const ambiguity=matchedCategories.length===0?'none':matchedCategories.length===1?
    'single_category':matches.length===1?
    'multiple_categories_same_record':'multiple_categories_multiple_records';
+ const issueScopes=approvedMatches(matches,ISSUE_SCOPES);
+ const issueKinds=approvedMatches(matches,ISSUE_KINDS);
  return result('observed',{scannedLines:lines.length,matchedPatchLines:matches.length,category,
-   matchedCategories,ambiguity,recentErrorEvidence:hints.size>0});
+   matchedCategories,ambiguity,recentErrorEvidence:hints.size>0,issueScopes,issueKinds});
 }
 export async function diagnosePatchFailure({rpc=execNative}={}){
  try{

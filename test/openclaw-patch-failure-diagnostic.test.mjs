@@ -96,3 +96,40 @@ test('no recognized hint is distinct from several hints and malformed diagnostic
  assert.equal(unknown.status,'unsupported_log_shape');
  assert.equal(unknown.matchedCategories,undefined);
 });
+
+test('read-only diagnostic identifies fixed Ollama schema path and issue type, without actual field values',()=>{
+ const secret='Bearer NEVER_EXPOSE_IN_RESPONSE';
+ const record={method:'config.patch',level:'error',
+  message:'invalid params: invalid config: models.providers.ollama.models[0].contextTokens: Expected number, received string; '+secret,
+  credentials:{apiKey:'DONT_LEAK'},filename:'/Users/hidden/private.json'};
+ const result=classifyPatchLogs({entries:[record]});
+ assert.deepEqual(result.matchedCategories,['invalid_rpc_params','config_validation']);
+ assert.deepEqual(result.issueScopes,['ollama_models','ollama_provider']);
+ assert.deepEqual(result.issueKinds,['invalid_type']);
+ assert.equal(result.ambiguity,'multiple_categories_same_record');
+ assert.doesNotMatch(JSON.stringify(result),/NEVER_EXPOSE|DONT_LEAK|hidden|contextTokens|models\\.providers\\.ollama|Bearer/);
+});
+
+test('read-only diagnostic distinguishes other-provider schema errors and guard outcomes',()=>{
+ const data={lines:[
+  'config.patch invalid params: invalid config: models.providers.anthropic.baseUrl Too small: expected string to have >=1 characters',
+  'config.patch Config write rejected: missing-meta-vs-last-good',
+  'no matching method; token=secret'
+ ]};
+ const r=classifyPatchLogs(data);
+ assert.deepEqual(r.issueScopes,['other_model_provider']);
+ assert.deepEqual(r.issueKinds,['value_too_small','write_guard']);
+ assert.equal(r.matchedPatchLines,2);
+ assert.doesNotMatch(JSON.stringify(r),/anthropic|baseUrl|secret|missing-meta/);
+});
+
+test('absence of safe evidence never leaks freeform unknown paths or claims a cause',()=>{
+ const r=classifyPatchLogs({lines:[
+  'config.patch invalid params: invalid config, uncategorized field my_private_provider_6: TOKEN_123'
+ ]});
+ assert.deepEqual(r.matchedCategories,['invalid_rpc_params','config_validation']);
+ assert.deepEqual(r.issueScopes,[]);
+ assert.deepEqual(r.issueKinds,[]);
+ assert.equal(r.category,'unclassified');
+ assert.doesNotMatch(JSON.stringify(r),/my_private_provider_6|TOKEN_123/);
+});
