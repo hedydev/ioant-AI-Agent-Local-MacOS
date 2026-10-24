@@ -44,7 +44,7 @@ const readPageFunction=`() => {
         el.querySelector('.whitespace-pre-wrap')):null;
     for(const candidate of [body,el].filter(Boolean)){
       const value=String(candidate.innerText||candidate.textContent||'').trimStart();
-      const match=value.match(/^(Ioant Mac (?:local command feedback protocol ioant-mac-ops-v1|Alice witness workflow ioant-mac-ops-v1|Alice isolated 17880 startup probe ioant-mac-ops-v1|Mint read-only diagnostics ioant-mac-ops-v1)|\[IOANT-MAC-OPS RESULT [a-zA-Z0-9_-]{4,80}\])/);
+      const match=value.match(/^(Ioant Mac (?:local command feedback protocol ioant-mac-ops-v1|Alice witness workflow ioant-mac-ops-v1|Alice isolated 17880 startup probe ioant-mac-ops-v1|Mint read-only diagnostics ioant-mac-ops-v1)|\\[IOANT-MAC-OPS RESULT [a-zA-Z0-9_-]{4,80}\\])/);
       if(match)return match[1];
     }
     return null;
