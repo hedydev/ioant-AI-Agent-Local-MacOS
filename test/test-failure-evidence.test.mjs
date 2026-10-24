@@ -66,3 +66,12 @@ test('runner and updater preserve strict test gates and only forward sanitized d
  assert.match(updater,/if\(applied!==sha\)throw Error\('unexpected_post_pull_head'\)/);
  assert.match(updater,/status','--porcelain=v1','--untracked-files=all'/);
 });
+
+test('watcher-scoped diagnostic path is scrubbed by BOTH local and candidate test runners',()=>{
+ const runner=readFileSync(resolve(import.meta.dirname,'..','stage2/runner.mjs'),'utf8');
+ const updater=readFileSync(resolve(import.meta.dirname,'..','stage2/project-self-update.mjs'),'utf8');
+ assert.match(runner,/if\(isProjectTests\)\{[\s\S]*?delete env\.IOANT_LOOP_LOG_FILE;/);
+ assert.match(updater,/function privateTestEnv\(parent=process\.env\)\{[\s\S]*?delete env\.IOANT_LOOP_LOG_FILE;/);
+ assert.match(runner,/delete env\.NODE_TEST_CONTEXT/);
+ assert.match(updater,/delete env\.NODE_TEST_CONTEXT/);
+});

@@ -5,7 +5,7 @@ import {spawnSync} from 'node:child_process';
 import {resolve} from 'node:path';
 import {actionFromJson,isSafeAction} from '../stage2/protocol.mjs';
 import {runAction} from '../stage2/runner.mjs';
-import {validateTreeListing,summarizeTests} from '../stage2/project-self-update.mjs';
+import {validateTreeListing,summarizeTests,privateTestEnv} from '../stage2/project-self-update.mjs';
 
 const ROOT=resolve(import.meta.dirname,'..');
 const worker=readFileSync(resolve(ROOT,'stage2/chatgpt-loop.mjs'),'utf8');
@@ -91,4 +91,18 @@ test('self-update code enforces exact origin/main + two-phase test gate',()=>{
  assert.match(script,/if\(applied!==sha\)throw Error\('unexpected_post_pull_head'\)/);
  assert.match(script,/await rm\(temp,\{recursive:true,force:true\}\)/);
  assert.doesNotMatch(script,/shell:true|npm install|curl|wget/);
+});
+
+test('candidate tests never inherit a live watcher log outside their mock PROJECT_DEV_CACHE',()=>{
+ const candidate=privateTestEnv({
+  PROJECT_DEV_CACHE:'/Volumes/LunaDrive/DeveloperCache/projects/test-fixture',
+  IOANT_LOOP_LOG_FILE:'/Volumes/LunaDrive/DeveloperCache/projects/live/logs/chatgpt-loop/run-20261024T010101Z-5-12345678.jsonl',
+  IOANT_CHATGPT_BROWSER_PROFILE:'chrome',
+  OPENCLAW_GATEWAY_TOKEN:'simulated-secret',
+  NODE_TEST_CONTEXT:'child-v8'
+ });
+ assert.equal(candidate.IOANT_LOOP_LOG_FILE,undefined);
+ assert.equal(candidate.OPENCLAW_GATEWAY_TOKEN,undefined);
+ assert.equal(candidate.NODE_TEST_CONTEXT,undefined);
+ assert.equal(candidate.PROJECT_DEV_CACHE,'/Volumes/LunaDrive/DeveloperCache/projects/test-fixture');
 });

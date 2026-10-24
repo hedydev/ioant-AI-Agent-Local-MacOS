@@ -92,6 +92,13 @@ async function runFixedPlan(plan) {
     delete env.OPENCLAW_GATEWAY_PASSWORD;
     delete env.OPENCLAW_GATEWAY_URL;
     delete env.NODE_TEST_CONTEXT; // Do not turn nested project tests into recursive Node test-runner skips.
+    if(isProjectTests){
+      // The live watcher log is scoped to the real PROJECT_DEV_CACHE. Mock
+      // test workers replace PROJECT_DEV_CACHE with a private fixture cache.
+      // Inheriting this path makes the log safety guard reject test workers.
+      // Keep the foreground watcher's own logging untouched.
+      delete env.IOANT_LOOP_LOG_FILE;
+    }
     const p=spawn(plan.bin,plan.args,{cwd:plan.cwd,env,shell:false,stdio:['ignore','pipe','pipe']});
     const timer=setTimeout(()=>{timedOut=true;p.kill('SIGTERM')},plan.timeout);
     const collect=chunk=>{output=(output+chunk.toString('utf8')).slice(-(isProjectTests?128*1024:OUTPUT_LIMIT))}; // Only a bounded test buffer is parsed; private assertion values are never forwarded.

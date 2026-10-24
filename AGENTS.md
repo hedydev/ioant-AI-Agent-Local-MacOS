@@ -90,3 +90,7 @@ Canary `self-update-20261024-canary-001` stopped at a Chrome `snapshot` CDP time
 ## Node test failure provenance (2026-10-24)
 
 Failed project-tests and candidate_tests_failed must report **sanitized relative test source locations and numeric counters**, not arbitrary assertion output or an opaque error token. See `stage2/test-failure-evidence.mjs`. Preserve strict code test gates, clean main, the confirmed user-role receipt before any worker reload, read-only Mint credentials and one-shot lab barriers. Tests in the candidate archive still execute repository-authored code, which is trusted only to the extent the repository is trusted. Never infer failure cause solely from missing / truncated test feedback.
+
+## Watcher environment must not leak into Node fixture tests (2026-10-24)
+
+`scripts/chatgpt-loop.sh` exports `IOANT_LOOP_LOG_FILE` pointing under the live `PROJECT_DEV_CACHE`; tests deliberately use temporary `PROJECT_DEV_CACHE` directories, so inheriting the live log causes `diagnostic-log.mjs` to reject safe path confinement, making the tests fail **only when invoked through the watcher**. Unset `IOANT_LOOP_LOG_FILE` for `project-tests` and candidate `node --test` processes, while leaving watcher logging and the diagnostic path guard intact. All candidate code still must pass tests before a fast-forward; report actual evidence and never disable test failures.

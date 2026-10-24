@@ -107,12 +107,16 @@ export function summarizeTests(raw){
   throw Error('test_summary_unverified');
  return {total:tests,passed:pass,failed:0};
 }
-function privateTestEnv(){
- const env={...process.env};
+export function privateTestEnv(parent=process.env){
+ const env={...parent};
  for(const key of Object.keys(env)){
   if(/TOKEN|PASSWORD|API_KEY|CREDENTIAL|SECRET|AUTHORIZATION|COOKIE/i.test(key))delete env[key];
  }
  delete env.NODE_TEST_CONTEXT;
+ // This is a watcher-owned log path scoped to the live PROJECT_DEV_CACHE.
+ // Test fixtures override PROJECT_DEV_CACHE and must not write to or validate
+ // the running watcher's log (or fail its absolute-path safety check).
+ delete env.IOANT_LOOP_LOG_FILE;
  return env;
 }
 export async function verifyProjectUpdate({cache=process.env.PROJECT_DEV_CACHE,volume=process.env.IOANT_DEV_VOLUME}={}){
