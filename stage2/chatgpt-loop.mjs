@@ -81,7 +81,7 @@ const readPageFunction=`() => {
 }`;
 
 function argsOf(argv){
-  const out={mode:'watch',interval:15,url:null,initialize:false,enableAlicePreflight:false,enableAliceLabStartupProbe:false,enableMintDiagnostics:false,enableSelfUpdate:false,enableOpenClawProvision:false,enableOpenClawAgentCreate:false,devAgent:null};
+  const out={mode:'watch',interval:15,url:null,initialize:false,enableAlicePreflight:false,enableAliceLabStartupProbe:false,enableMintDiagnostics:false,enableSelfUpdate:false,enableOpenClawProvision:false,enableOpenClawAgentCreate:false,enableOpenClawDevCreate:false,devAgent:null};
   for(let i=0;i<argv.length;i++){
     if(argv[i]==='--once')out.mode='once';
     else if(argv[i]==='--watch')out.mode='watch';
@@ -93,6 +93,7 @@ function argsOf(argv){
     else if(argv[i]==='--enable-self-update')out.enableSelfUpdate=true;
     else if(argv[i]==='--enable-openclaw-provision')out.enableOpenClawProvision=true;
     else if(argv[i]==='--enable-openclaw-agent-create')out.enableOpenClawAgentCreate=true;
+    else if(argv[i]==='--enable-openclaw-dev-create')out.enableOpenClawDevCreate=true;
     else if(argv[i]==='--dev-agent'){
       const id=argv[++i];
       if(!['alice-ai','openclaw-dev'].includes(id))throw Error('--dev-agent must be alice-ai or openclaw-dev');
@@ -349,7 +350,7 @@ async function main(){
   console.log('[loop] Actions: project-tests / project-status / project-head / environment-scan'+(opts.enableAlicePreflight?' / alice-witness-preflight (scoped Mint sync)':'')+(opts.enableAliceLabStartupProbe?' / alice-lab-startup-probe (one-shot 17880 only)':'')+(opts.enableMintDiagnostics?' / mint-bds-process-identity / mint-bds-process-lineage (read-only, fixed SSH target)':'')
     +(opts.enableSelfUpdate?' / project-update-verify (clean main, pretested fast-forward only)':'')
     +(opts.enableOpenClawProvision?' / openclaw-ollama-provision (local model provider write only)':'')
-    +(opts.enableOpenClawAgentCreate?' / openclaw-alice-create (private text-only Agent once)':'')+(opts.devAgent?' / openclaw-agent-dev-discuss (bound to '+opts.devAgent+', no tools)':' / AI discussion disabled (requires --dev-agent)')+'. Ctrl-C stops.');
+    +(opts.enableOpenClawAgentCreate?' / openclaw-alice-create (private text-only Agent once)':'')+(opts.enableOpenClawDevCreate?' / openclaw-dev-create (one-shot restricted infrastructure advisor)':'')+(opts.devAgent?' / openclaw-agent-dev-discuss (bound to '+opts.devAgent+', no tools)':' / AI discussion disabled (requires --dev-agent)')+'. Ctrl-C stops.');
   try{
     recordDiagnosticEvent('worker_start',{mode:opts.mode,profile});
     state=await loadState(stateFile); // Must be within finally so a read failure does not leak lock.
@@ -490,7 +491,8 @@ async function main(){
             || ((task.action==='mint-bds-process-identity'||task.action==='mint-bds-process-lineage') && opts.enableMintDiagnostics)
             || (task.action==='project-update-verify' && opts.enableSelfUpdate)
             || (task.action==='openclaw-ollama-provision' && opts.enableOpenClawProvision)
-            || (task.action==='openclaw-alice-create' && opts.enableOpenClawAgentCreate);
+            || (task.action==='openclaw-alice-create' && opts.enableOpenClawAgentCreate)
+             || (task.action==='openclaw-dev-create' && opts.enableOpenClawDevCreate);
           recordDiagnosticEvent('task_seen',{taskId:task.id,action:task.known?task.action:'unknown'});
           recordDiagnosticEvent('action_started',{taskId:task.id,action:task.known?task.action:'unknown'});
           let result;
@@ -509,7 +511,18 @@ async function main(){
               console.log('[loop] One-shot 17880 lab probe claimed. Never auto-retry this probe.');
               result=await runAction(task.action,ROOT,{enableAliceLabStartupProbe:true});
             }
-          }else if(isDevDiscussion){
+           }else if(task.action==='openclaw-dev-create'){
+             // Record an irreversible per-chat claim BEFORE any config RPC or
+             // filesystem mutation. An uncertain outcome requires inspection.
+             if(state.devAgentCreationAttempted){
+               result={status:'approval_required',reason:'The OpenClaw Dev creation attempt is already claimed or has an uncertain result. No automatic retry.'};
+             }else{
+               state.devAgentCreationAttempted={id:task.id,at:new Date().toISOString()};
+               await atomicState(stateFile,state);
+               recordDiagnosticEvent('openclaw_dev_create_claimed',{taskId:task.id});
+               result=await runAction(task.action,ROOT,{enableOpenClawDevCreate:true});
+             }
+           }else if(isDevDiscussion){
             // Reserve before invoking Gateway. After interruption, the old ID
             // remains permanently claimed and must never trigger inference.
             const claim=reserveDevDiscussion(state,task.id);
@@ -525,7 +538,8 @@ async function main(){
           }else{
             result=await runAction(task.action,ROOT,{enableAlicePreflight:opts.enableAlicePreflight,enableMintDiagnostics:opts.enableMintDiagnostics,
               enableSelfUpdate:opts.enableSelfUpdate,enableOpenClawProvision:opts.enableOpenClawProvision,
-              enableOpenClawAgentCreate:opts.enableOpenClawAgentCreate});
+              enableOpenClawAgentCreate:opts.enableOpenClawAgentCreate,
+               enableOpenClawDevCreate:opts.enableOpenClawDevCreate});
           }
           recordDiagnosticEvent('action_finished',{taskId:task.id,action:task.known?task.action:'unknown',status:result.status,...(Number.isInteger(result.exitCode)?{exitCode:result.exitCode}:{}),...(Number.isInteger(result.elapsedMs)?{elapsedMs:result.elapsedMs}:{})});
           await writeReport(workDir,task,result);

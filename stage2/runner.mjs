@@ -29,7 +29,8 @@ export function actionPlan(action, repoRoot) {
     'openclaw-alice-agent-preflight': {bin:process.execPath,args:['stage2/openclaw-alice-agent-preflight.mjs'],cwd:root,timeout:65000},
     'openclaw-alice-reconcile': {bin:process.execPath,args:['stage2/openclaw-alice-reconcile.mjs'],cwd:root,timeout:65000},
     'openclaw-alice-main-diff': {bin:process.execPath,args:['stage2/openclaw-alice-main-diff.mjs'],cwd:root,timeout:65000},
-    'openclaw-alice-agent-smoke': {bin:process.execPath,args:['stage2/openclaw-alice-agent-smoke.mjs'],cwd:root,timeout:205000}
+    'openclaw-alice-agent-smoke': {bin:process.execPath,args:['stage2/openclaw-alice-agent-smoke.mjs'],cwd:root,timeout:205000},
+    'openclaw-dev-preflight': {bin:process.execPath,args:['stage2/openclaw-dev-preflight.mjs'],cwd:root,timeout:65000}
   };
   return plans[action] ?? null;
 }
@@ -107,6 +108,28 @@ export async function runAction(action, repoRoot, options={}) {
       safe.workspace===true&&safe.agent==='alice-ai'&&
       safe.model==='ollama/gemma4:26b-a4b'&&
       safe.mainPreserved===true&&safe.runtimeAcknowledged===true;
+    return {status:passed?'passed':doc.state==='inconclusive'?'inconclusive':'failed',
+      output:JSON.stringify(safe)};
+  }
+  if(action==='openclaw-dev-create'){
+    if(options.enableOpenClawDevCreate!==true)
+      return {status:'approval_required',reason:'OpenClaw Dev Agent creation requires separately approved --enable-openclaw-dev-create on the local Mac launcher.'};
+    const run=await runFixedPlan({bin:process.execPath,args:['stage2/openclaw-dev-create.mjs'],
+      cwd:resolve(repoRoot),timeout:150000});
+    let doc;try{doc=JSON.parse((run.output??'').trim());}catch{}
+    if(!doc||doc.audit!=='IOANT_OPENCLAW_DEV_CREATE'||doc.schemaVersion!==1||
+       !['blocked','inconclusive','applied'].includes(doc.state))
+      return {status:'inconclusive',reason:'No valid bounded OpenClaw Dev creation result.'};
+    const safe={audit:doc.audit,schemaVersion:1,state:doc.state};
+    for(const k of ['backup','workspace','mainPreserved','alicePreserved','runtimeAcknowledged'])
+      if(typeof doc[k]==='boolean')safe[k]=doc[k];
+    if(doc.agent==='openclaw-dev')safe.agent=doc.agent;
+    if(doc.model==='ollama/gemma4:26b-a4b')safe.model=doc.model;
+    if(typeof doc.note==='string'&&/^[a-z_]{3,80}$/.test(doc.note))safe.note=doc.note;
+    const passed=run.status==='passed'&&doc.state==='applied'&&
+      safe.backup===true&&safe.workspace===true&&safe.mainPreserved===true&&
+      safe.alicePreserved===true&&safe.runtimeAcknowledged===true&&
+      safe.agent==='openclaw-dev'&&safe.model==='ollama/gemma4:26b-a4b';
     return {status:passed?'passed':doc.state==='inconclusive'?'inconclusive':'failed',
       output:JSON.stringify(safe)};
   }

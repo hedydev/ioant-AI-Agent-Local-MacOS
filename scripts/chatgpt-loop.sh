@@ -15,6 +15,10 @@ fi
 if [[ " $* " == *" --enable-openclaw-provision "* ]]; then
   echo '[loop] OpenClaw Ollama provisioning opt-in: fixed local provider only; private backup, revisioned Gateway config.patch, no main model or Agent writes.'
 fi
+if [[ " $* " == *" --enable-openclaw-dev-create "* ]]; then
+  echo '[loop] OpenClaw Dev Agent creation explicitly enabled: one fixed no-tools Agent, revision-guarded config patch, private backup/workspace, preserve main and Alice.'
+  echo '[loop] No extra Agent ID, model, tools, channels, or runtime commands can be supplied by ChatGPT.'
+fi
 if [[ " $* " == *" --enable-mint-diagnostics "* ]]; then
   [[ -n "${ALICE_SSH_TARGET:-}" ]] || { echo '[loop] Set ALICE_SSH_TARGET before enabling Mint read-only diagnostics' >&2; exit 2; }
   echo '[loop] Mint diagnostic identity only: no PID/command args from chat, no process termination, no sudo password automation.'

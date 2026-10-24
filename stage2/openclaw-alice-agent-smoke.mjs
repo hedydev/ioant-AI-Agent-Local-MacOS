@@ -8,6 +8,7 @@ import {homedir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {execNative,rpcEnvelope} from './openclaw-ollama-provision.mjs';
 import {classifyLive,inspectWorkspace} from './openclaw-alice-reconcile.mjs';
+import {verifyBoundAgentConfig} from './development-agent-route.mjs';
 
 const AUDIT='IOANT_OPENCLAW_ALICE_AGENT_SMOKE';
 const AGENT='alice-ai';
@@ -29,26 +30,10 @@ function audited(state,extra={}){
  return out;
 }
 export function verifySafeConfig(snapshot){
- const doc=rpcEnvelope(snapshot);
- if(!obj(doc)||doc.valid!==true||doc.exists===false)return false;
- const status=classifyLive(snapshot);
- if(status.status!=='observed'||status.validity!=='valid')return false;
- for(const key of ['sourceConfig','config','parsed','resolved']){
-  const root=doc[key];
-  if(!obj(root))return false;
-  const row=status.roots[key];
-  if(row.status!=='observed'||row.main!=='yes'||
-    row.alice?.status!=='present'||row.alice.model!=='yes'||
-    row.alice.workspace!=='yes'||row.alice.denyAll!=='yes'||
-    row.alice.execDenied!=='yes'||row.alice.codeModeOff!=='yes'||
-    row.alice.elevatedOff!=='yes'||row.alice.modelAllow!=='yes'||
-    row.alice.subagentsDenied!=='yes'||row.alice.skillsEmpty!=='yes'||
-    row.explicitOwnership!=='yes'||row.mainSystemOwner!=='yes'||
-    row.aliceBinding!=='no'||row.otherAgents!==0)return false;
-  if(['sourceConfig','config'].includes(key)&&row.alice.policyExact!=='yes')return false;
-  if(root.agents?.entries?.[AGENT]?.workspace!==WORKSPACE)return false;
- }
- return true;
+  // Preserve Alice's exact no-tools policy while allowing the separately
+  // provisioned, equally restricted OpenClaw Dev in the same Gateway roster.
+  // Unknown agents and altered main ownership still fail closed.
+  return verifyBoundAgentConfig(snapshot,AGENT);
 }
 export function makeChallenge(nonce){
  if(typeof nonce!=='string'||!/^[a-f0-9]{12}$/.test(nonce))throw Error('unsafe_nonce');

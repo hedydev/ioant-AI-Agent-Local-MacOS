@@ -100,3 +100,20 @@ test('native CLI runner never inherits Gateway credentials and never logs raw st
  assert.equal(optsSeen.env.OPENCLAW_GATEWAY_PASSWORD,undefined);
  assert.equal(optsSeen.env.OPENCLAW_GATEWAY_URL,undefined);
 });
+
+test('existing Alice smoke allows only separately allowlisted no-tools OpenClaw Dev as another Agent',()=>{
+ const copy=structuredClone(cfg);
+ for(const layer of ['sourceConfig','config','parsed','resolved'])
+  copy[layer].agents.entries['openclaw-dev']={
+   ...structuredClone(copy[layer].agents.entries['alice-ai']),
+   name:'OpenClaw Dev',
+   workspace:'/Volumes/LunaDrive/DeveloperCache/openclaw-agents/openclaw-dev'
+  };
+ assert.equal(verifySafeConfig(copy),true);
+ const unknown=structuredClone(copy);
+ unknown.config.agents.entries.untrusted={name:'Untrusted'};
+ assert.equal(verifySafeConfig(unknown),false);
+ const altered=structuredClone(copy);
+ altered.sourceConfig.agents.entries['openclaw-dev'].tools.deny=[];
+ assert.equal(verifySafeConfig(altered),false);
+});
