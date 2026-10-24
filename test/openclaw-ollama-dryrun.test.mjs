@@ -93,3 +93,10 @@ test('error categories are bounded and cannot reflect secret-bearing CLI text',(
  const file=readFileSync(resolve(import.meta.dirname,'..','stage2/openclaw-ollama-dryrun.mjs'),'utf8');
  assert.doesNotMatch(file,/config\.apply|gateway','call','config\.patch|shell:true/);
 });
+
+test('read-only dry-run startup never shadows the Node URL constructor',()=>{
+ const file=readFileSync(resolve(import.meta.dirname,'..','stage2/openclaw-ollama-dryrun.mjs'),'utf8');
+ assert.equal(file.includes("const URL="),false);
+ assert.ok(file.includes("const OLLAMA_ENDPOINT='http://127.0.0.1:11435'"));
+ assert.ok(file.includes('new URL(import.meta.url)'));
+});

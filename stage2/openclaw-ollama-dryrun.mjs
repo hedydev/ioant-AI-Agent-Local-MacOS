@@ -7,7 +7,7 @@ import {join,resolve} from 'node:path';
 import {probeOpenClaw} from './openclaw-config-preflight.mjs';
 
 const CLI=join(homedir(),'.openclaw','bin','openclaw');
-const URL='http://127.0.0.1:11435';
+const OLLAMA_ENDPOINT='http://127.0.0.1:11435';
 const IDS=['gemma4:26b-a4b','gpt-oss:20b'];
 const AUDIT='IOANT_OPENCLAW_OLLAMA_DRYRUN';
 const TYPES=['as_authored','official_explicit','minimal_discovery'];
@@ -15,7 +15,7 @@ const MAX_TEXT=12000;
 
 export function candidate(id){
   if(!TYPES.includes(id))throw Error('unsupported_candidate');
-  const base={baseUrl:URL,apiKey:'ollama-local',api:'ollama'};
+  const base={baseUrl:OLLAMA_ENDPOINT,apiKey:'ollama-local',api:'ollama'};
   if(id==='as_authored')return {models:{providers:{ollama:{
     ...base,timeoutSeconds:300,
     models:IDS.map(name=>({id:name,name,input:['text'],contextTokens:32768}))

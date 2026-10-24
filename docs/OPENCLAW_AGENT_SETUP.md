@@ -114,3 +114,7 @@ To distinguish strict validation from Gateway write transport/RPC problems, the 
 - If a live Gateway's exclusive ownership blocks even `--dry-run`, report `offline_owner`, do not try offline writes or stop Gateway.
 
 Proceed with existing vetted `project-update-verify` full Mac suite, then call `openclaw-ollama-dryrun` once. Do not send `openclaw-ollama-provision` until there is evidence of a valid candidate and a new reviewed single-write procedure. No default-model, Agent or SSH permission changes belong to this dry-run.
+
+## 2026-10-24: dry-run candidate import fix
+
+The Mac candidate update task 022 safely stopped before deployment: 188 tests, 187 passed, one module-level failure in the new dry-run test. Isolated Node reproduction found that a string constant named URL masked the built-in URL constructor used by the module startup guard. Renaming it to OLLAMA_ENDPOINT restored seven isolated tests, including a new regression check. No Gateway patch or provider write occurred. Full Mac acceptance remains required.
