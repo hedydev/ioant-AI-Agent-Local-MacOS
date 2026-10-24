@@ -34,7 +34,7 @@ export function safeAudit(state,more={}) {
  }
  return result;
 }
-async function execNative(method,params,{cli=CLI,execImpl=exec}={}){
+export async function execNative(method,params,{cli=CLI,execImpl=exec}={}){
  const args=['gateway','call',method,'--params',JSON.stringify(params),'--json','--timeout','30000'];
  const env={...process.env};
  for(const key of ['OPENCLAW_GATEWAY_TOKEN','OPENCLAW_GATEWAY_PASSWORD','OPENCLAW_GATEWAY_URL','NODE_TEST_CONTEXT','IOANT_LOOP_LOG_FILE'])delete env[key];
@@ -42,7 +42,7 @@ async function execNative(method,params,{cli=CLI,execImpl=exec}={}){
  if(typeof r.stdout!=='string'||r.stdout.length>MAX_OUTPUT)error('invalid_rpc_response');
  try{return JSON.parse(r.stdout)}catch{error('invalid_rpc_response')}
 }
-function rpcEnvelope(response){
+export function rpcEnvelope(response){
  if(response&&typeof response==='object'&&response.payload&&typeof response.payload==='object')return response.payload;
  return response;
 }
