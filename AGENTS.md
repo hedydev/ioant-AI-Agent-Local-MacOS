@@ -122,3 +122,7 @@ The local Ollama patch attempt `openclaw-ollama-provision-20261024-016` returned
 ## Fixed category overlap in local Gateway log diagnosis (2026-10-24)
 
 A real `logs.tail` task returned `matchedPatchLines=1,category=unclassified,recentErrorEvidence=true`. With the old fixed regex Set implementation this indicates multiple matching labels in that one record, not missing log evidence. Improve the **read-only** diagnostic to output only an enum array of `matchedCategories` and enum `ambiguity`, never raw logs or secret values; keep `unclassified` when ambiguous and request correlated evidence before any further configuration write. This does not widen the Stage-2 action allowlist or permit new configuration mutations.
+
+## OpenClaw native Ollama dry-run before next write (2026-10-24)
+
+The real Gateway log matcher returned `matchedCategories=["invalid_rpc_params","config_validation"]` from **one** record, so it is not proof of two different faults. Official config RPC fields are supported; exact rejection may be in the model entry shape or current CLI version. Use the new fixed `openclaw-ollama-dryrun` read-only task to test three known safe candidate shapes through native CLI `config patch --stdin --dry-run`, without mutating the Gateway. It provides bounded enums only; do not send another writing task until direct validation evidence is available and a fresh preflight confirms the provider is still absent. Preserve existing one-shot patch limits, backups, exact ChatGPT tab and running services.
