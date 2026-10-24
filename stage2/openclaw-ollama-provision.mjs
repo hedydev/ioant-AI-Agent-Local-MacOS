@@ -137,7 +137,10 @@ export async function provisionOllama({
  let result;
  try{
   result=rpcEnvelope(await callRpc('config.patch',{
-   raw:JSON.stringify(patch),baseHash:revision.hash,response:'summary',
+   // v2026.10.6 uses a closed ConfigPatchParamsSchema and does NOT accept
+   // the summary-response selector (added in later revisions). The Gateway
+   // returns changedPaths with its standard full reply; never expose it.
+   raw:JSON.stringify(patch),baseHash:revision.hash,
    note:'Operator approved local-only Ollama provider registration'
   },{cli}));
  }catch(e){

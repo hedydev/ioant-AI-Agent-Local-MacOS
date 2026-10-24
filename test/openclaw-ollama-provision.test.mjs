@@ -121,7 +121,10 @@ test('a single provider patch happens only after schema, pin and private before-
  assert.equal(h.files[0].flags.mode,0o600);
  const patch=h.calls[2].params;
  assert.equal(patch.baseHash,RPC_HASH);
- assert.equal(patch.response,'summary');
+ // OpenClaw v2026.10.6 ConfigPatchParamsSchema is closed and excludes
+ // "response"; current online docs describe a newer optional parameter.
+ assert.deepEqual(Object.keys(patch),['raw','baseHash','note']);
+ assert.equal(Object.hasOwn(patch,'response'),false);
  const object=JSON.parse(patch.raw);
  assert.deepEqual(Object.keys(object),['models']);
  assert.equal(object.models.providers.ollama.api,'ollama');
@@ -196,4 +199,19 @@ test('single Ollama provider failure returns categorized status without raw erro
  assert.equal(report.backup,true);
  assert.equal(h.files.length,1);
  assert.doesNotMatch(JSON.stringify(report),/PRIVATE_KEY|SECRET|\/Users\/me/);
+});
+
+test('pinned v2026.10.6 config.patch RPC uses only upstream-accepted keys with full reply',async()=>{
+ const allowed=new Set(['raw','baseHash','sessionKey','deliveryContext','note','restartDelayMs','replacePaths']);
+ const h=harness();
+ const result=await provisionOllama(h.opt);
+ assert.equal(result.state,'applied');
+ const calls=h.calls.filter(x=>x.name==='config.patch');
+ assert.equal(calls.length,1);
+ assert.deepEqual(Object.keys(calls[0].params),['raw','baseHash','note']);
+ assert.ok(Object.keys(calls[0].params).every(key=>allowed.has(key)));
+ assert.equal(calls[0].params.baseHash,RPC_HASH);
+ assert.equal(h.files.length,1);
+ // Standard full replies are handled by the existing changedPaths parser.
+ assert.equal(result.runtimeAcknowledged,true);
 });
