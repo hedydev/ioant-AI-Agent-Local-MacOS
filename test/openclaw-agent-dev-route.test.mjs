@@ -120,3 +120,26 @@ test('missing tab identifies browser profile and visibility without exposing unr
  const exact=tabVisibility([{url}],url,'chrome');assert.equal(exact.code,'exact_match');
  assert.equal(tabVisibility([{url},{url}],url,'chrome').code,'duplicate_exact');
 });
+
+test('selected Alice rejects an unsafe Dev, and selected Dev rejects an unsafe Alice',()=>{
+ const modifiedDev=structuredClone(config('openclaw-dev'));
+ modifiedDev.sourceConfig.agents.entries['openclaw-dev'].tools.deny=[];
+ assert.equal(verifyBoundAgentConfig(modifiedDev,'alice-ai'),false);
+ const modifiedAlice=structuredClone(config('openclaw-dev'));
+ modifiedAlice.config.agents.entries['alice-ai'].tools.exec.mode='allow';
+ assert.equal(verifyBoundAgentConfig(modifiedAlice,'openclaw-dev'),false);
+ const boundOther=structuredClone(config('openclaw-dev'));
+ boundOther.parsed.bindings.push({agentId:'alice-ai'});
+ assert.equal(verifyBoundAgentConfig(boundOther,'openclaw-dev'),false);
+});
+test('inconsistent Agent roster across four Gateway snapshots is rejected',()=>{
+ const partial=structuredClone(config('openclaw-dev'));
+ delete partial.parsed.agents.entries['openclaw-dev'];
+ assert.equal(verifyBoundAgentConfig(partial,'alice-ai'),false);
+ const foreign=structuredClone(config('openclaw-dev'));
+ foreign.resolved.agents.entries['unexpected-ai']={tools:{deny:['*']}};
+ assert.equal(verifyBoundAgentConfig(foreign,'alice-ai'),false);
+ const noDev=structuredClone(config('alice-ai'));
+ assert.equal(verifyBoundAgentConfig(noDev,'alice-ai'),true);
+ assert.equal(verifyBoundAgentConfig(noDev,'openclaw-dev'),false);
+});

@@ -20,22 +20,11 @@ export function agentPolicy(agentId){
  return {...structuredClone(src),name:agentId==='alice-ai'?'AliceAI':'OpenClaw Dev',
   workspace:join(BASE,agentId)};
 }
-// Fail closed on altered provider, model policy, tool permission or routing.
-// Runtime representations can normalize fields but must retain all deny rules.
-export function verifyBoundAgentConfig(snapshot,agentId){
- if(!validDevAgent(agentId))return false;
- const doc=rpcEnvelope(snapshot);
- if(!object(doc)||doc.valid!==true||doc.exists===false)return false;
- const expected=agentPolicy(agentId);
- for(const layer of ['sourceConfig','config','parsed','resolved']){
-  const root=doc[layer];
-  if(!object(root)||!object(root.agents)||root.agents.ownership!=='explicit'||
-     root.agents.defaults?.systemAgent?.agentId!=='main'||
-     !object(root.agents.entries)||!object(root.agents.entries.main))return false;
-  const entries=root.agents.entries;
-  if(Object.keys(entries).some(id=>!['main',...DEV_AGENT_IDS].includes(id)))return false;
-  const agent=entries[agentId];
-  if(!object(agent)||agent.model!==expected.model||agent.workspace!==expected.workspace||
+// Verify every registered allowlisted advisor, not just the selected target.
+// Otherwise checking safe Alice could silently ignore a newly privileged Dev.
+function matchesPolicy(agent,id,strict){
+ const expected=agentPolicy(id);
+ if(!object(agent)||agent.model!==expected.model||agent.workspace!==expected.workspace||
     !isDeepStrictEqual(agent.modelPolicy,expected.modelPolicy)||
     !object(agent.tools)||agent.tools.profile!=='minimal'||
     !Array.isArray(agent.tools.deny)||!agent.tools.deny.includes('*')||
@@ -44,11 +33,41 @@ export function verifyBoundAgentConfig(snapshot,agentId){
     !isDeepStrictEqual(agent.tools.agentToAgent?.send,[])||
     !isDeepStrictEqual(agent.subagents?.allowAgents,[])||
     !isDeepStrictEqual(agent.skills,[]))return false;
-  if(['sourceConfig','config'].includes(layer)&&
-     (!isDeepStrictEqual(agent.tools,expected.tools)||
-      !isDeepStrictEqual(agent.modelPolicy,expected.modelPolicy)))return false;
+ // The authored and active views cannot hide extra tool policy fields.
+ if(strict&&(!isDeepStrictEqual(agent.tools,expected.tools)||
+    !isDeepStrictEqual(agent.modelPolicy,expected.modelPolicy)))return false;
+ return true;
+}
+// Fail closed on any new Agent, changed policy, unexpected routing or roster
+// disagreement across the four Gateway views. The selected target is pinned
+// on the Mac, never selected by an untrusted ChatGPT model turn.
+export function verifyBoundAgentConfig(snapshot,agentId){
+ if(!validDevAgent(agentId))return false;
+ const doc=rpcEnvelope(snapshot);
+ if(!object(doc)||doc.valid!==true||doc.exists===false)return false;
+ let baselineRoster=null;
+ for(const layer of ['sourceConfig','config','parsed','resolved']){
+  const root=doc[layer];
+  if(!object(root)||!object(root.agents)||root.agents.ownership!=='explicit'||
+     root.agents.defaults?.systemAgent?.agentId!=='main'||
+     !object(root.agents.entries)||!object(root.agents.entries.main))return false;
+  const entries=root.agents.entries;
+  const names=Object.keys(entries).sort();
+  if(names.some(id=>!['main',...DEV_AGENT_IDS].includes(id))||
+     !Object.hasOwn(entries,agentId))return false;
+  const roster=names.join(',');
+  if(baselineRoster===null)baselineRoster=roster;
+  else if(roster!==baselineRoster)return false;
+  for(const id of DEV_AGENT_IDS){
+   if(Object.hasOwn(entries,id)&&
+      !matchesPolicy(entries[id],id,layer==='sourceConfig'||layer==='config'))
+    return false;
+  }
+  // Neither Alice nor Dev may be attached to an external channel, even when
+  // evaluating the other Agent or while the second Agent is not yet present.
   if(root.bindings!==undefined&&
-     (!Array.isArray(root.bindings)||root.bindings.some(b=>b?.agentId===agentId)))return false;
+     (!Array.isArray(root.bindings)||
+      root.bindings.some(b=>DEV_AGENT_IDS.includes(b?.agentId))))return false;
  }
  return true;
 }
