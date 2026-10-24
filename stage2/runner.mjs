@@ -1,6 +1,7 @@
 import { aliceWitnessPreflight } from './alice-preflight.mjs';
 import { aliceLabStartupProbe } from './alice-lab-startup.mjs';
 import { mintBdsProcessIdentity } from './mint-diagnostics.mjs';
+import { mintBdsProcessLineage } from './mint-lineage.mjs';
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
@@ -36,6 +37,11 @@ export async function runAction(action, repoRoot, options={}) {
     if(options.enableMintDiagnostics!==true)
       return {status:'approval_required',reason:'Mint read-only identity checks require explicit --enable-mint-diagnostics.'};
     return mintBdsProcessIdentity({execute:executeStep,sshTarget:process.env.ALICE_SSH_TARGET});
+  }
+  if (action==='mint-bds-process-lineage') {
+    if(options.enableMintDiagnostics!==true)
+      return {status:'approval_required',reason:'Mint read-only lineage checks require explicit --enable-mint-diagnostics.'};
+    return mintBdsProcessLineage({execute:executeStep,sshTarget:process.env.ALICE_SSH_TARGET});
   }
   const plan=actionPlan(action,repoRoot);
   if (!plan) return {status:'approval_required',reason:'Not on automatic action allowlist. No command was run.'};

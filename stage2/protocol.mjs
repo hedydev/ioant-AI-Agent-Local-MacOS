@@ -4,7 +4,7 @@ export const PROTOCOL = 'ioant-mac-ops-v1';
 const CHAT_PATH = /^\/(?:g\/[a-zA-Z0-9_-]+\/)?c\/[a-zA-Z0-9-]{15,}$/;
 const TASK_ID = /^[a-zA-Z0-9][a-zA-Z0-9_-]{3,79}$/;
 const AUTO_ACTIONS = new Set(['project-tests', 'project-status', 'project-head', 'environment-scan']);
-const KNOWN_ACTIONS = new Set([...AUTO_ACTIONS, 'audit-example', 'alice-witness-preflight', 'alice-lab-startup-probe', 'mint-bds-process-identity']);
+const KNOWN_ACTIONS = new Set([...AUTO_ACTIONS, 'audit-example', 'alice-witness-preflight', 'alice-lab-startup-probe', 'mint-bds-process-identity', 'mint-bds-process-lineage']);
 
 export function validateChatUrl(value) {
   const url = new URL(value);
