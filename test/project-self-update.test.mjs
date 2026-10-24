@@ -35,7 +35,9 @@ test('fixed allowlist and self-update watcher opt-in are separate from Mint and 
  assert.match(runner,/project-self-update\.mjs/);
  assert.match(shell,/--enable-self-update/);
  assert.match(shell,/worker_rc != 75/);
- assert.match(shell,/reloads > 3/);
+ assert.ok(shell.includes('source "$ROOT/scripts/self-update-reload-guard.sh"'));
+ assert.ok(shell.includes('if ! ioant_validated_reload_progress "$ROOT" "$before_head" "$after_head"; then'));
+ assert.doesNotMatch(shell,/reloads > 3/);
  assert.doesNotMatch(script,/\breset\b|\bstash\b|\bclean -fd\b|force.push/);
 });
 
