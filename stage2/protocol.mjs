@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 export const PROTOCOL = 'ioant-mac-ops-v1';
 const CHAT_PATH = /^\/(?:g\/[a-zA-Z0-9_-]+\/)?c\/[a-zA-Z0-9-]{15,}$/;
 const TASK_ID = /^[a-zA-Z0-9][a-zA-Z0-9_-]{3,79}$/;
-const AUTO_ACTIONS = new Set(['project-tests', 'project-status', 'project-head', 'environment-scan', 'openclaw-config-preflight', 'openclaw-config-rpc-diagnostic', 'openclaw-patch-failure-diagnostic', 'openclaw-ollama-dryrun', 'openclaw-rejection-evidence', 'openclaw-version-parity']);
+const AUTO_ACTIONS = new Set(['project-tests', 'project-status', 'project-head', 'environment-scan', 'openclaw-config-preflight', 'openclaw-config-rpc-diagnostic', 'openclaw-patch-failure-diagnostic', 'openclaw-ollama-dryrun', 'openclaw-rejection-evidence', 'openclaw-version-parity', 'openclaw-ollama-smoke']);
 const KNOWN_ACTIONS = new Set([...AUTO_ACTIONS, 'project-update-verify', 'audit-example', 'alice-witness-preflight', 'alice-lab-startup-probe', 'mint-bds-process-identity', 'mint-bds-process-lineage', 'openclaw-ollama-provision']);
 
 export function validateChatUrl(value) {
