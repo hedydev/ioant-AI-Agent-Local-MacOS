@@ -212,3 +212,22 @@ test('Mint pending initialization is reconciled after delayed DOM hydration with
   }
  }
 }));
+
+
+test('receipt evidence consists only of counters and booleans when message not visible',async()=>{
+ const loop=await readFile(resolve(ROOT,'stage2/chatgpt-loop.mjs'),'utf8');
+ const tick=String.fromCharCode(96);
+ const start=loop.indexOf('const readPageFunction='+tick),end=loop.indexOf(tick+';\n\nfunction argsOf',start);
+ const fn=Function('MARKER',loop.slice(start,end+2)+';return readPageFunction;')('IOANT_MAC_LOOP_RESULT::');
+ const run=Function('document','location','return ('+fn+')()');
+ const secret='do not export my private content';
+ const entries=[{innerText:secret,textContent:secret,querySelector:()=>null}];
+ const doc={
+  readyState:'complete',
+  querySelectorAll:q=>q==='[data-message-author-role="user"]'?entries:[],
+  querySelector:q=>q==='#prompt-textarea'?{matches:()=>false,innerText:'',textContent:''}:null
+ };
+ const parsed=JSON.parse(run(doc,{href:CHAT}).slice('IOANT_MAC_LOOP_RESULT::'.length));
+ assert.deepEqual(parsed.receiptEvidence,{userRoleNodes:1,bodyNodes:0,mintPhrasePresent:false,mintReceiptRecognized:false});
+ assert.doesNotMatch(JSON.stringify(parsed),/private content/);
+});

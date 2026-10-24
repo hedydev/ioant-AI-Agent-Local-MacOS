@@ -55,3 +55,8 @@ A durable per-conversation `labProbeAttempted` one-shot marker is persisted BEFO
 ## Opt-in Stage-2 Mint process identity (2026-10-24)
 
 `mint-bds-process-identity` is an additional separately enabled, fixed-argv *read-only* SSH diagnostic. Require `--enable-mint-diagnostics`, an exact selected ChatGPT conversation and a locally validated `ALICE_SSH_TARGET`. Never accept host/PID/path/argv from page text. Discover the current UDP 17880 PID through limited sudo `ss` evidence, compare 17879, check process birth and workdir/executable and recheck live PID. Missing noninteractive sudo permission, unknown process identity or PID churn stop without guessing or changing sudoers. It does not authorize kill/stop/restart, 17880 probe retries, Mint edits or production BDS/world actions. See `docs/CHATGPT_LOOP.md`.
+
+
+## Human-observed Mint init confirmation vs DOM proof (2026-10-24)
+
+The Chrome watcher must not interpret a sent ChatGPT message as confirmed solely from Enter, an assistant response or a stale snapshot. If exact user-role DOM confirmation cannot be obtained, preserve `initPending`, never automatically resend, and provide only bounded structural receipt diagnostics. A separate interactive Mac operator may explicitly acknowledge ONLY an existing pending Mint initialization through `stage2/acknowledge-mint-init.mjs` after visually confirming it appeared in the exact chat as their user message. Mark this as operator-acknowledged (not DOM-proven); preserve all task states/one-shot lab probe barriers. Never allow assistant text to trigger the override.

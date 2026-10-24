@@ -26,8 +26,8 @@ const readPageFunction=`() => {
   // Read only allowlisted *prefix receipts* from all currently rendered user
   // turns. An arbitrary last-five window is insufficient for delayed replies.
   // Do not return ordinary user messages or their text to the local worker.
-  const users=Array.from(document.querySelectorAll('[data-message-author-role="user"]')).slice(-100)
-    .map(el=>{
+  const userRoleNodes=Array.from(document.querySelectorAll('[data-message-author-role="user"]')).slice(-100);
+  const users=userRoleNodes.map(el=>{
       // Prefer the actual user message body over optional UI labels in the
       // enclosing user-role element. All prefixes remain start-anchored.
       const body=typeof el.querySelector==='function'
@@ -39,6 +39,14 @@ const readPageFunction=`() => {
       }
       return null;
     }).filter(Boolean);
+  // Return only bounded structural evidence, never user text or DOM payloads.
+  const receiptEvidence={
+    userRoleNodes:userRoleNodes.length,
+    bodyNodes:userRoleNodes.filter(el=>typeof el.querySelector==='function'&&
+      !!(el.querySelector('[data-message-content]')||el.querySelector('.whitespace-pre-wrap'))).length,
+    mintPhrasePresent:userRoleNodes.some(el=>String(el.textContent||el.innerText||'').includes('Ioant Mac Mint read-only diagnostics ioant-mac-ops-v1')),
+    mintReceiptRecognized:users.includes('Ioant Mac Mint read-only diagnostics ioant-mac-ops-v1')
+  };
   // ChatGPT has used both an id and a data-testid on its contenteditable composer.
   // Keep selectors narrow to the prompt area; never treat global search inputs as chat.
   const selectors=['#prompt-textarea','[data-testid="composer-input"][contenteditable="true"]',
@@ -48,7 +56,7 @@ const readPageFunction=`() => {
   const value=editing?(editing.matches('textarea')?editing.value:(editing.innerText??editing.textContent??'')):'';
   const generating=!!document.querySelector('[data-testid="stop-button"],button[aria-label="Stop generating"],button[aria-label="Stop streaming"]');
   // Structural flags only: never collect DOM, page text, cookies, or URLs of other tabs.
-  return '${MARKER}' + JSON.stringify({url:location.href,selectorFound:elements.length>0,generating,messages,users,
+  return '${MARKER}' + JSON.stringify({url:location.href,selectorFound:elements.length>0,generating,messages,users,receiptEvidence,
     composerPresent:!!editing,composerEmpty:!String(value??'').trim(),
     readyState:document.readyState,hasMain:!!document.querySelector('main'),
     hasLoginForm:!!document.querySelector('form[action*="login"],input[autocomplete="current-password"]'),
@@ -145,18 +153,27 @@ function composerRef(snapshot){
 // Shared bounded, read-only receipt verification for post-send and restart.
 // Never sends, re-presses Enter, or executes a task.
 async function confirmUserReceipt(url,receipt,{initialDelay=false}={}){
-  let pageSeen=false,readErrors=0;
+  let pageSeen=false,readErrors=0,lastEvidence=null;
   for(let attempt=0;attempt<8;attempt++){
     if(initialDelay||attempt>0)await new Promise(resolve=>setTimeout(resolve,1500));
     try{
       const currentTarget=await exactTab(url);
       const page=await readPage(currentTarget,url);
       pageSeen=true;
+      lastEvidence=page.receiptEvidence;
       if(page.users.some(msg=>msg.startsWith(receipt)))return true;
     }catch(err){
       readErrors++;
       if(attempt===7)recordDiagnosticEvent('page_not_ready',{code:diagnosticCode(err)});
     }
+  }
+  // Structural counters only; never print user text, raw DOM, URLs or credentials.
+  if(pageSeen&&lastEvidence&&typeof lastEvidence==='object'){
+    const safeCount=v=>Number.isSafeInteger(v)&&v>=0&&v<=100?v:'unknown';
+    console.log('[loop] Receipt read-only evidence: userRoleNodes='+safeCount(lastEvidence.userRoleNodes)+
+      ', bodyNodes='+safeCount(lastEvidence.bodyNodes)+
+      ', mintPhrasePresent='+(lastEvidence.mintPhrasePresent===true)+
+      ', mintReceiptRecognized='+(lastEvidence.mintReceiptRecognized===true));
   }
   recordDiagnosticEvent('receipt_unconfirmed',{code:pageSeen?'user_receipt_not_visible':readErrors?'page_unavailable':'unexpected'});
   return false;
