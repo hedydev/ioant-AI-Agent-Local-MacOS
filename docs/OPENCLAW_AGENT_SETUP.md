@@ -48,3 +48,17 @@ No automatic provider writes, no Agent creation, no Web UI clicking, no Gateway 
 - OpenClaw docs: https://docs.openclaw.ai/cli/agents
 - OpenClaw docs: https://docs.openclaw.ai/cli/config
 - OpenClaw docs: https://docs.openclaw.ai/tools/skills
+
+## Step 2 implementation — guarded Ollama provider write (2026-10-24)
+
+The operator's first `openclaw-config-preflight-20261024-010` returned `config=regular_private`, `ollama=reachable`, `provider=absent`, `agents=absent`, `next=eligible_for_separate_write_approval`. This **did not modify** OpenClaw. Live watcher session `822263c5` confirmed the prior self-update reloaded.
+
+A new **known but not ordinarily authorized** fixed task `openclaw-ollama-provision` exists. It requires the Mac foreground launcher to have been started with the **separate explicit** `--enable-openclaw-provision` flag (not included in previous launcher flags). Its only mutating scope is `models.providers.ollama`, pointed at the verified native Ollama `http://127.0.0.1:11435`; it does NOT set `main`'s default model, create agents, change tool permissions, touch Chrome, open SSH, or upgrade services.
+
+On invocation, it rechecks OpenClaw config ownership/private mode, exact model inventory and absence of an existing provider/Agent conflict; calls `config.schema.lookup` for the exact subtree; fetches a current `config.get` hash with no existing Ollama subtree; privately backs up the original config as a new 0600 file under the validated LunaDrive project cache; then issues **one** `config.patch` with exact baseHash and `response: "summary"`. The patch adds only the native Ollama provider, `ollama-local` marker, and the **already installed** `gemma4:26b-a4b` and `gpt-oss:20b` model references. It checks the patch acknowledgment, reads back the provider with the existing read-only preflight, returns only an allowlisted `IOANT_OPENCLAW_OLLAMA_PROVISION` envelope, and stops without automatic retry if the result is ambiguous. The original config bytes, logs, credentials, hash and backup filename are never returned to ChatGPT.
+
+### Operator opt-in and lifecycle
+
+Updating the repository using the existing `project-update-verify` action can install the code without changing the current watcher's opt-in flags. Therefore the new `openclaw-ollama-provision` action remains **unavailable until the user explicitly stops and restarts the foreground launcher once** with `--enable-openclaw-provision`. Do not silently add that flag, reinterpret previous flag consent, send an unauthorized task, or claim the provider was installed merely because the code was deployed. After the opt-in restart, the assistant may issue one new three-field JSON task, inspect the result and then recheck the Web UI Models page. Repeated uncertain writes are prohibited.
+
+The next stage (live provider/model tool-call checks, independent `alice-ai` Agent with private workspace, shared skill deployment, permissions and channel binding) remains **not implemented and not authorized** by the provider registration flag. They require separate tested actions and approvals. Official config RPC contract: https://docs.openclaw.ai/gateway/configuration/config-rpc ; Ollama native API contract: https://docs.openclaw.ai/providers/ollama/configuration .

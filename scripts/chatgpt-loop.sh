@@ -12,6 +12,9 @@ fi
 if [[ " $* " == *" --enable-self-update "* ]]; then
   echo '[loop] Project self-update enabled: fixed origin/main, clean tree, candidate tests before fast-forward; no arbitrary commands.'
 fi
+if [[ " $* " == *" --enable-openclaw-provision "* ]]; then
+  echo '[loop] OpenClaw Ollama provisioning opt-in: fixed local provider only; private backup, revisioned Gateway config.patch, no main model or Agent writes.'
+fi
 if [[ " $* " == *" --enable-mint-diagnostics "* ]]; then
   [[ -n "${ALICE_SSH_TARGET:-}" ]] || { echo '[loop] Set ALICE_SSH_TARGET before enabling Mint read-only diagnostics' >&2; exit 2; }
   echo '[loop] Mint diagnostic identity only: no PID/command args from chat, no process termination, no sudo password automation.'

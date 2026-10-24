@@ -165,3 +165,7 @@ For a recurring ChatGPT discussion that asks you to update AliceAI, run Mint tes
 ## Multi-project OpenClaw Agents (configuration staged)
 
 The existing ChatGPT-to-Mac watcher is a separate bounded Stage-2 process, not an OpenClaw Web Agent. First-run multi-Agent onboarding is intentionally split: a **read-only** `openclaw-config-preflight` action can inspect the private OpenClaw config status, local Ollama provider and installed model names, and whether the `alice-ai` agent exists, without printing secrets or changing the running Gateway. Provider mutation, Agent creation, skill installation and permissions remain separate approvals. See [the onboarding and safety plan](docs/OPENCLAW_AGENT_SETUP.md), the [AliceAI workspace template](templates/openclaw/alice-ai/AGENTS.md), and [the shared remote-ops skill template](templates/openclaw/shared-skills/ioant-safe-remote-ops/SKILL.md).
+
+## Opt-in OpenClaw Ollama provisioning (separate approval)
+
+After the read-only OpenClaw config probe, a separately enabled fixed `openclaw-ollama-provision` action can add **only** the local native Ollama model provider at `127.0.0.1:11435`, with private prewrite backup and revisioned Gateway patch. This action is disabled unless the Mac operator starts the foreground watcher with `--enable-openclaw-provision`; simply pulling the new code does not enable it. It does not alter the `main` model, create project Agents or permit SSH/file transfers. See [OpenClaw multi-Agent setup](docs/OPENCLAW_AGENT_SETUP.md). 

@@ -2,6 +2,7 @@ import { aliceWitnessPreflight } from './alice-preflight.mjs';
 import { aliceLabStartupProbe } from './alice-lab-startup.mjs';
 import { mintBdsProcessIdentity } from './mint-diagnostics.mjs';
 import { mintBdsProcessLineage } from './mint-lineage.mjs';
+import {safeAudit} from './openclaw-ollama-provision.mjs';
 import { spawn } from 'node:child_process';
 import { summarizeTestEvidence,validTestEvidence } from './test-failure-evidence.mjs';
 import { resolve } from 'node:path';
@@ -39,6 +40,25 @@ export async function runAction(action, repoRoot, options={}) {
     if(options.enableMintDiagnostics!==true)
       return {status:'approval_required',reason:'Mint read-only identity checks require explicit --enable-mint-diagnostics.'};
     return mintBdsProcessIdentity({execute:executeStep,sshTarget:process.env.ALICE_SSH_TARGET});
+  }
+  if(action==='openclaw-ollama-provision'){
+    if(options.enableOpenClawProvision!==true)
+      return {status:'approval_required',reason:'OpenClaw provider write requires explicit --enable-openclaw-provision on the Mac foreground launcher.'};
+    const r=await runFixedPlan({bin:process.execPath,args:['stage2/openclaw-ollama-provision.mjs'],
+      cwd:resolve(repoRoot),timeout:120000});
+    let audit;
+    try{audit=JSON.parse((r.output??'').trim());}catch{}
+    if(!audit||audit.audit!=='IOANT_OPENCLAW_OLLAMA_PROVISION'||audit.schemaVersion!==1||
+       !['blocked','inconclusive','already_configured','applied'].includes(audit.state))
+      return {status:'inconclusive',reason:'Provisioning returned no valid status envelope.'};
+    const cleaned=safeAudit(audit.state,audit);
+    const applied=cleaned.state==='applied'&&cleaned.backup===true&&
+      cleaned.provider==='target'&&cleaned.runtimeAcknowledged===true&&
+      JSON.stringify(cleaned.models)==='["gemma4:26b-a4b","gpt-oss:20b"]';
+    const already=cleaned.state==='already_configured'&&cleaned.provider==='target';
+    return {status:r.status==='passed'&&(applied||already)?'passed':
+      cleaned.state==='inconclusive'?'inconclusive':'failed',
+      output:JSON.stringify(cleaned)};
   }
   if (action==='project-update-verify') {
     if(options.enableSelfUpdate!==true)
