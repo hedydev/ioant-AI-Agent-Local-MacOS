@@ -29,7 +29,7 @@ const readPageFunction=`() => {
   const users=Array.from(document.querySelectorAll('[data-message-author-role="user"]')).slice(-100)
     .map(el=>{
       const text=(el.innerText||'').trimStart();
-      const match=text.match(/^(Ioant Mac (?:local command feedback protocol ioant-mac-ops-v1|Alice witness workflow ioant-mac-ops-v1|Alice isolated 17880 startup probe ioant-mac-ops-v1)|\\[IOANT-MAC-OPS RESULT [a-zA-Z0-9_-]{4,80}\\])/);
+      const match=text.match(/^(Ioant Mac (?:local command feedback protocol ioant-mac-ops-v1|Alice witness workflow ioant-mac-ops-v1|Alice isolated 17880 startup probe ioant-mac-ops-v1|Mint read-only diagnostics ioant-mac-ops-v1)|\\[IOANT-MAC-OPS RESULT [a-zA-Z0-9_-]{4,80}\\])/);
       return match?.[1]??null;
     }).filter(Boolean);
   // ChatGPT has used both an id and a data-testid on its contenteditable composer.
@@ -49,7 +49,7 @@ const readPageFunction=`() => {
 }`;
 
 function argsOf(argv){
-  const out={mode:'watch',interval:15,url:null,initialize:false,enableAlicePreflight:false,enableAliceLabStartupProbe:false};
+  const out={mode:'watch',interval:15,url:null,initialize:false,enableAlicePreflight:false,enableAliceLabStartupProbe:false,enableMintDiagnostics:false};
   for(let i=0;i<argv.length;i++){
     if(argv[i]==='--once')out.mode='once';
     else if(argv[i]==='--watch')out.mode='watch';
@@ -57,6 +57,7 @@ function argsOf(argv){
     else if(argv[i]==='--initialize')out.initialize=true;
     else if(argv[i]==='--enable-alice-preflight')out.enableAlicePreflight=true;
     else if(argv[i]==='--enable-alice-lab-startup-probe')out.enableAliceLabStartupProbe=true;
+    else if(argv[i]==='--enable-mint-diagnostics')out.enableMintDiagnostics=true;
     else if(argv[i]==='--chat-url')out.url=validateChatUrl(argv[++i]??'');
     else if(argv[i]==='--interval'){out.interval=Number(argv[++i]); if(!Number.isInteger(out.interval)||out.interval<10||out.interval>3600)throw Error('--interval must be 10..3600 seconds');}
     else throw Error('Unknown flag: '+argv[i]);
@@ -186,6 +187,8 @@ async function writeReport(dir,task,result){
 
 const INIT=`Ioant Mac local command feedback protocol ${PROTOCOL}\n启用本地命令反馈。你可以讨论任何工作；只有需要本机自动执行安全检查时，才输出一个独立 JSON 代码块，字段必须恰好为 protocol、id、action。例如 {"protocol":"${PROTOCOL}","id":"test-001","action":"project-tests"}。可自动执行的 action 仅有 project-tests、project-status、project-head、environment-scan，作用于 ioant-AI-Agent-Local-MacOS 仓库。其他操作会被明确拒绝/要求审批。不要输出 shell 字符串、cwd、argv、密钥或敏感文件内容。收到以 [IOANT-MAC-OPS RESULT id] 开头的执行结果后再判断下一步，需要下一项检查就输出新的唯一 id；无任务就正常回答。不要重复先前 id。`;
 
+const INIT_MINT=`Ioant Mac Mint read-only diagnostics ioant-mac-ops-v1. 本对话已连接 Mac OpenClaw 受控执行器，用户授权对预先配置的 Linux Mint 做只读 BDS 17879/17880 进程归属排查，禁止停止或重启服务、修改世界、删除锁或重试实验服启动。若当前仍需要确认 17880 的进程身份，请只输出一个独立 JSON 代码块：{"protocol":"ioant-mac-ops-v1","id":"mint-唯一新任务编号","action":"mint-bds-process-identity"}。这项任务不接收 PID、host、shell、cwd、argv；由 Mac 使用本地固定 SSH 目标重新读取 ss，再核实 PID 的父进程、启动身份、可执行文件和工作目录，并与 17879 对比。如果 sudo -n 无权读取，执行器将返回 approval_required，绝不自动输入密码或改变 sudoers。收到 [IOANT-MAC-OPS RESULT id] 后根据脱敏 JSON 继续分析。若不需要检查就正常回复，不要制造重复任务。`;
+
 const INIT_ALICE=`Ioant Mac Alice witness workflow ioant-mac-ops-v1. 当前对话已连接你的 Mac 安全执行器。请先查看本对话上一条等待用户执行的命令：若正是 AliceAI 的 witness-preflight 预检，就立即输出唯一任务编号开始执行；如果不是，正常回答且不要自动执行其他操作。在需要执行 AliceAI 预检时，请只输出一个独立 JSON 代码块：{"protocol":"ioant-mac-ops-v1","id":"alice-唯一新任务编号","action":"alice-witness-preflight"}。此动作由 Mac 使用预先固定的仓库路径与本机配置的 SSH 目标，依次执行 Git fetch/ff-only pull、alice-mac.sh sync（内含本地/Mint 测试）、witness-preflight，只在所有步骤成功后读取本次新生成 schemaVersion 2 的 JSON 报告。失败会直接把错误反馈回来，不需要让我重复复制命令、寻找桌面文件或发送报告。收到 [IOANT-MAC-OPS RESULT id] 及原始失败摘要或经过校验的 JSON 后，先分析/修复，然后再输出新的唯一任务编号；不要重复上一任务。不要要求执行任意 shell、deploy/restart、改世界、安装行为包、管理账号或绕过 BDS 门禁。除这个固定工作流及原有四项本地检查外，其他操作都需要另行明确授权。`;
 
 const INIT_LAB=`Ioant Mac Alice isolated 17880 startup probe ioant-mac-ops-v1. 用户已批准将当前待执行的 AliceAI witness-lab-startup-probe 纳入单独授权的自动流程；这不是 17879 生产服 witness-preflight，也不是授权其他实验操作。如果当前仍需要进行隔离实验 BDS 17880 启动验收，请只输出一个独立 JSON 代码块：{"protocol":"ioant-mac-ops-v1","id":"alice-lab-唯一新任务编号","action":"alice-lab-startup-probe"}。Mac 执行器只有在启动参数明确包含 --enable-alice-lab-startup-probe 且 ALICE_SSH_TARGET 已设置时，才会对固定 Alice 仓库做原点/main/干净工作区检查、fetch/ff-only pull、sync 及 Mint 测试、17880 启动前检查，并在通过后仅尝试一次 17880 隔离 BDS 启动与正常停止。17879 生产服、生产世界、玩家账号及 BDS 运行配置不得改变。任何 sudo 密码提示、进程身份不明、失败、超时或无法确认关闭时，都停止并报告，不要重复探测。看到 [IOANT-MAC-OPS RESULT id] 后基于报告分析；若没有可信的关闭证据，先请求人工检查，不能发新的探测编号。禁止要求任意 shell、远程重启、安装行为包或绕过检查。`;
@@ -205,6 +208,7 @@ async function main(){
     throw Error('Run through scripts/dev-env.sh exec, with explicitly verified development volume and PROJECT_DEV_CACHE');
   if(opts.enableAlicePreflight && !process.env.ALICE_SSH_TARGET) throw Error('Provide ALICE_SSH_TARGET on the Mac before --enable-alice-preflight');
   if(opts.enableAliceLabStartupProbe && !process.env.ALICE_SSH_TARGET) throw Error('Provide ALICE_SSH_TARGET on the Mac before --enable-alice-lab-startup-probe');
+  if(opts.enableMintDiagnostics && !process.env.ALICE_SSH_TARGET) throw Error('Provide ALICE_SSH_TARGET on the Mac before --enable-mint-diagnostics');
   const workDir=join(store,'chatgpt-loop',chatKey(opts.url));
   await mkdir(workDir,{recursive:true,mode:0o700});
   const unlock=await acquireConversationLock(workDir);
@@ -216,7 +220,7 @@ async function main(){
   process.on('SIGTERM',()=>{stopping=true;console.log('[loop] Stop requested; finishing current operation.');});
   let state,previousFingerprint='',stable=0,lastVisibleStatus='';
   console.log('[loop] Tracking only: '+opts.url);
-  console.log('[loop] Actions: project-tests / project-status / project-head / environment-scan'+(opts.enableAlicePreflight?' / alice-witness-preflight (scoped Mint sync)':'')+(opts.enableAliceLabStartupProbe?' / alice-lab-startup-probe (one-shot 17880 only)':'')+'. Ctrl-C stops.');
+  console.log('[loop] Actions: project-tests / project-status / project-head / environment-scan'+(opts.enableAlicePreflight?' / alice-witness-preflight (scoped Mint sync)':'')+(opts.enableAliceLabStartupProbe?' / alice-lab-startup-probe (one-shot 17880 only)':'')+(opts.enableMintDiagnostics?' / mint-bds-process-identity (read-only, fixed SSH target)':'')+'. Ctrl-C stops.');
   try{
     recordDiagnosticEvent('worker_start',{mode:opts.mode,profile});
     state=await loadState(stateFile); // Must be within finally so a read failure does not leak lock.
@@ -263,6 +267,7 @@ async function main(){
     // user-role prefix receipt returned by the DOM reader.
     const initMeta={
       basic:{key:'initSent',receipt:'Ioant Mac local command feedback protocol '+PROTOCOL,content:INIT},
+      mint:{key:'mintInitSent',receipt:'Ioant Mac Mint read-only diagnostics ioant-mac-ops-v1',content:INIT_MINT},
       alice:{key:'aliceInitSent',receipt:'Ioant Mac Alice witness workflow ioant-mac-ops-v1',content:INIT_ALICE},
       lab:{key:'labInitSent',receipt:'Ioant Mac Alice isolated 17880 startup probe ioant-mac-ops-v1',content:INIT_LAB}
     };
@@ -309,7 +314,7 @@ async function main(){
       console.log('[loop] '+kind+' initialization confirmed in selected ChatGPT conversation.');
     }
     if(opts.initialize) {
-      await ensureInitialization(opts.enableAliceLabStartupProbe?'lab':opts.enableAlicePreflight?'alice':'basic');
+      await ensureInitialization(opts.enableAliceLabStartupProbe?'lab':opts.enableMintDiagnostics?'mint':opts.enableAlicePreflight?'alice':'basic');
     }
     do {
       if(stopping)break;
@@ -344,7 +349,8 @@ async function main(){
         if(stable>=2){
           const task=a.task;
           const authorized=task.authorized || (task.action==='alice-witness-preflight' && opts.enableAlicePreflight)
-            || (task.action==='alice-lab-startup-probe' && opts.enableAliceLabStartupProbe);
+            || (task.action==='alice-lab-startup-probe' && opts.enableAliceLabStartupProbe)
+            || (task.action==='mint-bds-process-identity' && opts.enableMintDiagnostics);
           recordDiagnosticEvent('task_seen',{taskId:task.id,action:task.known?task.action:'unknown'});
           recordDiagnosticEvent('action_started',{taskId:task.id,action:task.known?task.action:'unknown'});
           let result;
@@ -364,7 +370,7 @@ async function main(){
               result=await runAction(task.action,ROOT,{enableAliceLabStartupProbe:true});
             }
           }else{
-            result=await runAction(task.action,ROOT,{enableAlicePreflight:opts.enableAlicePreflight});
+            result=await runAction(task.action,ROOT,{enableAlicePreflight:opts.enableAlicePreflight,enableMintDiagnostics:opts.enableMintDiagnostics});
           }
           recordDiagnosticEvent('action_finished',{taskId:task.id,action:task.known?task.action:'unknown',status:result.status,...(Number.isInteger(result.exitCode)?{exitCode:result.exitCode}:{}),...(Number.isInteger(result.elapsedMs)?{elapsedMs:result.elapsedMs}:{})});
           await writeReport(workDir,task,result);

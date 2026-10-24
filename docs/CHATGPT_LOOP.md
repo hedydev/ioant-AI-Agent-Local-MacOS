@@ -322,3 +322,27 @@ bash scripts/chatgpt-loop.sh \
 ```
 
 Use `bash scripts/chatgpt-loop-logs.sh tail` and `... bundle` for private event-only diagnostics. The new one-shot claim is recorded as `lab_probe_claimed`; never infer execution from an initialization receipt alone. **Real Mac Node-suite pass, sudo readiness, real Mint 17880 start/stop and ChatGPT round-trip are NOT YET VERIFIED.** No existing Alice source code, BDS world or Mint process was modified in this integration commit.
+
+
+## 2026-10-24 — Opt-in read-only Mint BDS process identity (Stage-2)
+
+The new **`mint-bds-process-identity`** action adds a reusable fixed-diagnostic pattern to the existing same-chat feedback loop. It is *not* in the default automatic allowlist: the operator must launch the exact authorized conversation with `--enable-mint-diagnostics` and locally set `ALICE_SSH_TARGET`. The ChatGPT protocol remains three exact fields (`protocol`, `id`, `action`); the assistant cannot specify a PID, host, shell command, path or argv. The foreground worker sends a bounded read-only JSON result to the same conversation, which may issue a distinct next task ID. This action does not automatically run on startup merely because a port was previously blocked; `--initialize` requests a decision from the selected ChatGPT conversation.
+
+The fixed command plan queries UDP 17879/17880/17881 using `sudo -n /usr/bin/ss` (no password prompt), selects a unique **fresh** 17880 `bedrock_server` PID, checks `ps` process metadata and `/proc/PID/cwd` and `/proc/PID/exe` with fixed `sudo -n /usr/bin/readlink`, then rechecks process birth and socket PID. Reports only bounded PID, parent PID, birth hash, process name, classification (`production_port_owner`, `production_directory`, `isolated_lab_directory`, `other_or_unverified_directory`), and production-port relation. No raw socket text, full paths, process argv or credential strings are returned to ChatGPT. PID changes, missing visibility, unexpected executable and ambiguous results never count as proof. This is point-in-time identity evidence, **not** authority to kill anything or retry a one-shot lab probe.
+
+If `sudo -n` is not permitted in this noninteractive SSH context, the result is `approval_required` with no password entry, no sudoers modification and no fallback to privileged scripting. Previous interactive sudo validation is NOT proof that noninteractive SSH has cached credentials. A least-privilege Mint configuration would require a separate review and operator approval; do not request password sharing.
+
+**Mac Terminal, selected ChatGPT conversation must already be available in the approved OpenClaw Chrome relay:**
+
+```bash
+REPO="$HOME/Documents/workspace/ioant-AI-Agent-Local-MacOS"
+cd "$REPO"
+git fetch origin main && git pull --ff-only origin main
+bash scripts/dev-env.sh exec node --test
+IOANT_CHATGPT_BROWSER_PROFILE=chrome ALICE_SSH_TARGET='tedz@192.168.0.104' \
+  bash scripts/chatgpt-loop.sh \
+  --chat-url 'PASTE_THE_EXACT_SELECTED_CHATGPT_CONVERSATION_URL' \
+  --initialize --enable-mint-diagnostics --watch
+```
+
+Do not copy the literal placeholder URL; use the conversation already authorized in the browser. `Ctrl-C` stops only this watcher and its owned temporary Gateway. It does not restart Chrome, BDS, Alice, MCSManager, VPN or the production 17879 world. Tests added under `test/mint-diagnostics.test.mjs` exercise live-PID rediscovery, production collision classification, invalid SSH targets, missing owner, sudo refusal, mid-sample PID churn, restricted port parsing and explicit protocol authorization. **Only isolated local mock tests have run so far; real Mac/Gateway/SSH/sudo and same-chat roundtrip remain unverified.**

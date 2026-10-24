@@ -9,6 +9,10 @@ if [[ " $* " == *" --enable-alice-preflight " ]]; then
   echo '[loop] Alice workflow explicitly enabled: fetch/ff-only pull + non-destructive Mint sync + read-only witness preflight.'
   echo '[loop] No BDS restart or world-pack install actions are authorized.'
 fi
+if [[ " $* " == *" --enable-mint-diagnostics "* ]]; then
+  [[ -n "${ALICE_SSH_TARGET:-}" ]] || { echo '[loop] Set ALICE_SSH_TARGET before enabling Mint read-only diagnostics' >&2; exit 2; }
+  echo '[loop] Mint diagnostic identity only: no PID/command args from chat, no process termination, no sudo password automation.'
+fi
 if [[ " $* " == *" --enable-alice-lab-startup-probe "* ]]; then
   [[ -n "${ALICE_SSH_TARGET:-}" ]] || { echo '[loop] Set ALICE_SSH_TARGET locally before explicitly enabling 17880 lab startup.' >&2; exit 2; }
   echo '[loop] Explicit 17880-only LAB authorization enabled: guarded Alice sync, readiness check, single startup probe.'
