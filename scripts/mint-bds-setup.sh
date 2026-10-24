@@ -16,7 +16,17 @@ fixed=/usr/local/libexec/ioant/mint-bds-diagnostics.py
 rule=/etc/sudoers.d/ioant-mint-bds-readonly
 [[ ! -L /usr/local/libexec && ! -L /usr/local/libexec/ioant ]] || { echo '[setup] Unexpected symlink' >&2; exit 2; }
 sudo install -d -o root -g root -m 0755 /usr/local/libexec/ioant
+# Any group/other-writable ancestor could let an unprivileged account
+# replace a root-owned script path. Refuse the entire privilege grant.
+for parent in /usr /usr/local /usr/local/libexec /usr/local/libexec/ioant; do
+  [[ ! -L "$parent" ]] || { echo '[setup] Symlink in helper parent chain' >&2; exit 2; }
+  owner_mode="$(sudo stat -c '%u:%a' "$parent")"
+  [[ "$owner_mode" =~ ^0:[0-7]{3,4}$ ]] || { echo '[setup] Helper parent not root-owned' >&2; exit 2; }
+  octal_mode="${owner_mode#*:}"
+  (( (8#$octal_mode & 0022) == 0 )) || { echo '[setup] Helper parent writable by non-root' >&2; exit 2; }
+done
 [[ "$(sudo stat -c '%u:%g:%a' /usr/local/libexec/ioant)" == '0:0:755' ]] || exit 2
+[[ ! -L "$fixed" && ! -L "$rule" ]] || { echo '[setup] Installed path is a symlink' >&2; exit 2; }
 if sudo test -e "$fixed"; then
   sudo cmp -s "$stage/helper.py" "$fixed" || { echo '[setup] Existing helper differs; refuse overwrite' >&2; exit 2; }
 else
