@@ -158,7 +158,10 @@ test('watch stores permanent one-shot 17880 claim before any execution, no doubl
  assert.match(src,/if\(state\.labProbeAttempted\)/);
  assert.match(src,/state\.labProbeAttempted=\{id:task\.id,at:new Date\(\)\.toISOString\(\)\}/);
  assert.match(src,/await atomicState\(stateFile,state\);\s*recordDiagnosticEvent\('lab_probe_claimed'/);
- assert.match(src,/const authorized=task\.authorized/);
+ assert.match(src,/const devBindingOk=isBoundDevDiscussion\(task\.action,opts\.devAgent\)/);
+ assert.match(src,/const authorized=\(task\.authorized&&\(!isDevDiscussion\|\|devBindingOk\)\) \|\|/);
+ // One-shot 17880 remains restricted to a *separate*, opt-in launcher flag.
+ assert.match(src,/task\.action==='alice-lab-startup-probe' && opts\.enableAliceLabStartupProbe/);
  assert.match(src,/task\.action==='alice-lab-startup-probe' && opts\.enableAliceLabStartupProbe/);
  assert.doesNotMatch(src,/alice-lab-startup-probe.*&& opts\.enableAlicePreflight/);
 });

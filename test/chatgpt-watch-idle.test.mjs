@@ -23,5 +23,11 @@ test('existing allowlisted execution remains gated by a structured task and two 
  assert.match(source,/const a=extractAction\(page\)/);
  assert.match(source,/if\(a\.status==='task'&&a\.task\.id!==state\.lastTaskId\)/);
  assert.match(source,/if\(stable>=2\)/);
- assert.match(source,/const authorized=task\.authorized \|\| \(task\.action==='alice-witness-preflight' && opts\.enableAlicePreflight\)/);
+ // AI advice is gated by the operator-selected Agent, not arbitrary ChatGPT text.
+ assert.match(source,/const isDevDiscussion=\['openclaw-alice-dev-discuss','openclaw-agent-dev-discuss'\]\.includes\(task\.action\)/);
+ assert.match(source,/const devBindingOk=isBoundDevDiscussion\(task\.action,opts\.devAgent\)/);
+ assert.match(source,/const authorized=\(task\.authorized&&\(!isDevDiscussion\|\|devBindingOk\)\) \|\|/);
+ assert.match(source,/task\.action==='alice-witness-preflight' && opts\.enableAlicePreflight/);
+ assert.match(source,/task\.action==='alice-lab-startup-probe' && opts\.enableAliceLabStartupProbe/);
+ assert.match(source,/task\.action==='project-update-verify' && opts\.enableSelfUpdate/);
 });
