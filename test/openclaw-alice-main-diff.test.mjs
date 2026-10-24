@@ -57,7 +57,8 @@ test('same exact data is equal; changed unknown property names remain hidden',()
 });
 test('additions, removals and missing main are distinguished',()=>{
  const d=summarizeMainDifference({name:'old',model:'a'},{model:'a',workspace:'NEW_SECRET'});
- assert.deepEqual(d.fields,[{field:'name',change:'removed'},{field:'workspace',change:'added'}]);
+ // Safety-critical workspace changes must precede display-only name changes.
+ assert.deepEqual(d.fields,[{field:'workspace',change:'added'},{field:'name',change:'removed'}]);
  assert.equal(summarizeMainDifference(null,{}).status,'missing_main');
 });
 test('private before image and active disk must be safely parsed and counted',async()=>{
