@@ -78,7 +78,7 @@ const readPageFunction=`() => {
 }`;
 
 function argsOf(argv){
-  const out={mode:'watch',interval:15,url:null,initialize:false,enableAlicePreflight:false,enableAliceLabStartupProbe:false,enableMintDiagnostics:false,enableSelfUpdate:false,enableOpenClawProvision:false};
+  const out={mode:'watch',interval:15,url:null,initialize:false,enableAlicePreflight:false,enableAliceLabStartupProbe:false,enableMintDiagnostics:false,enableSelfUpdate:false,enableOpenClawProvision:false,enableOpenClawAgentCreate:false};
   for(let i=0;i<argv.length;i++){
     if(argv[i]==='--once')out.mode='once';
     else if(argv[i]==='--watch')out.mode='watch';
@@ -89,6 +89,7 @@ function argsOf(argv){
     else if(argv[i]==='--enable-mint-diagnostics')out.enableMintDiagnostics=true;
     else if(argv[i]==='--enable-self-update')out.enableSelfUpdate=true;
     else if(argv[i]==='--enable-openclaw-provision')out.enableOpenClawProvision=true;
+    else if(argv[i]==='--enable-openclaw-agent-create')out.enableOpenClawAgentCreate=true;
     else if(argv[i]==='--chat-url')out.url=validateChatUrl(argv[++i]??'');
     else if(argv[i]==='--interval'){out.interval=Number(argv[++i]); if(!Number.isInteger(out.interval)||out.interval<10||out.interval>3600)throw Error('--interval must be 10..3600 seconds');}
     else throw Error('Unknown flag: '+argv[i]);
@@ -334,7 +335,8 @@ async function main(){
   console.log('[loop] Tracking only: '+opts.url);
   console.log('[loop] Actions: project-tests / project-status / project-head / environment-scan'+(opts.enableAlicePreflight?' / alice-witness-preflight (scoped Mint sync)':'')+(opts.enableAliceLabStartupProbe?' / alice-lab-startup-probe (one-shot 17880 only)':'')+(opts.enableMintDiagnostics?' / mint-bds-process-identity / mint-bds-process-lineage (read-only, fixed SSH target)':'')
     +(opts.enableSelfUpdate?' / project-update-verify (clean main, pretested fast-forward only)':'')
-    +(opts.enableOpenClawProvision?' / openclaw-ollama-provision (local model provider write only)':'')+'. Ctrl-C stops.');
+    +(opts.enableOpenClawProvision?' / openclaw-ollama-provision (local model provider write only)':'')
+    +(opts.enableOpenClawAgentCreate?' / openclaw-alice-create (private text-only Agent once)':'')+'. Ctrl-C stops.');
   try{
     recordDiagnosticEvent('worker_start',{mode:opts.mode,profile});
     state=await loadState(stateFile); // Must be within finally so a read failure does not leak lock.
@@ -471,7 +473,8 @@ async function main(){
             || (task.action==='alice-lab-startup-probe' && opts.enableAliceLabStartupProbe)
             || ((task.action==='mint-bds-process-identity'||task.action==='mint-bds-process-lineage') && opts.enableMintDiagnostics)
             || (task.action==='project-update-verify' && opts.enableSelfUpdate)
-            || (task.action==='openclaw-ollama-provision' && opts.enableOpenClawProvision);
+            || (task.action==='openclaw-ollama-provision' && opts.enableOpenClawProvision)
+            || (task.action==='openclaw-alice-create' && opts.enableOpenClawAgentCreate);
           recordDiagnosticEvent('task_seen',{taskId:task.id,action:task.known?task.action:'unknown'});
           recordDiagnosticEvent('action_started',{taskId:task.id,action:task.known?task.action:'unknown'});
           let result;
@@ -492,7 +495,8 @@ async function main(){
             }
           }else{
             result=await runAction(task.action,ROOT,{enableAlicePreflight:opts.enableAlicePreflight,enableMintDiagnostics:opts.enableMintDiagnostics,
-              enableSelfUpdate:opts.enableSelfUpdate,enableOpenClawProvision:opts.enableOpenClawProvision});
+              enableSelfUpdate:opts.enableSelfUpdate,enableOpenClawProvision:opts.enableOpenClawProvision,
+              enableOpenClawAgentCreate:opts.enableOpenClawAgentCreate});
           }
           recordDiagnosticEvent('action_finished',{taskId:task.id,action:task.known?task.action:'unknown',status:result.status,...(Number.isInteger(result.exitCode)?{exitCode:result.exitCode}:{}),...(Number.isInteger(result.elapsedMs)?{elapsedMs:result.elapsedMs}:{})});
           await writeReport(workDir,task,result);

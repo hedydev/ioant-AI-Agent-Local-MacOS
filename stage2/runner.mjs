@@ -67,6 +67,30 @@ export async function runAction(action, repoRoot, options={}) {
       cleaned.state==='inconclusive'?'inconclusive':'failed',
       output:JSON.stringify(cleaned)};
   }
+  if(action==='openclaw-alice-create'){
+    if(options.enableOpenClawAgentCreate!==true)
+      return {status:'approval_required',reason:'Alice Agent creation requires separate explicit --enable-openclaw-agent-create launcher opt-in.'};
+    const run=await runFixedPlan({bin:process.execPath,args:['stage2/openclaw-alice-create.mjs'],
+      cwd:resolve(repoRoot),timeout:150000});
+    let doc;try{doc=JSON.parse((run.output??'').trim());}catch{}
+    if(!doc||doc.audit!=='IOANT_OPENCLAW_ALICE_CREATE'||doc.schemaVersion!==1||
+       !['blocked','inconclusive','applied'].includes(doc.state))
+      return {status:'inconclusive',reason:'Agent creation returned no valid bounded audit.'};
+    const safe={audit:doc.audit,schemaVersion:1,state:doc.state};
+    if(typeof doc.backup==='boolean')safe.backup=doc.backup;
+    if(typeof doc.workspace==='boolean')safe.workspace=doc.workspace;
+    if(doc.agent==='alice-ai')safe.agent='alice-ai';
+    if(doc.model==='ollama/gemma4:26b-a4b')safe.model=doc.model;
+    if(doc.mainPreserved===true)safe.mainPreserved=true;
+    if(doc.runtimeAcknowledged===true)safe.runtimeAcknowledged=true;
+    if(typeof doc.note==='string'&&/^[a-z_]{3,80}$/.test(doc.note))safe.note=doc.note;
+    const passed=run.status==='passed'&&doc.state==='applied'&&safe.backup===true&&
+      safe.workspace===true&&safe.agent==='alice-ai'&&
+      safe.model==='ollama/gemma4:26b-a4b'&&
+      safe.mainPreserved===true&&safe.runtimeAcknowledged===true;
+    return {status:passed?'passed':doc.state==='inconclusive'?'inconclusive':'failed',
+      output:JSON.stringify(safe)};
+  }
   if (action==='project-update-verify') {
     if(options.enableSelfUpdate!==true)
       return {status:'approval_required',reason:'Self-update requires the separate --enable-self-update Mac launcher flag.'};
