@@ -3,6 +3,7 @@ import { aliceLabStartupProbe } from './alice-lab-startup.mjs';
 import { mintBdsProcessIdentity } from './mint-diagnostics.mjs';
 import { mintBdsProcessLineage } from './mint-lineage.mjs';
 import { spawn } from 'node:child_process';
+import { summarizeTestEvidence,validTestEvidence } from './test-failure-evidence.mjs';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
@@ -48,9 +49,12 @@ export async function runAction(action, repoRoot, options={}) {
     if(!audit||audit.audit!=='IOANT_PROJECT_SELF_UPDATE'||audit.schemaVersion!==1||
       !['updated','up_to_date','blocked'].includes(audit.state))
       return {status:'inconclusive',reason:'Updater returned no valid, bounded audit.'};
-    if(audit.state==='blocked')
+    if(audit.state==='blocked'){
+      const details=validTestEvidence(audit.testEvidence)?audit.testEvidence:null;
       return {status:'failed',reason:'Safe update declined: '+String(audit.reason??'unknown').slice(0,64),
-        output:JSON.stringify({audit:audit.audit,state:'blocked',reason:audit.reason})};
+        output:JSON.stringify({audit:audit.audit,state:'blocked',reason:audit.reason,
+          ...(details?{testEvidence:details}:{})})};
+    }
     const sha=/^[0-9a-f]{40}$/;
     if(r.status!=='passed'||!sha.test(audit.from)||!sha.test(audit.to)||
       typeof audit.updated!=='boolean'||typeof audit.reloadRequired!=='boolean'||
@@ -74,7 +78,14 @@ async function runFixedPlan(plan) {
   const start=performance.now();
   return new Promise(resolveResult=>{
     let output='',finished=false,timedOut=false;
-    const done=(result)=>{if(!finished){finished=true;resolveResult({...result,elapsedMs:Math.round(performance.now()-start),output})}};
+    const isProjectTests=plan.bin===process.execPath&&plan.args?.length===1&&plan.args[0]==='--test';
+    const done=(result)=>{
+      if(!finished){
+        finished=true;
+        resolveResult({...result,elapsedMs:Math.round(performance.now()-start),
+          output:isProjectTests?JSON.stringify(summarizeTestEvidence(output)):output});
+      }
+    };
     const env={...process.env,...(plan.env??{})};
     // Child jobs must never inherit browser Gateway credentials.
     delete env.OPENCLAW_GATEWAY_TOKEN;
@@ -83,7 +94,7 @@ async function runFixedPlan(plan) {
     delete env.NODE_TEST_CONTEXT; // Do not turn nested project tests into recursive Node test-runner skips.
     const p=spawn(plan.bin,plan.args,{cwd:plan.cwd,env,shell:false,stdio:['ignore','pipe','pipe']});
     const timer=setTimeout(()=>{timedOut=true;p.kill('SIGTERM')},plan.timeout);
-    const collect=chunk=>{output=(output+chunk.toString('utf8')).slice(-OUTPUT_LIMIT)}; // Keep final test summaries, not megabytes of raw logs.
+    const collect=chunk=>{output=(output+chunk.toString('utf8')).slice(-(isProjectTests?128*1024:OUTPUT_LIMIT))}; // Only a bounded test buffer is parsed; private assertion values are never forwarded.
     p.stdout.on('data',collect);p.stderr.on('data',collect);
     p.on('error',err=>{clearTimeout(timer);done({status:'execution_error',reason:err.code||'spawn_failure'})});
     p.on('close',code=>{clearTimeout(timer);done({status:timedOut?'timed_out':code===0?'passed':'failed',exitCode:code??-1})});

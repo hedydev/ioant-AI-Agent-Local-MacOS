@@ -4,6 +4,7 @@
 // Candidate revision is extracted into private LunaDrive storage and tested
 // before Git fast-forward. Feedback MUST be confirmed before watcher restarts.
 import {spawn} from 'node:child_process';
+import {summarizeTestEvidence,validTestEvidence} from './test-failure-evidence.mjs';
 import {mkdtemp,rm,mkdir,lstat} from 'node:fs/promises';
 import {join,resolve,dirname,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -142,7 +143,9 @@ export async function verifyProjectUpdate({cache=process.env.PROJECT_DEV_CACHE,v
   if(!await archiveCandidate(sha,temp))throw Error('candidate_archive_failed');
   const test=await command(process.execPath,['--test'],{
    cwd:temp,timeout:TIMEOUT.tests,env:privateTestEnv()});
-  if(!test.ok)throw Error('candidate_tests_failed');
+  if(!test.ok)throw Object.assign(Error('candidate_tests_failed'),{
+   testEvidence:summarizeTestEvidence(test.stdout)
+  });
   const summary=summarizeTests(test.stdout);
   const still=await requireCleanMain();
   if(still!==original)throw Error('local_head_changed_during_testing');
@@ -173,7 +176,9 @@ async function main(){
    'candidate_archive_failed','candidate_tests_failed','test_summary_unverified',
    'local_head_changed_during_testing','remote_ref_changed_during_testing',
    'fast_forward_pull_failed','unexpected_post_pull_head']);
-  emit({state:'blocked',reason:allowed.has(reason)?reason:'unexpected'},1);
+  emit({state:'blocked',reason:allowed.has(reason)?reason:'unexpected',
+   ...(reason==='candidate_tests_failed'&&validTestEvidence(e?.testEvidence)?
+     {testEvidence:e.testEvidence}:{})},1);
  }
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){

@@ -87,7 +87,7 @@ test('self-update code enforces exact origin/main + two-phase test gate',()=>{
  assert.match(script,/git\('pull','--ff-only','origin','main'\)/);
  assert.match(script,/status','--porcelain=v1','--untracked-files=all'/);
  assert.match(script,/archiveCandidate\(sha,temp\)/);
- assert.match(script,/if\(!test\.ok\)throw Error\('candidate_tests_failed'\)/);
+ assert.match(script,/if\(!test\.ok\)throw Object\.assign\(Error\('candidate_tests_failed'\)/);
  assert.match(script,/if\(applied!==sha\)throw Error\('unexpected_post_pull_head'\)/);
  assert.match(script,/await rm\(temp,\{recursive:true,force:true\}\)/);
  assert.doesNotMatch(script,/shell:true|npm install|curl|wget/);
