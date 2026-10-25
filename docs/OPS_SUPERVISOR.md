@@ -91,3 +91,10 @@ After full candidate Mac tests pass, perform exactly one local migration:
       bash scripts/dev-env.sh exec node stage2/ops-supervisor.mjs status
 
 Note: shell continuation formatting should be used in the terminal, not copied with Markdown indentation. If a step is blocked do not force delete the existing plist, Git runtime or task locks. Real Mac test-gated candidate, first runtime process PID, Gateway/browser health and GUI-readonly response remain UNVERIFIED as of this Git-only fix. If status remains stopped inspect LOCAL launchd stderr; if running, then issue a new read-only GUI probe rather than assuming end-to-end success.
+
+
+## Candidate test/archive path regression (2026-10-25)
+
+The Mac's candidate test gate rejected the first private-runtime release at `test/ops-runtime-isolation.test.mjs:25` (340/341 passed). The issue was a test/reconstruction path mismatch: the old LaunchAgent's Documents script path was previously reconstructed from module-relative `ROOT`. During pre-merge tests `ROOT` points to the updater's isolated LunaDrive candidate directory, not the fixed historical source checkout. The old exact-match plist must always reconstruct from `~/Documents/workspace/ioant-AI-Agent-Local-MacOS`, independent of where the candidate runs.
+
+The fix uses a fixed, explicit `LEGACY_REPO` under the operator's home only for recognized legacy service templates; the current LaunchAgent continues to use private Application Support runtime. Unit tests now enforce the separation and refuse arbitrary legacy variants. Do not skip the macOS candidate test gate or attempt install until all tests pass.

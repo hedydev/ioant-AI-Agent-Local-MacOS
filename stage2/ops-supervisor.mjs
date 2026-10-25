@@ -84,7 +84,10 @@ function pinnedNodeDir(plist){
 const LAUNCH_FLAGS=['--chat-url',TARGET,'--enable-self-update',
  '--enable-gui-readonly','--dev-agent','openclaw-dev','--watch'];
 const ARGS=['/bin/bash',join(RUNTIME,'scripts','chatgpt-loop.sh'),...LAUNCH_FLAGS];
-const LEGACY_ARGS=['/bin/bash',join(ROOT,'scripts','chatgpt-loop.sh'),...LAUNCH_FLAGS];
+// Legacy service was installed only from the fixed operator checkout, not
+// from the test-gated candidate archive or the new isolated runtime.
+const LEGACY_REPO=join(HOME,'Documents','workspace','ioant-AI-Agent-Local-MacOS');
+const LEGACY_ARGS=['/bin/bash',join(LEGACY_REPO,'scripts','chatgpt-loop.sh'),...LAUNCH_FLAGS];
 const xml=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
 const owned=s=>typeof process.getuid!=='function'||s.uid===process.getuid();

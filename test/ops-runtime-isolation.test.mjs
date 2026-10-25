@@ -28,6 +28,11 @@ test('old Documents launchd configurations remain recognized only as exact templ
  const oldScript=home+'/Documents/workspace/ioant-AI-Agent-Local-MacOS/scripts/chatgpt-loop.sh';
  assert.ok(legacy.includes(oldScript));
  assert.ok(older.includes(oldScript));
+ // The updater runs all tests inside a temporary candidate archive, not
+ // inside Documents. The legacy plist must still target the ORIGINAL checkout.
+ assert.match(supervisor,/const LEGACY_REPO=join\(HOME,'Documents','workspace','ioant-AI-Agent-Local-MacOS'\)/);
+ assert.match(supervisor,/const LEGACY_ARGS=\['\/bin\/bash',join\(LEGACY_REPO,'scripts','chatgpt-loop.sh'\),\.\.\.LAUNCH_FLAGS\]/);
+ assert.doesNotMatch(supervisor,/const LEGACY_ARGS=\['\/bin\/bash',join\(ROOT,'scripts'/);
  assert.equal(installedPlistKind(legacy),'legacy_document_local');
  assert.equal(installedPlistKind(older),'legacy_external');
  assert.equal(installedPlistKind(legacy.replace('openclaw-dev','main')),null);
