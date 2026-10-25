@@ -5,7 +5,7 @@ import {resolve} from 'node:path';
 import {actionFromJson} from '../stage2/protocol.mjs';
 import {runAction} from '../stage2/runner.mjs';
 import {agentPolicy,verifyBoundAgentConfig} from '../stage2/development-agent-route.mjs';
-import {devPatch,compatibleDevRoster,verifyDevCreated,createOpenClawDev,inspectDevTarget}
+import {devPatch,compatibleDevRoster,verifyDevCreated,createOpenClawDev,inspectDevTarget,inspectDevBackupCache}
  from '../stage2/openclaw-dev-create.mjs';
 
 const HASH='W/"fixed-private-revision-2026"';
@@ -177,4 +177,18 @@ test('preparation refuses symlinked or pre-existing target and never creates it'
  const existing=async()=>({isDirectory:()=>true,isSymbolicLink:()=>false,mode:0o40700,uid:process.getuid?.()??0});
  assert.equal(await inspectDevTarget({stat:existing,canonical:async x=>x}),'target_exists');
  assert.equal(await inspectDevTarget({stat:safeStat,canonical:async x=>x===base?'/other':x}),'unsafe_parent');
+});
+
+test('shared cache may be readable but not writable by other users',async()=>{
+ const uid=typeof process.getuid==='function'?process.getuid():501;
+ const stat=async()=>({uid,mode:0o40755,isDirectory:()=>true,isSymbolicLink:()=>false});
+ const options={stat,canonical:async p=>p,uid};
+ assert.equal(await inspectDevBackupCache(options),'safe');
+ assert.equal(await inspectDevBackupCache({...options,stat:async()=>({...await stat(),mode:0o40700})}),'safe');
+ assert.equal(await inspectDevBackupCache({...options,stat:async()=>({...await stat(),mode:0o40775})}),'cache_other_write');
+ assert.equal(await inspectDevBackupCache({...options,stat:async()=>({...await stat(),mode:0o40757})}),'cache_other_write');
+ assert.equal(await inspectDevBackupCache({...options,stat:async()=>({...await stat(),uid:uid+1})}),'cache_owner_mismatch');
+ assert.equal(await inspectDevBackupCache({...options,stat:async()=>({...await stat(),isSymbolicLink:()=>true})}),'cache_not_plain_directory');
+ assert.equal(await inspectDevBackupCache({...options,canonical:async p=>p.endsWith('DeveloperCache')?'/redirect':p}),'cache_redirected');
+ assert.equal(await inspectDevBackupCache({...options,canonical:async p=>p==='/Volumes/LunaDrive'?'/other':p}),'volume_redirected');
 });

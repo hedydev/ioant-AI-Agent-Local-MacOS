@@ -26,6 +26,20 @@ const dirSafe=s=>s.isDirectory()&&!s.isSymbolicLink()&&(s.mode&0o077)===0&&
  (typeof process.getuid!=='function'||s.uid===process.getuid());
 const fileSafe=s=>s.isFile()&&!s.isSymbolicLink()&&(s.mode&0o077)===0&&
  s.size<=MAX&&(typeof process.getuid!=='function'||s.uid===process.getuid());
+// The shared DeveloperCache parent need not deny all READ permissions.
+// Its owner, canonical path and write protection remain mandatory;
+// the dedicated backup subdirectory and backup files still require 0700/0600.
+export async function inspectDevBackupCache({stat=lstat,canonical=realpath,uid=process.getuid?.()}={}){
+ try{
+  if(await canonical(VOLUME)!==VOLUME)return 'volume_redirected';
+  if(await canonical(CACHE)!==CACHE)return 'cache_redirected';
+  const c=await stat(CACHE);
+  if(!c.isDirectory()||c.isSymbolicLink())return 'cache_not_plain_directory';
+  if(typeof uid==='number'&&c.uid!==uid)return 'cache_owner_mismatch';
+  if((c.mode&0o022)!==0)return 'cache_other_write';
+  return 'safe';
+ }catch{return 'path_unavailable'}
+}
 const noteSafe=n=>typeof n==='string'&&/^[a-z_]{3,80}$/.test(n);
 const status=(state,extra={})=>{
  const out={audit:AUDIT,schemaVersion:1,state};
@@ -89,8 +103,7 @@ export async function inspectDevTarget({stat=lstat,canonical=realpath}={}){
 export async function privateDevBackup(){
  const file=await lstat(CONFIG);
  if(!fileSafe(file))throw Error('unsafe_config_file');
- if(await realpath(VOLUME)!==VOLUME||await realpath(CACHE)!==CACHE||
-    !dirSafe(await lstat(CACHE)))throw Error('unsafe_backup_cache');
+ if(await inspectDevBackupCache()!=='safe')throw Error('unsafe_backup_cache');
  const backupDir=join(CACHE,'openclaw-agent-backups');
  try{await mkdir(backupDir,{mode:0o700})}catch(e){if(e?.code!=='EEXIST')throw e}
  if(await realpath(backupDir)!==backupDir||!dirSafe(await lstat(backupDir)))

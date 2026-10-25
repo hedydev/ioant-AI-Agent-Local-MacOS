@@ -18,7 +18,7 @@ const rpcResponse=()=>{
 const opts={preflight:async()=>({config:'regular_private',ollama:'reachable',
  provider:'target',agents:'present',installed:['gemma4:26b-a4b','gpt-oss:20b']}),
  rpc:async()=>rpcResponse(),workspace:async()=> 'missing_target_safe_parent',
- aliceWorkspace:async()=> 'present_private'};
+ aliceWorkspace:async()=> 'present_private',backupCache:async()=> 'safe'};
 test('read-only Mac preflight is a safe structured auto action',()=>{
  const task=actionFromJson(JSON.stringify({protocol:'ioant-mac-ops-v1',
   id:'dev-preflight-20261025-1',action:'openclaw-dev-preflight'}));
@@ -43,6 +43,12 @@ test('target existing or unsafe Alice roster must refuse preflight, no write',as
   assert.equal(d.state,'blocked');assert.equal(d.configWrite,false);
   assert.doesNotMatch(JSON.stringify(d),/private/);
  }
+});
+test('backup cache must be safe before a ready preflight is issued',async()=>{
+ const status=await preflightDev({...opts,backupCache:async()=> 'cache_other_write'});
+ assert.equal(status.state,'blocked');
+ assert.equal(status.reason,'cache_other_write');
+ assert.equal(status.configWrite,false);
 });
 test('unavailable Mac live snapshot is inconclusive, never ready',async()=>{
  const d=await preflightDev({...opts,rpc:async()=>{throw Error('Bearer secret')}});

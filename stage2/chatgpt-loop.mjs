@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { PROTOCOL, validateChatUrl, chatKey, extractAction, responseForTask, redactFeedback } from './protocol.mjs';
 import { runAction } from './runner.mjs';
 import { reserveDevDiscussion } from './dev-discussion-claim.mjs';
+import { reconcilePrewrite } from './openclaw-dev-prewrite-reconcile.mjs';
 import { tabVisibility } from './tab-visibility.mjs';
 import { isBoundDevDiscussion } from './development-agent-route.mjs';
 import { recordDiagnosticEvent, diagnosticCode } from './diagnostic-log.mjs';
@@ -350,7 +351,7 @@ async function main(){
   console.log('[loop] Actions: project-tests / project-status / project-head / environment-scan'+(opts.enableAlicePreflight?' / alice-witness-preflight (scoped Mint sync)':'')+(opts.enableAliceLabStartupProbe?' / alice-lab-startup-probe (one-shot 17880 only)':'')+(opts.enableMintDiagnostics?' / mint-bds-process-identity / mint-bds-process-lineage (read-only, fixed SSH target)':'')
     +(opts.enableSelfUpdate?' / project-update-verify (clean main, pretested fast-forward only)':'')
     +(opts.enableOpenClawProvision?' / openclaw-ollama-provision (local model provider write only)':'')
-    +(opts.enableOpenClawAgentCreate?' / openclaw-alice-create (private text-only Agent once)':'')+(opts.enableOpenClawDevCreate?' / openclaw-dev-create (one-shot restricted infrastructure advisor)':'')+(opts.devAgent?' / openclaw-agent-dev-discuss (bound to '+opts.devAgent+', no tools)':' / AI discussion disabled (requires --dev-agent)')+'. Ctrl-C stops.');
+    +(opts.enableOpenClawAgentCreate?' / openclaw-alice-create (private text-only Agent once)':'')+(opts.enableOpenClawDevCreate?' / openclaw-dev-create / openclaw-dev-prewrite-reconcile (incident-064 only)':'')+(opts.devAgent?' / openclaw-agent-dev-discuss (bound to '+opts.devAgent+', no tools)':' / AI discussion disabled (requires --dev-agent)')+'. Ctrl-C stops.');
   try{
     recordDiagnosticEvent('worker_start',{mode:opts.mode,profile});
     state=await loadState(stateFile); // Must be within finally so a read failure does not leak lock.
@@ -492,7 +493,8 @@ async function main(){
             || (task.action==='project-update-verify' && opts.enableSelfUpdate)
             || (task.action==='openclaw-ollama-provision' && opts.enableOpenClawProvision)
             || (task.action==='openclaw-alice-create' && opts.enableOpenClawAgentCreate)
-             || (task.action==='openclaw-dev-create' && opts.enableOpenClawDevCreate);
+             || (task.action==='openclaw-dev-create' && opts.enableOpenClawDevCreate)
+             || (task.action==='openclaw-dev-prewrite-reconcile' && opts.enableOpenClawDevCreate);
           recordDiagnosticEvent('task_seen',{taskId:task.id,action:task.known?task.action:'unknown'});
           recordDiagnosticEvent('action_started',{taskId:task.id,action:task.known?task.action:'unknown'});
           let result;
@@ -522,6 +524,18 @@ async function main(){
                recordDiagnosticEvent('openclaw_dev_create_claimed',{taskId:task.id});
                result=await runAction(task.action,ROOT,{enableOpenClawDevCreate:true});
              }
+           }else if(task.action==='openclaw-dev-prewrite-reconcile'){
+             // Only the authorized, exact-chat foreground watcher can reconcile
+             // this single verified prewrite failure. Never config.patch here.
+             const recovery=await reconcilePrewrite(state,{url:opts.url});
+             if(recovery.ok){
+               await atomicState(stateFile,recovery.state);
+               state=recovery.state;
+             }
+             result={status:recovery.ok?'passed':'inconclusive',
+               output:JSON.stringify({audit:'IOANT_OPENCLAW_DEV_PREWRITE_RECONCILE',
+                schemaVersion:1,state:recovery.ok?'recovered':'blocked',
+                reason:recovery.reason,configWrite:false,agentCreation:false})};
            }else if(isDevDiscussion){
             // Reserve before invoking Gateway. After interruption, the old ID
             // remains permanently claimed and must never trigger inference.
