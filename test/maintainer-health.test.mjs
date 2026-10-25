@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {parseProjectChatUrl} from '../stage2/project-chat-routing.mjs';
-import {summarizeVisibleTabs,assessMaintainerHealth,collectMaintainerHealth,
+import {summarizeVisibleTabs,summarizeRelayVerification,assessMaintainerHealth,collectMaintainerHealth,
  formatMaintainerChatReport} from '../stage2/maintainer-health.mjs';
 const root=resolve(import.meta.dirname,'..');
 const manifest=JSON.parse(readFileSync(resolve(root,'config/chat-projects.json'),'utf8'));
@@ -75,7 +75,7 @@ test('collector runs fixed probes only, no data from another Project or arbitrar
   return {state:'ok',stdout:'opaque private diagnostic details'};
  };
  const result=await collectMaintainerHealth({manifest,projectKey:'openclaw-workflow',invoke});
- assert.deepEqual(calls,['extension_status','browser_doctor','watcher_status','chrome_tabs','chrome_tabs']);
+ assert.deepEqual(calls,['extension_status','extension_verify','browser_doctor','watcher_status','chrome_tabs','chrome_tabs']);
  assert.equal(result.finding,'target_visible');
  assert.equal(result.checks.tabSamples.length,2);
  assert.doesNotMatch(JSON.stringify(result),/opaque|private diagnostic|original.*URL/);
@@ -83,4 +83,48 @@ test('collector runs fixed probes only, no data from another Project or arbitrar
   throw Error('must never call runner');
  }});
  assert.equal(denied.state,'blocked');
+});
+
+
+test('official extension setup verify distinguishes authenticated relay from eligible tabs',()=>{
+ const reply=JSON.stringify({action:'verify',target:{
+  kind:'local-host',profile:'chrome',hostname:'secret.local',relayPort:18792
+ },phase:'ready',connection:{secret:'DO_NOT_EXPOSE'},nextAction:'some operator instruction'});
+ assert.equal(summarizeRelayVerification(reply),'authenticated');
+ assert.equal(summarizeRelayVerification(reply.replace('"ready"','"pending"')),'not_ready');
+ assert.equal(summarizeRelayVerification(reply.replace('"ready"','"blocked"')),'not_ready');
+ assert.equal(summarizeRelayVerification(reply.replace('"ready"','"unknown"')),'unknown');
+ assert.equal(summarizeRelayVerification(reply.replace('"chrome"','"user"')),'unknown');
+ assert.equal(summarizeRelayVerification(reply.replace('"local-host"','"remote"')),'unknown');
+ assert.equal(summarizeRelayVerification('not JSON'),'unknown');
+ const r=assessMaintainerHealth({project,checks:{
+  extension:'ok',doctor:'ok',relayVerification:'authenticated',
+  supervisor:{state:'running'},tabSamples:[
+   {state:'ok',visibleTabs:0,matchingTabs:0},
+   {state:'ok',visibleTabs:0,matchingTabs:0}]}});
+ assert.equal(r.finding,'relay_authenticated_no_eligible_tabs');
+ assert.equal(r.checks.relayVerification,'authenticated');
+ assert.ok(r.recommendedActions.includes('operator_review_per_tab_access'));
+ assert.doesNotMatch(JSON.stringify(r),/secret|relayPort|hostname|nextAction|18792/);
+});
+test('unready and unknown relay connection remain separate from tab visibility',()=>{
+ const run=relayVerification=>assessMaintainerHealth({project,checks:{
+  extension:'ok',doctor:'ok',relayVerification,
+  supervisor:{state:'running'},tabSamples:[
+   {state:'ok',visibleTabs:0,matchingTabs:0},
+   {state:'ok',visibleTabs:0,matchingTabs:0}]}});
+ const pending=run('not_ready');
+ assert.equal(pending.finding,'relay_verification_not_ready');
+ assert.ok(pending.recommendedActions.includes('operator_review_relay_setup'));
+ assert.equal(run('unknown').finding,'relay_reports_zero_tabs');
+});
+test('verified authenticated connection with no eligible tabs still forbids auto attach or permission override',()=>{
+ const report=assessMaintainerHealth({project,checks:{
+  extension:'ok',doctor:'ok',relayVerification:'authenticated',
+  supervisor:{state:'running'},tabSamples:[
+   {state:'ok',visibleTabs:0,matchingTabs:0},
+   {state:'ok',visibleTabs:0,matchingTabs:0}]}});
+ assert.equal(report.permissionsChanged,false);
+ assert.equal(report.autoChanged,false);
+ assert.equal(report.reportDelivery,'not_attempted');
 });

@@ -18,8 +18,9 @@ test('maintainer CLI rejects arbitrary commands before running any diagnostics',
   assert.equal(json.reason,'invalid_arguments');
  }
 });
-test('maintainer probes are four fixed local read commands and two tab observations',()=>{
+test('maintainer probes are five fixed local checks and two tab observations',()=>{
  assert.match(src,/extension_status:\{bin:OC,args:\['browser','extension','status','--json'\]\}/);
+ assert.ok(src.includes("extension_verify:{bin:OC,args:['browser','extension','setup','--action','verify','--browser-profile','chrome','--json']}"));
  assert.match(src,/browser_doctor:\{bin:OC,args:\['browser','doctor','--browser-profile','chrome'\]\}/);
  assert.match(src,/chrome_tabs:\{bin:OC,args:\['browser','--browser-profile','chrome','--json','tabs'\]\}/);
  assert.match(src,/watcher_status:\{bin:process\.execPath,args:\[\s*join\(ROOT,'stage2','ops-supervisor\.mjs'\),'status'\]\}/);

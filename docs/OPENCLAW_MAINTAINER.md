@@ -78,3 +78,23 @@ The next stage uses **the existing exact-Chat, single-writer watcher**, not a co
 4. If Relay recovers, check `stdout.log` for `Maintainer incident delivered and receipt confirmed` and confirm that the ChatGPT conversation actually shows the notice. No automatic Agent tools, Chrome debugger bypass, or new Project Chat creation are part of this stage.
 
 The official Chrome extension reference documents user-paused tabs, debugger Cancel and the limits of status output: https://docs.openclaw.ai/tools/chrome-extension
+
+## Relay authenticated ≠ eligible tabs (2026-10-25 follow-up)
+
+A verified `chrome` relay can legitimately return **zero** eligible tabs. Therefore an `extension status` or `browser doctor` process exit code plus two `tabs:[]` samples cannot identify whether the native relay is unauthenticated or the user has paused/withheld tab access. A running watcher PID is not proof the code in the private runtime checkout has been freshly loaded. Likewise `project-self-update state=up_to_date,tests:null` is not a new test run.
+
+Official OpenClaw command:
+
+    openclaw browser extension setup --action verify --browser-profile chrome --json
+
+It authenticates **only** the already registered local relay using the existing key, without creating a pairing key, replacing credentials, starting another relay or granting browser permissions. Its JSON has a `phase` as well as a local-host `target.profile`; for this Maintainer, the parser accepts only exactly `action=verify, target.kind=local-host, target.profile=chrome`. A verified `phase=ready` means the extension is authenticated, **not** that any tabs are attached. `pending/blocked` means verification is not ready, not proof of deliberate user revocation. Other/unknown envelopes remain `unknown`. Hostname, port, installation descriptors, setup reasons, keys and raw output are discarded.
+
+Read-only Maintainer classification:
+- `relay_authenticated_no_eligible_tabs`: local Chrome relay authenticated; two zero-tab samples; inspect **per-tab access** with the extension popup and user-controlled permissions, do not restart Gateway.
+- `relay_verification_not_ready`: exact local Chrome profile verification pending or blocked; inspect pairing/native setup status, not application URLs.
+- `relay_reports_zero_tabs`: authentication status unknown but Chrome tab enumeration twice empty; avoid attributing to either user permissions or connectivity.
+- `target_visible`: exact registered Project chat enumerated; actual DOM availability and message delivery remain separately unverified.
+
+Never automatically click `Allow on this tab`, override `Pause`, retry a cancelled debugger attach, reopen tabs, set `All tabs`, restart Chrome/Gateway, or move the model's task execution to another browser profile. The next live Mac report will determine which constrained recovery path is appropriate.
+
+See https://docs.openclaw.ai/tools/chrome-extension and https://docs.openclaw.ai/cli/browser .

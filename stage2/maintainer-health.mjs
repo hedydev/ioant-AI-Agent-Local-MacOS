@@ -18,6 +18,20 @@ const noSecrets=s=>typeof s==='string'&&s.length<=32&&/^[a-z0-9_-]+$/.test(s);
 const readJson=x=>{try{return JSON.parse(x)}catch{return null}};
 const status=x=>STATES.has(x)?x:'unknown';
 
+// Official 'extension setup --action verify' authenticates only an existing,
+// previously registered Chrome relay. It does not install an extension,
+// rotate credentials, start another relay or grant tab access. Parse ONLY
+// an exact local-host/chrome phase, never log its target hostname or port.
+export function summarizeRelayVerification(raw){
+ const value=readJson(raw);
+ if(!value||typeof value!=='object'||Array.isArray(value)||
+    value.action!=='verify'||value.target?.kind!=='local-host'||
+    value.target?.profile!=='chrome')return 'unknown';
+ if(value.phase==='ready')return 'authenticated';
+ if(value.phase==='blocked'||value.phase==='pending')return 'not_ready';
+ return 'unknown';
+}
+
 // Only compare strict ChatGPT Project and conversation identifiers. Never
 // serialize titles, other tab URLs, DOM, Gateway keys, or diagnostic stdout.
 export function summarizeVisibleTabs(raw,project){
@@ -36,6 +50,8 @@ export function summarizeVisibleTabs(raw,project){
 export function assessMaintainerHealth({project,checks}={}){
  if(!project||!checks)return {state:'blocked',reason:'missing_evidence'};
  const ext=status(checks.extension),doctor=status(checks.doctor);
+ const relay=['authenticated','not_ready','unknown'].includes(checks.relayVerification)?
+   checks.relayVerification:'unknown';
  const sup=checks.supervisor?.state??'unknown';
  const a=checks.tabSamples;
  if(!Array.isArray(a)||a.length!==2)return {state:'blocked',reason:'insufficient_tab_samples'};
@@ -51,17 +67,25 @@ export function assessMaintainerHealth({project,checks}={}){
    finding='target_visible';priority='normal';
  }else if(ext==='failed'||doctor==='failed'){
    finding='browser_or_gateway_diagnostic_failed';priority='investigate';
+ }else if(allEmpty&&relay==='authenticated'){
+   finding='relay_authenticated_no_eligible_tabs';priority='investigate';
+ }else if(allEmpty&&relay==='not_ready'){
+   finding='relay_verification_not_ready';priority='investigate';
  }else if(allEmpty){finding='relay_reports_zero_tabs';priority='investigate'}
  else if(bothMissing){finding='registered_chat_unavailable';priority='investigate'}
  const actions=['read_only_recheck'];
  if(priority==='blocked')actions.push('operator_review_duplicate_tabs');
+ else if(finding==='relay_authenticated_no_eligible_tabs')
+   actions.push('operator_review_per_tab_access');
+ else if(finding==='relay_verification_not_ready')
+   actions.push('operator_review_relay_setup');
  else if(finding==='relay_reports_zero_tabs'||finding==='browser_or_gateway_diagnostic_failed')
    actions.push('operator_review_extension_access');
  else if(finding==='registered_chat_unavailable')actions.push('operator_review_target_tab');
  if(sup!=='running')actions.push('operator_review_watcher_state');
  return {audit:AUDIT,schemaVersion:1,state:'assessed',projectKey:project.key,
   projectId:project.projectId,conversationId:project.conversationId,
-  finding,priority,checks:{extension:ext,doctor,watcher:sup,
+  finding,priority,checks:{extension:ext,doctor,relayVerification:relay,watcher:sup,
     tabSamples:valid?a.map(x=>({visibleTabs:x.visibleTabs,matchingTabs:x.matchingTabs})):[]},
   recommendedActions:actions,autoChanged:false,permissionsChanged:false,
   reportDelivery:'not_attempted',note:
@@ -93,6 +117,7 @@ export async function collectMaintainerHealth({manifest,projectKey,invoke}={}){
    }catch{return {state:'failed',stdout:''}}
  };
  const extension=await limited('extension_status');
+ const verify=await limited('extension_verify');
  const doctor=await limited('browser_doctor');
  const supervisor=await limited('watcher_status');
  // Two independent samples; no automatic retry or repair commands.
@@ -101,6 +126,8 @@ export async function collectMaintainerHealth({manifest,projectKey,invoke}={}){
  const sup=readJson(supervisor.stdout);
  return assessMaintainerHealth({project:route,checks:{
   extension:extension.state,doctor:doctor.state,
+  relayVerification:verify.state==='ok'?
+    summarizeRelayVerification(verify.stdout):'unknown',
   supervisor:{state:sup?.audit==='IOANT_MAC_OPS_SUPERVISOR'?
     (sup.running===true?'running':sup.state??'unknown'):'unknown'},
   tabSamples:[a,b].map(x=>x.state==='ok'?
@@ -109,6 +136,7 @@ export async function collectMaintainerHealth({manifest,projectKey,invoke}={}){
 }
 const COMMANDS=Object.freeze({
  extension_status:{bin:OC,args:['browser','extension','status','--json']},
+ extension_verify:{bin:OC,args:['browser','extension','setup','--action','verify','--browser-profile','chrome','--json']},
  browser_doctor:{bin:OC,args:['browser','doctor','--browser-profile','chrome']},
  watcher_status:{bin:process.execPath,args:[join(ROOT,'stage2','ops-supervisor.mjs'),'status']},
  chrome_tabs:{bin:OC,args:['browser','--browser-profile','chrome','--json','tabs']}
