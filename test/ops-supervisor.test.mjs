@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
-import {supervisorManifest,renderPlist,inspectNodeRuntime} from '../stage2/ops-supervisor.mjs';
+import {supervisorManifest,renderPlist,inspectNodeRuntime,installedPlistKind,parseLaunchdRuntime} from '../stage2/ops-supervisor.mjs';
 
 const filename=resolve(import.meta.dirname,'../stage2/ops-supervisor.mjs');
 const source=readFileSync(filename,'utf8');
@@ -108,4 +108,40 @@ test('untrusted executable or writable parent can never become LaunchAgent PATH'
  ])await assert.rejects(inspectNodeRuntime(change),/unsafe_node_runtime/);
  assert.throws(()=>renderPlist('/Users/ted/../../tmp'),/unsafe_node_runtime/);
  assert.throws(()=>renderPlist('/private/path:malicious'),/unsafe_node_runtime/);
+});
+
+test('launchd stdout/stderr must stay on local Library/Logs, not on external LunaDrive',()=>{
+ const now=renderPlist('/Users/ted/.nvm/versions/node/v24.9.0/bin');
+ assert.match(now,/<key>StandardOutPath<\/key><string>\/Users\/[^<]+\/Library\/Logs\/ioant-openclaw-ops\/stdout\.log<\/string>/);
+ assert.match(now,/<key>StandardErrorPath<\/key><string>\/Users\/[^<]+\/Library\/Logs\/ioant-openclaw-ops\/stderr\.log<\/string>/);
+ assert.doesNotMatch(now,/StandardOutPath<\/key><string>\/Volumes\//);
+ assert.doesNotMatch(now,/StandardErrorPath<\/key><string>\/Volumes\//);
+ assert.equal(installedPlistKind(now),'local');
+ const old=renderPlist('/Users/ted/.nvm/versions/node/v24.9.0/bin',{legacyExternalLogs:true});
+ assert.match(old,/StandardOutPath<\/key><string>\/Volumes\/LunaDrive\//);
+ assert.equal(installedPlistKind(old),'legacy_external');
+ assert.equal(installedPlistKind(old.replace('com.ioant.openclaw.safe-watcher','evil.unknown.service')),null);
+ assert.equal(installedPlistKind(now.replace('stdout.log','other.log')),null);
+ assert.equal(installedPlistKind(now.replace('--enable-gui-readonly','--enable-openclaw-dev-create')),null);
+});
+
+test('status parser distinguishes failed registered job from real running process',()=>{
+ const dead='gui/501/com.ioant.openclaw.safe-watcher = {\n'+
+  '    state = not running\n    runs = 1\n    last exit code = 78: EX_CONFIG\n'+
+  '    inner = {\n        state = active\n    }\n}';
+ assert.deepEqual(parseLaunchdRuntime(dead),{state:'stopped',lastExitCode:78});
+ const live='service = {\n    state = running\n    pid = 51730\n    runs = 2\n}';
+ assert.deepEqual(parseLaunchdRuntime(live),{state:'running',pid:51730});
+ const unknown='service = {\n    state = not running\n    pid = 51730\n}';
+ assert.equal(parseLaunchdRuntime(unknown).state,'stopped');
+ assert.equal(parseLaunchdRuntime('garbled').state,'stopped');
+});
+
+test('install verifies safe local macOS log parent and migration is fixed-template-only',()=>{
+ assert.match(source,/const LOCAL_LOG_PARENT=join\(HOME,'Library','Logs'\)/);
+ assert.match(source,/await realpath\(LOCAL_LOG_PARENT\)!==LOCAL_LOG_PARENT/);
+ assert.match(source,/unsafe_local_log_parent/);
+ assert.match(source,/installedPlistKind\(content\)/);
+ assert.match(source,/\['running','stopped','unloaded'\]\.includes\(st\.state\)/);
+ assert.match(source,/launchctl'.*'bootout'/);
 });

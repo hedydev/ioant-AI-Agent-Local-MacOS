@@ -20,9 +20,15 @@ const VOLUME='/Volumes/LunaDrive';
 const CACHE=join(VOLUME,'DeveloperCache','projects','ioant-ai-agent-local-macos');
 const TARGET='https://chatgpt.com/g/g-p-6adbdb6e70348191bc5acb11efb0db5d-ai-openclawgong-zuo-liu/c/6add3565-d868-83ec-804e-1e7a00eb0a59';
 const PLIST=join(HOME,'Library','LaunchAgents',SLUG+'.plist');
-const LOG_DIR=join(CACHE,'logs','ops-supervisor');
+// launchd opens StandardOutPath and StandardErrorPath BEFORE spawning bash.
+// External volume redirects can return EX_CONFIG(78) with empty log files.
+const LOCAL_LOG_PARENT=join(HOME,'Library','Logs');
+const LOG_DIR=join(LOCAL_LOG_PARENT,'ioant-openclaw-ops');
 const LOG_OUT=join(LOG_DIR,'stdout.log');
 const LOG_ERR=join(LOG_DIR,'stderr.log');
+const LEGACY_LOG_DIR=join(CACHE,'logs','ops-supervisor');
+const LEGACY_LOG_OUT=join(LEGACY_LOG_DIR,'stdout.log');
+const LEGACY_LOG_ERR=join(LEGACY_LOG_DIR,'stderr.log');
 const SAFE_PATH='/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
 // Trust the actual running Node binary after canonical path and ownership checks,
 // not whichever node happens to be on Homebrew PATH.
@@ -84,7 +90,7 @@ export function supervisorManifest(){
   args:[...ARGS],readOnlyGui:true,selfUpdate:true,devAgent:'openclaw-dev',
   portChanges:false,configWrites:false,remoteOps:false};
 }
-export function renderPlist(nodeDir='/opt/homebrew/bin'){
+export function renderPlist(nodeDir='/opt/homebrew/bin',{legacyExternalLogs=false}={}){
  if(!safeNodeDir(nodeDir))throw Error('unsafe_node_runtime');
  return '<?xml version="1.0" encoding="UTF-8"?>\n'+
   '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'+
@@ -101,9 +107,28 @@ export function renderPlist(nodeDir='/opt/homebrew/bin'){
   '<key>KeepAlive</key><false/>'+
   '<key>ProcessType</key>'+plString('Interactive')+
   '<key>Umask</key><integer>63</integer>'+
-  '<key>StandardOutPath</key>'+plString(LOG_OUT)+
-  '<key>StandardErrorPath</key>'+plString(LOG_ERR)+
+  '<key>StandardOutPath</key>'+plString(legacyExternalLogs?LEGACY_LOG_OUT:LOG_OUT)+
+  '<key>StandardErrorPath</key>'+plString(legacyExternalLogs?LEGACY_LOG_ERR:LOG_ERR)+
   '</dict></plist>\n';
+}
+// Status and explicit uninstall accept ONLY the exact local or previously
+// shipped external-log plist. Unknown/edited LaunchAgents are never touched.
+export function installedPlistKind(content){
+ const nodeDir=pinnedNodeDir(content);
+ if(!nodeDir)return null;
+ if(content===renderPlist(nodeDir))return 'local';
+ if(content===renderPlist(nodeDir,{legacyExternalLogs:true}))return 'legacy_external';
+ return null;
+}
+export function parseLaunchdRuntime(body){
+ if(typeof body!=='string')return {state:'unverified'};
+ const state=body.match(/^\s*state = ([^\r\n]+)$/m)?.[1]?.trim();
+ const id=body.match(/^\s*pid = ([0-9]+)\s*$/m)?.[1];
+ const pid=id?Number(id):null;
+ const code=body.match(/^\s*last exit code = ([0-9]+)/m)?.[1];
+ return {state:state==='running'&&Number.isSafeInteger(pid)&&pid>0?'running':'stopped',
+  ...(Number.isSafeInteger(pid)&&pid>0?{pid}:{}),
+  ...(code?{lastExitCode:Number(code)}:{})};
 }
 const safe=(audit,state,reason)=>({audit,schemaVersion:1,state,reason,
  label:SLUG,readOnlyGui:true,noSudo:true,agentToolGrant:false});
@@ -149,6 +174,13 @@ async function ensurePrivateLog(file){
 }
 export async function installationPreflight(){
  const nodeDir=await requireRepo();
+ // Require local macOS Logs to be a real, user-owned non-writable-by-others
+ // folder; no symlink to the failing external volume.
+ const parent=await lstat(LOCAL_LOG_PARENT);
+ if(!parent.isDirectory()||parent.isSymbolicLink()||!owned(parent)||
+    (parent.mode&0o022)!==0||
+    await realpath(LOCAL_LOG_PARENT)!==LOCAL_LOG_PARENT)
+  throw Error('unsafe_local_log_parent');
  await safeUserDir(LOG_DIR,{create:true});
  for(const path of [LOG_OUT,LOG_ERR])await ensurePrivateLog(path);
  // Never compete with an existing foreground worker for the exact chat.
@@ -183,34 +215,37 @@ async function install(){
 async function status(){
  if(process.platform!=='darwin')return safe(audit,'blocked','macos_only');
  try{
-  const stat=await lstat(PLIST);
-  const content=await readFile(PLIST,'utf8');
-  const configured=pinnedNodeDir(content);
-  if(!privateFile(stat)||await realpath(PLIST)!==PLIST||
-     !configured||content!==renderPlist(configured))
-    return safe(audit,'blocked','unexpected_launch_agent');
-  let active=false;
-  try{await command('/bin/launchctl',['print','gui/'+process.getuid()+'/'+SLUG]);
-   active=true;}catch{}
-  return safe(audit,active?'registered':'unloaded',
-   active?'supervisor_exists':'launchctl_not_registered');
- }catch(e){return safe(audit,'blocked',e?.code==='ENOENT'?'not_installed':'unverified');}
+  const stat=await lstat(PLIST),content=await readFile(PLIST,'utf8');
+  const kind=installedPlistKind(content);
+  if(!privateFile(stat)||await realpath(PLIST)!==PLIST||!kind)
+   return safe(audit,'blocked','unexpected_launch_agent');
+  const base={logLocation:kind,registered:false,running:false};
+  let printed;
+  try{printed=await command('/bin/launchctl',['print','gui/'+process.getuid()+'/'+SLUG]);}
+  catch{return {...safe(audit,'unloaded','launchctl_not_registered'),...base}}
+  const observed=parseLaunchdRuntime(printed);
+  return {...safe(audit,observed.state,
+    observed.state==='running'?'worker_pid_observed':'service_registered_worker_not_running'),
+   ...base,registered:true,running:observed.state==='running',
+   ...('pid' in observed?{pid:observed.pid}:{}),
+   ...('lastExitCode' in observed?{lastExitCode:observed.lastExitCode}:{})};
+ }catch(e){return safe(audit,'blocked',e?.code==='ENOENT'?'not_installed':'unverified')}
 }
 async function uninstall(){
  const st=await status();
- if(!['registered','unloaded'].includes(st.state))
+ if(!['running','stopped','unloaded'].includes(st.state))
   return safe(audit,'blocked','not_managed_plist');
- if(st.state==='registered'){
+ if(st.registered===true){
+  // Explicit local operator request: graceful bootout of one exact service,
+  // never generic PID termination or fallback kill.
   try{await command('/bin/launchctl',['bootout','gui/'+process.getuid()+'/'+SLUG]);}
   catch{return safe(audit,'inconclusive','bootout_unconfirmed')}
  }
  try{
-  const content=await readFile(PLIST,'utf8');
-  const configured=pinnedNodeDir(content);
-  if(!privateFile(await lstat(PLIST))||
-     await realpath(PLIST)!==PLIST||
-     !configured||content!==renderPlist(configured))
-    return safe(audit,'blocked','plist_changed');
+  const stat=await lstat(PLIST),content=await readFile(PLIST,'utf8');
+  if(!privateFile(stat)||await realpath(PLIST)!==PLIST||
+     !installedPlistKind(content))
+   return safe(audit,'blocked','plist_changed');
   await unlink(PLIST);
   return safe(audit,'uninstalled','fixed_service_removed_logs_preserved');
  }catch{return safe(audit,'inconclusive','plist_removal_unconfirmed')}
@@ -230,7 +265,7 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
    const messages=new Set(['macos_only','repo_path_mismatch',
      'unexpected_git_origin','not_main','dirty_worktree','unsafe_external_volume',
      'gateway_health_empty','unsafe_node_runtime','unsupported_node_version','unsafe_private_directory','unsafe_log_file',
-     'unsafe_launchagents_directory','watcher_already_active_or_uncertain',
+     'unsafe_launchagents_directory','unsafe_local_log_parent','watcher_already_active_or_uncertain',
      'supervisor_already_installed']);
    console.log(JSON.stringify(safe(audit,'blocked',
     messages.has(e.message)?e.message:'preflight_unavailable')));
