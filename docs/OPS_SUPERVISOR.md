@@ -20,7 +20,7 @@ The stage2/ops-supervisor.mjs installer configures a user LaunchAgent named com.
 - Private LunaDrive logs with owner-only access and launchd Umask 077.
 - RunAtLoad=true; KeepAlive=false so browser/Gateway failures do not create unlimited restart loops.
 
-The Mac must have an existing **non-interactively healthy** OpenClaw Gateway. No Gateway credentials are included in the plist or passed to the model. If health/auth cannot be established without prompting, the installer stops.
+The Mac must have an existing **non-interactively healthy** OpenClaw Gateway. No Gateway credentials are included in the plist or passed to the model. If health/auth cannot be established without prompting, the installer stops. The LaunchAgent uses a fixed PATH covering /opt/homebrew/bin, /usr/local/bin and system directories. Installation fails closed if the currently used Node binary cannot be found under one of these fixed directories (for example an NVM-only Node path), rather than installing a background job that will not start.
 
 ## Once-only operator setup AFTER a verified Mac test-gated update
 

@@ -40,6 +40,7 @@ test('generated launchd configuration is narrow and contains no secrets or eleva
  assert.match(plist,/<key>RunAtLoad<\/key><true\/>/);
  assert.match(plist,/<key>KeepAlive<\/key><false\/>/);
  assert.match(plist,/<key>IOANT_CHATGPT_BROWSER_PROFILE<\/key><string>chrome<\/string>/);
+ assert.match(plist,/<key>PATH<\/key><string>\/opt\/homebrew\/bin:.*\/usr\/bin/);
  assert.doesNotMatch(plist,/sk-[A-Za-z0-9]+|ghp_|OPENCLAW_GATEWAY_TOKEN|OPENCLAW_GATEWAY_PASSWORD|sudo|bash -c|sh -c/);
  assert.equal((plist.match(/<key>ProgramArguments<\/key>/g)||[]).length,1);
  assert.equal((plist.match(/--enable-gui-readonly/g)||[]).length,1);
@@ -55,4 +56,7 @@ test('installer never installs on behalf of a chat task or invokes general shell
  assert.match(source,/privateDir\(st\)/);
  assert.match(source,/privateFile\(stat\)/);
  assert.match(source,/No sudo/);
+ assert.match(source,/const nodeBin=await command\('\/usr\/bin\/which',\['node'\]\)/);
+ assert.match(source,/unsupported_node_path/);
+ assert.match(source,/\(stat.mode&0o022\)!==0/);
 });

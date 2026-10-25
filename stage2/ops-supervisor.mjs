@@ -23,6 +23,7 @@ const PLIST=join(HOME,'Library','LaunchAgents',SLUG+'.plist');
 const LOG_DIR=join(CACHE,'logs','ops-supervisor');
 const LOG_OUT=join(LOG_DIR,'stdout.log');
 const LOG_ERR=join(LOG_DIR,'stderr.log');
+const SAFE_PATH='/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
 const ARGS=['/bin/bash',join(ROOT,'scripts','chatgpt-loop.sh'),
  '--chat-url',TARGET,'--enable-self-update','--enable-gui-readonly',
  '--dev-agent','openclaw-dev','--watch'];
@@ -48,6 +49,7 @@ export function renderPlist(){
   '<key>ProgramArguments</key>'+plArray(ARGS)+
   '<key>EnvironmentVariables</key><dict>'+
    '<key>IOANT_CHATGPT_BROWSER_PROFILE</key>'+plString('chrome')+
+   '<key>PATH</key>'+plString(SAFE_PATH)+
   '</dict>'+
   '<key>RunAtLoad</key><true/>'+
   // Fail closed on unexpected failures rather than looping on Gateway auth,
@@ -80,6 +82,12 @@ async function requireRepo(){
   throw Error('dirty_worktree');
  if(await realpath(VOLUME)!==VOLUME||
     await realpath(CACHE)!==CACHE)throw Error('unsafe_external_volume');
+ // launchd does NOT normally inherit interactive Homebrew/NVM PATH.
+ // Require the running Node binary to be found in the fixed service PATH.
+ // No arbitrary path from ChatGPT is ever accepted.
+ const nodeBin=await command('/usr/bin/which',['node']);
+ if(!nodeBin||!SAFE_PATH.split(':').includes(dirname(nodeBin)))
+  throw Error('unsupported_node_path');
  // A headless LaunchAgent cannot answer an interactive Gateway credential
  // prompt. Establish that the existing non-interactive CLI is authenticated.
  await command(join(HOME,'.openclaw','bin','openclaw'),['gateway','health'],{timeout:12000});
@@ -109,7 +117,8 @@ export async function installationPreflight(){
  const agents=join(HOME,'Library','LaunchAgents');
  await mkdir(agents,{recursive:true,mode:0o700});
  const stat=await lstat(agents);
- if(!stat.isDirectory()||stat.isSymbolicLink()||!owned(stat))
+ if(!stat.isDirectory()||stat.isSymbolicLink()||!owned(stat)||
+    (stat.mode&0o022)!==0)
   throw Error('unsafe_launchagents_directory');
  try{await lstat(PLIST);throw Error('supervisor_already_installed')}
  catch(e){if(e.code!=='ENOENT')throw e;}
@@ -173,7 +182,7 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   }catch(e){
    const messages=new Set(['macos_only','repo_path_mismatch',
      'unexpected_git_origin','not_main','dirty_worktree','unsafe_external_volume',
-     'gateway_health_empty','unsafe_private_directory','unsafe_log_file',
+     'gateway_health_empty','unsupported_node_path','unsafe_private_directory','unsafe_log_file',
      'unsafe_launchagents_directory','watcher_already_active_or_uncertain',
      'supervisor_already_installed']);
    console.log(JSON.stringify(safe(audit,'blocked',
