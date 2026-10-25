@@ -68,6 +68,10 @@ test('this repair never invokes Agent creation or accepts arbitrary paths/comman
  const source=readFileSync(resolve(import.meta.dirname,'../stage2/openclaw-dev-interrupted-claim.mjs'),'utf8');
  assert.match(source,/const ATTEMPT='openclaw-dev-create-20261025-062'/);
  assert.match(source,/const LOG_NAME='run-20261024T235448Z-82118-ca6d81ec\.jsonl'/);
- assert.doesNotMatch(source,/config\.patch|spawn\(|execFile\(|runAction\(|createOpenClawDev\(/);
+ // Comments describe why the call is prohibited; assert against executable
+ // source lines so a non-executing explanatory comment cannot fail this test.
+ const nonCommentSource=source.split('\n')
+  .filter(line=>!line.trimStart().startsWith('//')).join('\n');
+ assert.doesNotMatch(nonCommentSource,/config\.patch|spawn\(|execFile\(|runAction\(|createOpenClawDev\(/);
  assert.match(source,/if\(process\.argv\.length!==2\)/);
 });
