@@ -65,6 +65,6 @@ test('extension missing-tab diagnostics report counts only without leaking other
  assert.match(shell,/TAB_COUNTS=/);
  assert.match(shell,/If Access=All tabs, no tab group is needed/);
  assert.match(shell,/If Access=Selected tabs, authorize the target tab in the OpenClaw group/);
- assert.match(shell,/a DIFFERENT project URL/);
+ assert.match(shell,/A tab shares the conversation ID but did not pass the strict ChatGPT URL-shape check/);
  assert.doesNotMatch(shell,/echo[^\n]*x\.url/);
 });

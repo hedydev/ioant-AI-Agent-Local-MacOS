@@ -26,7 +26,7 @@ test('selected-tab reconnect is bounded to eight two-second checks only on zero 
 test('a new authorized tab is counted but never auto-opened or granted permission in Chrome extension mode',()=>{
  assert.match(launcher,/read_authorized_tab_counts\(\)/);
  assert.match(launcher,/read -r TAB_COUNT TAB_VISIBLE TAB_CHATGPT TAB_SAME_ID/);
- assert.match(launcher,/t\.filter\(x=>x\.url===u\.href\)/);
+ assert.match(launcher,/process\.stdout\.write\(\[same\.length,t\.length,chat\.length,same\.length\]/);
  assert.match(launcher,/Chrome relay returned malformed tab metadata during retry; stopping/);
  assert.match(launcher,/if ! tabs="\$\("\$OPENCLAW_BIN" browser --browser-profile "\$BROWSER_PROFILE" --json tabs 2>\/dev\/null\)"; then/);
  assert.doesNotMatch(launcher,/--disable-web-security|dangerouslyAllowPrivateNetwork|allowPrivateNetwork|--remote-debugging-port/);
