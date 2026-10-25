@@ -16,6 +16,8 @@ import { reserveDevDiscussion } from './dev-discussion-claim.mjs';
 import { reconcilePrewrite } from './openclaw-dev-prewrite-reconcile.mjs';
 import { observeGuiReadOnly } from './gui-readonly-observation.mjs';
 import { tabVisibility } from './tab-visibility.mjs';
+import {resolveProjectRoute} from './project-chat-routing.mjs';
+import {enqueueZeroTabNotice,maintainerReceipt,maintainerNoticeMessage,markMaintainerPressIntent,completeMaintainerNotice,pendingMaintainerPhase} from './maintainer-outbox.mjs';
 import { isBoundDevDiscussion } from './development-agent-route.mjs';
 import { recordDiagnosticEvent, diagnosticCode } from './diagnostic-log.mjs';
 
@@ -131,11 +133,15 @@ async function exactTab(url){
   if(!url)return tabs;
   const details=tabVisibility(tabs,url,profile);
   const matches=tabs.filter(t=>sameChatConversationUrl(t?.url,url));
-  if(matches.length!==1)
-    throw Error('Authorized ChatGPT tab unavailable: '+details.code+
+  if(matches.length!==1){
+    const failure=Error('Authorized ChatGPT tab unavailable: '+details.code+
      ' (profile='+details.profile+', visible='+details.visibleTabs+
      ', chatgpt='+details.chatgptTabs+', sameConversationId='+details.sameIdTabs+
      ', exact='+details.matchingTabs+', sameId='+matches.length+'). Verify one authorized conversation ID; no automatic navigation or profile change.');
+    if(tabs.length===0&&matches.length===0&&profile==='chrome')
+      failure.code='CHROME_RELAY_ZERO_TABS';
+    throw failure;
+  }
   const id=matches[0].suggestedTargetId??matches[0].tabId??matches[0].targetId;
   if(typeof id!=='string'||!/^[a-zA-Z0-9_:-]{1,128}$/.test(id))throw Error('Browser has no safe exact target handle');
   return id;
@@ -363,6 +369,28 @@ async function main(){
   try{
     recordDiagnosticEvent('worker_start',{mode:opts.mode,profile});
     state=await loadState(stateFile); // Must be within finally so a read failure does not leak lock.
+    // Independent Project owner verification: only the registered Project Chat
+    // receives maintenance notices. Unknown or other chats stay unchanged.
+    let maintainerRoute=null,consecutiveZeroTabs=0;
+    if(opts.mode==='watch'&&profile==='chrome'){
+      try{
+        const raw=await readFile(join(ROOT,'config','chat-projects.json'),'utf8');
+        if(raw.length<=16384)maintainerRoute=resolveProjectRoute(JSON.parse(raw),opts.url);
+      }catch{/* No registered route: no autonomous notice. */}
+    }
+    async function noteRelayGap(e){
+      if(!maintainerRoute)return;
+      if(e?.code!=='CHROME_RELAY_ZERO_TABS'){consecutiveZeroTabs=0;return}
+      consecutiveZeroTabs++;
+      if(consecutiveZeroTabs<2)return;
+      const out=enqueueZeroTabNotice(state,{projectKey:maintainerRoute.key,
+        conversationId:maintainerRoute.conversationId});
+      if(out.created){
+        state=out.state;
+        await atomicState(stateFile,state);
+        console.log('[loop] Zero-tab Relay incident queued privately; no browser changes.');
+      }
+    }
     // A user may need to finish signing into ChatGPT in the managed browser.
     let target, lastStartupMissingLog=0;
     while(!target){
@@ -388,6 +416,7 @@ async function main(){
       catch(e){
         if(opts.mode==='once')throw e;
         target=null;
+        await noteRelayGap(e);
         // Keep the per-login watcher alive through transient Chrome tab loss.
         // Throttle public logs; private events carry only allowlisted reason codes.
         const now=Date.now();
@@ -399,6 +428,7 @@ async function main(){
         await new Promise(r=>setTimeout(r,opts.interval*1000));
       }
     }
+    consecutiveZeroTabs=0;
     recordDiagnosticEvent('page_ready',{profile});
     // --once is acceptance-only. After the first successful exact-tab DOM read,
     // exit before a second browser request, message send, or task execution.
@@ -471,6 +501,7 @@ async function main(){
         page=await readPage(nowTarget,opts.url);
       }catch(e){
         if(opts.mode==='once')throw e;
+        await noteRelayGap(e);
         if(Date.now()-lastPageErrorEvent>=60000){
           recordDiagnosticEvent('page_not_ready',{code:diagnosticCode(e)});
           lastPageErrorEvent=Date.now();
@@ -479,6 +510,7 @@ async function main(){
         await new Promise(r=>setTimeout(r,opts.interval*1000));
         continue;
       }
+      consecutiveZeroTabs=0;
       if(state.feedbackPending){
         const recovery=await reconcileFeedback(state,stateFile,opts.url,{
           afterConfirmed:async pending=>{
@@ -493,6 +525,46 @@ async function main(){
           await new Promise(r=>setTimeout(r,opts.interval*1000));
           continue; // Never run a new task while previous feedback unresolved.
         }
+      }
+      // Single writer: the same exact-chat watcher delivers one fixed
+      // Maintainer incident only after Chrome Relay recovers. Its receipt is
+      // verified from a fresh user-role bubble; press-intent forbids replay.
+      if(maintainerRoute&&state.maintainerNotice){
+        const route={projectKey:maintainerRoute.key,
+          conversationId:maintainerRoute.conversationId};
+        const phase=pendingMaintainerPhase(state,route);
+        const receipt=maintainerReceipt(state.maintainerNotice,route);
+        const present=page.users.some(msg=>msg.startsWith(receipt));
+        if(present){
+          state=completeMaintainerNotice(state,route);
+          await atomicState(stateFile,state);
+          console.log('[loop] Maintainer incident receipt confirmed in the exact ChatGPT user role.');
+        }else if(phase==='press_intent'){
+          if(await confirmUserReceipt(opts.url,receipt)){
+            state=completeMaintainerNotice(state,route);
+            await atomicState(stateFile,state);
+            console.log('[loop] Maintainer incident receipt reconciled without a second Enter.');
+          }else console.log('[loop] Maintainer report delivery uncertain; read-only retry only.');
+        }else{
+          try{
+            await sendToChat(nowTarget,opts.url,
+              maintainerNoticeMessage(state.maintainerNotice,route),receipt,{
+                beforePress:async()=>{
+                  state=markMaintainerPressIntent(state,route);
+                  await atomicState(stateFile,state);
+                }
+              });
+            state=completeMaintainerNotice(state,route);
+            await atomicState(stateFile,state);
+            console.log('[loop] Maintainer incident delivered and receipt confirmed.');
+          }catch{
+            console.log('[loop] Maintainer report still queued; no blind resend.');
+          }
+        }
+        // Re-read any assistant task after a report. Never reuse a DOM
+        // snapshot taken before sending a new user-role message.
+        await new Promise(r=>setTimeout(r,opts.interval*1000));
+        continue;
       }
       const a=extractAction(page);
       if(a.status==='task'&&a.task.id!==state.lastTaskId){
