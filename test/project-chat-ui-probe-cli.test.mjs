@@ -32,7 +32,7 @@ test('CLI browser command is exact chrome profile, tabs plus read-only evaluate 
  assert.match(source,/\['browser','--browser-profile','chrome',\.\.\.args\]/);
  assert.match(source,/args\.length===2&&args\[0\]==='--json'&&args\[1\]==='tabs'/);
  assert.match(source,/args\.length===6&&args\[0\]==='--json'&&args\[1\]==='evaluate'/);
- assert.doesNotMatch(source,/browser.*(?:navigate|open|click|press|type|fill|screenshot|snapshot)/);
+ assert.doesNotMatch(source,/["'](?:navigate|open|click|press|type|fill|screenshot|snapshot)["']\s*,?/);
  assert.doesNotMatch(uiSource,/dangerouslyAllowPrivateNetwork|chrome\.debugger|document\.body\.innerText/);
  assert.doesNotMatch(source,/exec\(\s*['"]sh|shell:\s*true|\/bin\/bash|child_process\.spawn|writeFile\(/);
 });
