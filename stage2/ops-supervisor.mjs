@@ -24,6 +24,49 @@ const LOG_DIR=join(CACHE,'logs','ops-supervisor');
 const LOG_OUT=join(LOG_DIR,'stdout.log');
 const LOG_ERR=join(LOG_DIR,'stderr.log');
 const SAFE_PATH='/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
+// Trust the actual running Node binary after canonical path and ownership checks,
+// not whichever node happens to be on Homebrew PATH.
+const NODE_DIR=/^\/[A-Za-z0-9_.@+/-]{1,511}$/;
+const safeNodeDir=s=>typeof s==='string'&&NODE_DIR.test(s)&&
+  !s.includes('//')&&!s.endsWith('/')&&
+  s.split('/').every(x=>x!=='.'&&x!=='..');
+export async function inspectNodeRuntime({binary=process.execPath,
+ canonical=realpath,stat=lstat,uid=process.getuid?.(),home=HOME}={}){
+ const reject=()=>{throw Error('unsafe_node_runtime')};
+ try{
+  if(typeof binary!=='string'||!binary.startsWith('/'))return reject();
+  const real=await canonical(binary);
+  if(typeof real!=='string'||!real.startsWith('/')||
+    ![home,'/opt/homebrew','/usr/local','/usr/bin',VOLUME].some(base=>
+      real.startsWith(base+'/'))||!safeNodeDir(dirname(real)))return reject();
+  const segments=dirname(real).split('/').filter(Boolean);
+  let path='';
+  for(const segment of segments){
+   path+='/'+segment;
+   const info=await stat(path);
+   if(!info.isDirectory()||info.isSymbolicLink()||
+      (info.mode&0o022)!==0||
+      (typeof uid==='number'&&info.uid!==uid&&info.uid!==0))return reject();
+  }
+  const info=await stat(real);
+  if(!info.isFile()||info.isSymbolicLink()||(info.mode&0o111)===0||
+     (info.mode&0o022)!==0||
+     (typeof uid==='number'&&info.uid!==uid&&info.uid!==0))return reject();
+  return dirname(real);
+ }catch{return reject()}
+}
+function pinnedNodeDir(plist){
+ if(typeof plist!=='string'||plist.length>10000)return null;
+ const marker='<key>PATH</key><string>';
+ const start=plist.indexOf(marker);
+ if(start<0||plist.indexOf(marker,start+marker.length)>=0)return null;
+ const end=plist.indexOf('</string>',start+marker.length);
+ if(end<0)return null;
+ const value=plist.slice(start+marker.length,end),suffix=':'+SAFE_PATH;
+ if(!value.endsWith(suffix))return null;
+ const nodeDir=value.slice(0,-suffix.length);
+ return safeNodeDir(nodeDir)?nodeDir:null;
+}
 const ARGS=['/bin/bash',join(ROOT,'scripts','chatgpt-loop.sh'),
  '--chat-url',TARGET,'--enable-self-update','--enable-gui-readonly',
  '--dev-agent','openclaw-dev','--watch'];
@@ -41,7 +84,8 @@ export function supervisorManifest(){
   args:[...ARGS],readOnlyGui:true,selfUpdate:true,devAgent:'openclaw-dev',
   portChanges:false,configWrites:false,remoteOps:false};
 }
-export function renderPlist(){
+export function renderPlist(nodeDir='/opt/homebrew/bin'){
+ if(!safeNodeDir(nodeDir))throw Error('unsafe_node_runtime');
  return '<?xml version="1.0" encoding="UTF-8"?>\n'+
   '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'+
   '<plist version="1.0"><dict>'+
@@ -49,7 +93,7 @@ export function renderPlist(){
   '<key>ProgramArguments</key>'+plArray(ARGS)+
   '<key>EnvironmentVariables</key><dict>'+
    '<key>IOANT_CHATGPT_BROWSER_PROFILE</key>'+plString('chrome')+
-   '<key>PATH</key>'+plString(SAFE_PATH)+
+   '<key>PATH</key>'+plString(nodeDir+':'+SAFE_PATH)+
   '</dict>'+
   '<key>RunAtLoad</key><true/>'+
   // Fail closed on unexpected failures rather than looping on Gateway auth,
@@ -82,15 +126,14 @@ async function requireRepo(){
   throw Error('dirty_worktree');
  if(await realpath(VOLUME)!==VOLUME||
     await realpath(CACHE)!==CACHE)throw Error('unsafe_external_volume');
- // launchd does NOT normally inherit interactive Homebrew/NVM PATH.
- // Require the running Node binary to be found in the fixed service PATH.
- // No arbitrary path from ChatGPT is ever accepted.
- const nodeBin=await command('/usr/bin/which',['node']);
- if(!nodeBin||!SAFE_PATH.split(':').includes(dirname(nodeBin)))
-  throw Error('unsupported_node_path');
+ // The actual verified Node is pinned into launchd's PATH; no arbitrary argv.
+ const nodeDir=await inspectNodeRuntime();
+ if(Number(process.versions.node.split('.')[0])<20)
+  throw Error('unsupported_node_version');
  // A headless LaunchAgent cannot answer an interactive Gateway credential
  // prompt. Establish that the existing non-interactive CLI is authenticated.
  await command(join(HOME,'.openclaw','bin','openclaw'),['gateway','health'],{timeout:12000});
+ return nodeDir;
 }
 async function safeUserDir(dir,{create=false}={}){
  if(create)await mkdir(dir,{recursive:true,mode:0o700});
@@ -105,7 +148,7 @@ async function ensurePrivateLog(file){
   await writeFile(file,'',{flag:'wx',mode:0o600});}
 }
 export async function installationPreflight(){
- await requireRepo();
+ const nodeDir=await requireRepo();
  await safeUserDir(LOG_DIR,{create:true});
  for(const path of [LOG_OUT,LOG_ERR])await ensurePrivateLog(path);
  // Never compete with an existing foreground worker for the exact chat.
@@ -122,11 +165,11 @@ export async function installationPreflight(){
   throw Error('unsafe_launchagents_directory');
  try{await lstat(PLIST);throw Error('supervisor_already_installed')}
  catch(e){if(e.code!=='ENOENT')throw e;}
- return {ok:true};
+ return {ok:true,nodeDir};
 }
 async function install(){
- await installationPreflight();
- const content=renderPlist();
+ const {nodeDir}=await installationPreflight();
+ const content=renderPlist(nodeDir);
  await writeFile(PLIST,content,{flag:'wx',mode:0o600});
  try{
   const uid=process.getuid();
@@ -141,8 +184,10 @@ async function status(){
  if(process.platform!=='darwin')return safe(audit,'blocked','macos_only');
  try{
   const stat=await lstat(PLIST);
+  const content=await readFile(PLIST,'utf8');
+  const configured=pinnedNodeDir(content);
   if(!privateFile(stat)||await realpath(PLIST)!==PLIST||
-     await readFile(PLIST,'utf8')!==renderPlist())
+     !configured||content!==renderPlist(configured))
     return safe(audit,'blocked','unexpected_launch_agent');
   let active=false;
   try{await command('/bin/launchctl',['print','gui/'+process.getuid()+'/'+SLUG]);
@@ -160,9 +205,11 @@ async function uninstall(){
   catch{return safe(audit,'inconclusive','bootout_unconfirmed')}
  }
  try{
+  const content=await readFile(PLIST,'utf8');
+  const configured=pinnedNodeDir(content);
   if(!privateFile(await lstat(PLIST))||
      await realpath(PLIST)!==PLIST||
-     await readFile(PLIST,'utf8')!==renderPlist())
+     !configured||content!==renderPlist(configured))
     return safe(audit,'blocked','plist_changed');
   await unlink(PLIST);
   return safe(audit,'uninstalled','fixed_service_removed_logs_preserved');
@@ -182,7 +229,7 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   }catch(e){
    const messages=new Set(['macos_only','repo_path_mismatch',
      'unexpected_git_origin','not_main','dirty_worktree','unsafe_external_volume',
-     'gateway_health_empty','unsupported_node_path','unsafe_private_directory','unsafe_log_file',
+     'gateway_health_empty','unsafe_node_runtime','unsupported_node_version','unsafe_private_directory','unsafe_log_file',
      'unsafe_launchagents_directory','watcher_already_active_or_uncertain',
      'supervisor_already_installed']);
    console.log(JSON.stringify(safe(audit,'blocked',

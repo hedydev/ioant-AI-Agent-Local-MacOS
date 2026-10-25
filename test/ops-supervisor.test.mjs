@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
-import {supervisorManifest,renderPlist} from '../stage2/ops-supervisor.mjs';
+import {supervisorManifest,renderPlist,inspectNodeRuntime} from '../stage2/ops-supervisor.mjs';
 
 const filename=resolve(import.meta.dirname,'../stage2/ops-supervisor.mjs');
 const source=readFileSync(filename,'utf8');
@@ -56,7 +56,44 @@ test('installer never installs on behalf of a chat task or invokes general shell
  assert.match(source,/privateDir\(st\)/);
  assert.match(source,/privateFile\(stat\)/);
  assert.match(source,/No sudo/);
- assert.match(source,/const nodeBin=await command\('\/usr\/bin\/which',\['node'\]\)/);
- assert.match(source,/unsupported_node_path/);
+ assert.match(source,/const nodeDir=await inspectNodeRuntime\(\)/);
+ assert.match(source,/unsafe_node_runtime/);
+ assert.doesNotMatch(source,/command\('\/usr\/bin\/which',\['node'\]\)/);
  assert.match(source,/\(stat.mode&0o022\)!==0/);
+});
+
+test('canonical private Node under nvm/Volta or LunaDrive is pinned into LaunchAgent PATH',async()=>{
+ const home='/Users/ted';
+ const node='/Users/ted/.nvm/versions/node/v24.9.0/bin/node';
+ const options={binary:'/Users/ted/.nvm/current/bin/node',home,uid:501,
+  canonical:async()=>node,
+  stat:async path=>path===node
+   ?{mode:0o100755,uid:501,isFile:()=>true,isSymbolicLink:()=>false}
+   :{mode:0o40755,uid:path.startsWith('/Users/ted/')?501:0,
+     isDirectory:()=>true,isSymbolicLink:()=>false}};
+ const nodeDir=await inspectNodeRuntime(options);
+ assert.equal(nodeDir,'/Users/ted/.nvm/versions/node/v24.9.0/bin');
+ const plist=renderPlist(nodeDir);
+ assert.match(plist,/<key>PATH<\/key><string>\/Users\/ted\/\.nvm\/versions\/node\/v24\.9\.0\/bin:\/opt\/homebrew\/bin/);
+ assert.doesNotMatch(plist,/current\/bin\/node/);
+ const diskNode='/Volumes/LunaDrive/DeveloperCache/node/v24/bin/node';
+ assert.equal(await inspectNodeRuntime({...options,binary:diskNode,canonical:async()=>diskNode}),
+   '/Volumes/LunaDrive/DeveloperCache/node/v24/bin');
+});
+test('untrusted executable or writable parent can never become LaunchAgent PATH',async()=>{
+ const home='/Users/ted',node=home+'/.nvm/versions/node/v24/bin/node';
+ const good=async path=>path===node
+  ?{mode:0o100755,uid:501,isFile:()=>true,isSymbolicLink:()=>false}
+  :{mode:0o40755,uid:path.startsWith(home+'/')?501:0,
+    isDirectory:()=>true,isSymbolicLink:()=>false};
+ const opts={binary:node,home,uid:501,canonical:async()=>node,stat:good};
+ for(const change of [
+  {...opts,canonical:async()=>'/private/tmp/node'},
+  {...opts,stat:async p=>p===home+'/.nvm'?{...await good(p),mode:0o40777}:good(p)},
+  {...opts,stat:async p=>p===node?{...await good(p),mode:0o100777}:good(p)},
+  {...opts,stat:async p=>p===node?{...await good(p),uid:999}:good(p)},
+  {...opts,stat:async p=>p===home+'/.nvm'?{...await good(p),isSymbolicLink:()=>true}:good(p)}
+ ])await assert.rejects(inspectNodeRuntime(change),/unsafe_node_runtime/);
+ assert.throws(()=>renderPlist('/Users/ted/../../tmp'),/unsafe_node_runtime/);
+ assert.throws(()=>renderPlist('/private/path:malicious'),/unsafe_node_runtime/);
 });
