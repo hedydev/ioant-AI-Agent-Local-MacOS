@@ -507,3 +507,10 @@ User command after protected source-only update:
     bash scripts/dev-env.sh exec node stage2/project-chat-ui-probe.mjs probe openclaw-workflow
 
 Even if UI observer succeeds with `observed`, it is not evidence of actual new chat creation, handoff delivery, Agent restart/acknowledgement or automatic rollover. A user can request a preemptive handoff any time; absent a verified exact UI limit banner, `explicitContextLimit` must remain `unknown`.
+
+
+## 2026-10-25 — first Phase 3 Mac test gate BLOCKED: two precise observer regressions
+
+The operator ran the protected source self-updater from `58359e2bc2f7ec51fe9e03118cdfe2ec1e5214a3` toward Stage 3 source and the updater correctly **blocked without updating** because native Mac tests produced `378 total / 376 pass / 2 fail`. Failed test locations: `test/project-chat-ui-observer.test.mjs:55` and `:67`. No read-only Chrome observation was attempted; shell sequence stopped at the gate.
+
+The first failure was a genuine bounded-warning parser defect: trimming an alert's raw text BEFORE checking the ≤220-character bound allowed a huge whitespace-padded known limit phrase to be incorrectly interpreted as an exact valid system warning. Fix: reject zero-length or >220-character raw alert text BEFORE `trim().toLowerCase()`; known short warnings remain recognized, arbitrary or oversized content stays `unknown`. The second failure was a pure test assertion error: comparing `calls[1].slice(0,4)` (four browser command arguments) against a **three** argument expected array; change to `slice(0,3)` without modifying browser execution logic. Focused in-memory regression checks covering unknown, quoted, exact, padded banners, exact tab selection and read-only command shape now passed. Full Mac native tests remain unverified pending next protected source update. No existing LaunchAgent, running watcher, projects, Agents, Chrome permissions, or route bindings were changed.

@@ -46,8 +46,12 @@ export function inspectProjectChatUi(doc=document,loc=location){
    if(el.closest?.('[data-message-author-role],[data-user-message-bubble],'+
        '[data-content-search-unit-key],[data-conversation-role],form'))continue;
    // Inspect only bounded text for known system banners. NEVER return it.
-   const val=String(el.textContent||'').trim().toLowerCase();
-   if(val.length>0&&val.length<=220&&explicit.includes(val)){
+   // Enforce the bound BEFORE trim: trailing padding must never allow
+   // oversized system/banner text to masquerade as a known exact signal.
+   const rawText=String(el.textContent||'');
+   if(rawText.length===0||rawText.length>220)continue;
+   const val=rawText.trim().toLowerCase();
+   if(val.length>0&&explicit.includes(val)){
      limit='explicit_limit_banner';
      break;
    }

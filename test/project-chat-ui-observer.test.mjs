@@ -89,7 +89,7 @@ test('browser observer reads exactly one validated current conversation, no othe
  assert.equal(result.sendsMessages,false);
  assert.equal(result.changesAgent,false);
  assert.deepEqual(calls.map(a=>a[1]),['tabs','evaluate']);
- assert.deepEqual(calls[1].slice(0,4),['--json','evaluate','--target-id']);
+ assert.deepEqual(calls[1].slice(0,3),['--json','evaluate','--target-id']);
  assert.equal(calls[1][4],'--fn');
  assert.equal(calls[1][3],'target_one');
  assert.ok(!JSON.stringify(result).includes(sameDifferentLabel));
