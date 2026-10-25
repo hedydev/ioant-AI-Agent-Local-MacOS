@@ -5,6 +5,7 @@ import {resolve,dirname,join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {validateProjectRoutes,parseProjectChatUrl,resolveProjectRoute,proposedSuccessor} from './project-chat-routing.mjs';
 import {createHandoffRequest,handoffPrompt} from './chat-handoff.mjs';
+import {getHandoffStatus} from './handoff-journal.mjs';
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const FILE=join(ROOT,'config','chat-projects.json');
@@ -24,6 +25,11 @@ async function main(argv){
    return {audit:'IOANT_CHAT_PROJECT_ROUTER',schemaVersion:1,state:'read_only',
      routes:routes.map(x=>({key:x.key,projectId:x.projectId,conversationId:x.conversationId,
        repo:x.repo,agentId:x.agentId,role:x.role}))};
+ if(action==='handoff-status'&&args.length===1){
+   const key=args[0];
+   if(!routes.some(x=>x.key===key))throw Error('unregistered_project');
+   return getHandoffStatus(key);
+ }
  if(action==='inspect'&&args.length===1){
    const chat=parseProjectChatUrl(args[0],{allowTracking:true});
    const route=routes.find(x=>x.projectId===chat.projectId);

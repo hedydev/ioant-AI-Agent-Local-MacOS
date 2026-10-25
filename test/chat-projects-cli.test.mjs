@@ -69,3 +69,22 @@ test('invalid project or unapproved new URL is rejected without leaking browser 
   assert.equal(typeof result.reason,'string');
  }
 });
+
+test('handoff-status remains read-only and never exposes the private handoff document',()=>{
+ const env={...process.env,
+  IOANT_DEV_VOLUME:'/ioant-nonexistent-volume-for-readonly-test',
+  PROJECT_DEV_CACHE:'/ioant-nonexistent-volume-for-readonly-test/DeveloperCache/projects/ioant-ai-agent-local-macos'};
+ const p=spawnSync(process.execPath,[command,'handoff-status','openclaw-workflow'],{
+  cwd:root,encoding:'utf8',timeout:5000,env});
+ assert.equal(p.status,0,p.stderr);
+ const state=JSON.parse(p.stdout.trim());
+ assert.equal(state.audit,'IOANT_HANDOFF_JOURNAL');
+ assert.equal(state.state,'idle');
+ assert.equal(state.revision,0);
+ assert.equal(state.historyCount,0);
+ assert.ok(!p.stdout.includes('handoffText'));
+ const wrong=run('handoff-status','nonexistent-project');
+ assert.equal(wrong.exitCode,1);
+ assert.equal(wrong.state,'blocked');
+ assert.doesNotMatch(src,/\b(?:click|type|press|writeFile|unlink|rm)\(/);
+});

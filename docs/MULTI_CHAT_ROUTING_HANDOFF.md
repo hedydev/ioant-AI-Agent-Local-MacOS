@@ -52,3 +52,11 @@ These only compute local routing and suggested prompt text; they do not interact
 3. Implement a strict, version-tested read-only exact-Project ChatGPT limit/banner observer, with operator-request fallback.
 4. Build the user-consented **same Project** chat creation/delivery observer and test its DOM selectors in the actual Chrome version. No hidden browser API assumptions.
 5. Wire Agent route rebind, old watcher release and immutable delivery receipts; then add native OpenClaw Control UI Feature Plugin.
+
+## Phase 2 — Local private handoff journal
+
+Implementation in `stage2/handoff-journal.mjs` now creates a project-scoped, owner-only, revisioned journal when a locally trusted orchestrator requests one. See `docs/HANDOFF_JOURNAL.md` for the exact write-ahead intent and crash-recovery safety boundary. The existing read-only CLI additionally supports:
+
+    bash scripts/dev-env.sh exec node stage2/chat-projects-cli.mjs handoff-status openclaw-workflow
+
+It prints metadata only and does not initialize absent storage. Persisting a handoff is separate from automating ChatGPT page creation or promoting the live registry; these remain future evidence-gated steps. No new action has been added to the browser worker allowlist.
