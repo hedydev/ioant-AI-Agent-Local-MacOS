@@ -14,6 +14,7 @@ import { PROTOCOL, validateChatUrl, chatKey, extractAction, responseForTask, red
 import { runAction } from './runner.mjs';
 import { reserveDevDiscussion } from './dev-discussion-claim.mjs';
 import { reconcilePrewrite } from './openclaw-dev-prewrite-reconcile.mjs';
+import { observeGuiReadOnly } from './gui-readonly-observation.mjs';
 import { tabVisibility } from './tab-visibility.mjs';
 import { isBoundDevDiscussion } from './development-agent-route.mjs';
 import { recordDiagnosticEvent, diagnosticCode } from './diagnostic-log.mjs';
@@ -82,7 +83,7 @@ const readPageFunction=`() => {
 }`;
 
 function argsOf(argv){
-  const out={mode:'watch',interval:15,url:null,initialize:false,enableAlicePreflight:false,enableAliceLabStartupProbe:false,enableMintDiagnostics:false,enableSelfUpdate:false,enableOpenClawProvision:false,enableOpenClawAgentCreate:false,enableOpenClawDevCreate:false,devAgent:null};
+  const out={mode:'watch',interval:15,url:null,initialize:false,enableAlicePreflight:false,enableAliceLabStartupProbe:false,enableMintDiagnostics:false,enableSelfUpdate:false,enableOpenClawProvision:false,enableOpenClawAgentCreate:false,enableOpenClawDevCreate:false,enableGuiReadonly:false,devAgent:null};
   for(let i=0;i<argv.length;i++){
     if(argv[i]==='--once')out.mode='once';
     else if(argv[i]==='--watch')out.mode='watch';
@@ -95,6 +96,7 @@ function argsOf(argv){
     else if(argv[i]==='--enable-openclaw-provision')out.enableOpenClawProvision=true;
     else if(argv[i]==='--enable-openclaw-agent-create')out.enableOpenClawAgentCreate=true;
     else if(argv[i]==='--enable-openclaw-dev-create')out.enableOpenClawDevCreate=true;
+    else if(argv[i]==='--enable-gui-readonly')out.enableGuiReadonly=true;
     else if(argv[i]==='--dev-agent'){
       const id=argv[++i];
       if(!['alice-ai','openclaw-dev'].includes(id))throw Error('--dev-agent must be alice-ai or openclaw-dev');
@@ -351,7 +353,7 @@ async function main(){
   console.log('[loop] Actions: project-tests / project-status / project-head / environment-scan'+(opts.enableAlicePreflight?' / alice-witness-preflight (scoped Mint sync)':'')+(opts.enableAliceLabStartupProbe?' / alice-lab-startup-probe (one-shot 17880 only)':'')+(opts.enableMintDiagnostics?' / mint-bds-process-identity / mint-bds-process-lineage (read-only, fixed SSH target)':'')
     +(opts.enableSelfUpdate?' / project-update-verify (clean main, pretested fast-forward only)':'')
     +(opts.enableOpenClawProvision?' / openclaw-ollama-provision (local model provider write only)':'')
-    +(opts.enableOpenClawAgentCreate?' / openclaw-alice-create (private text-only Agent once)':'')+(opts.enableOpenClawDevCreate?' / openclaw-dev-create / openclaw-dev-prewrite-reconcile (incident-064 only)':'')+(opts.devAgent?' / openclaw-agent-dev-discuss (bound to '+opts.devAgent+', no tools)':' / AI discussion disabled (requires --dev-agent)')+'. Ctrl-C stops.');
+    +(opts.enableOpenClawAgentCreate?' / openclaw-alice-create (private text-only Agent once)':'')+(opts.enableOpenClawDevCreate?' / openclaw-dev-create / openclaw-dev-prewrite-reconcile (incident-064 only)':'')+(opts.enableGuiReadonly?' / openclaw-gui-readonly-probe (exact tab, no page text or actions)':'')+(opts.devAgent?' / openclaw-agent-dev-discuss (bound to '+opts.devAgent+', no tools)':' / AI discussion disabled (requires --dev-agent)')+'. Ctrl-C stops.');
   try{
     recordDiagnosticEvent('worker_start',{mode:opts.mode,profile});
     state=await loadState(stateFile); // Must be within finally so a read failure does not leak lock.
@@ -494,7 +496,8 @@ async function main(){
             || (task.action==='openclaw-ollama-provision' && opts.enableOpenClawProvision)
             || (task.action==='openclaw-alice-create' && opts.enableOpenClawAgentCreate)
              || (task.action==='openclaw-dev-create' && opts.enableOpenClawDevCreate)
-             || (task.action==='openclaw-dev-prewrite-reconcile' && opts.enableOpenClawDevCreate);
+             || (task.action==='openclaw-dev-prewrite-reconcile' && opts.enableOpenClawDevCreate)
+             || (task.action==='openclaw-gui-readonly-probe' && opts.enableGuiReadonly);
           recordDiagnosticEvent('task_seen',{taskId:task.id,action:task.known?task.action:'unknown'});
           recordDiagnosticEvent('action_started',{taskId:task.id,action:task.known?task.action:'unknown'});
           let result;
@@ -536,6 +539,14 @@ async function main(){
                output:JSON.stringify({audit:'IOANT_OPENCLAW_DEV_PREWRITE_RECONCILE',
                 schemaVersion:1,state:recovery.ok?'recovered':'blocked',
                 reason:recovery.reason,configWrite:false,agentCreation:false})};
+           }else if(task.action==='openclaw-gui-readonly-probe'){
+             // Local opt-in, exact-tab-only. No screenshot, DOM text, raw
+             // browser output, clicks, typing or navigation leaves this branch.
+             const target=await exactTab(opts.url);
+             const audit=await observeGuiReadOnly({url:opts.url,target,browser});
+             result={status:audit.state==='observed'?'passed':
+               audit.state==='blocked'?'approval_required':'inconclusive',
+               output:JSON.stringify(audit)};
            }else if(isDevDiscussion){
             // Reserve before invoking Gateway. After interruption, the old ID
             // remains permanently claimed and must never trigger inference.
