@@ -77,8 +77,20 @@ test('canonical private Node under nvm/Volta or LunaDrive is pinned into LaunchA
  assert.match(plist,/<key>PATH<\/key><string>\/Users\/ted\/\.nvm\/versions\/node\/v24\.9\.0\/bin:\/opt\/homebrew\/bin/);
  assert.doesNotMatch(plist,/current\/bin\/node/);
  const diskNode='/Volumes/LunaDrive/DeveloperCache/node/v24/bin/node';
- assert.equal(await inspectNodeRuntime({...options,binary:diskNode,canonical:async()=>diskNode}),
+ // The replacement binary needs its own regular executable-file stat.
+ // Reusing the nvm fixture makes the LunaDrive Node falsely look like a directory.
+ const diskStat=async path=>path===diskNode
+  ?{mode:0o100755,uid:501,isFile:()=>true,isSymbolicLink:()=>false}
+  :{mode:0o40755,uid:path.startsWith('/Volumes/LunaDrive/')?501:0,
+    isDirectory:()=>true,isSymbolicLink:()=>false};
+ assert.equal(await inspectNodeRuntime({...options,binary:diskNode,
+  canonical:async()=>diskNode,stat:diskStat}),
    '/Volumes/LunaDrive/DeveloperCache/node/v24/bin');
+ // Fail closed if the purported binary is actually a directory.
+ await assert.rejects(inspectNodeRuntime({...options,binary:diskNode,
+  canonical:async()=>diskNode,stat:async()=>({
+   mode:0o40755,uid:501,isDirectory:()=>true,isFile:()=>false,isSymbolicLink:()=>false
+  })}),/unsafe_node_runtime/);
 });
 test('untrusted executable or writable parent can never become LaunchAgent PATH',async()=>{
  const home='/Users/ted',node=home+'/.nvm/versions/node/v24/bin/node';
