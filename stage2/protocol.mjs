@@ -14,6 +14,19 @@ export function validateChatUrl(value) {
   return url.href;
 }
 
+// ChatGPT can move a conversation between project URL prefixes without
+// changing its immutable conversation ID. Accept only two structurally valid
+// ChatGPT conversation URLs with the SAME ID, never arbitrary /id suffixes,
+// login pages, query/fragment URLs, other origins or other conversations.
+// The caller must ALSO establish that exactly one eligible tab has this ID.
+export function sameChatConversationUrl(actual,expected){
+ try{
+  const candidate=new URL(validateChatUrl(actual));
+  const target=new URL(validateChatUrl(expected));
+  return candidate.pathname.split('/').at(-1)===target.pathname.split('/').at(-1);
+ }catch{return false}
+}
+
 export function actionFromJson(code) {
   if (typeof code !== 'string' || code.length > 5000) return null;
   let value;

@@ -10,7 +10,7 @@ import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { privateReportDir } from '../src/report-storage.mjs';
 import { fileURLToPath } from 'node:url';
-import { PROTOCOL, validateChatUrl, chatKey, extractAction, responseForTask, redactFeedback } from './protocol.mjs';
+import { PROTOCOL, validateChatUrl, sameChatConversationUrl, chatKey, extractAction, responseForTask, redactFeedback } from './protocol.mjs';
 import { runAction } from './runner.mjs';
 import { reserveDevDiscussion } from './dev-discussion-claim.mjs';
 import { reconcilePrewrite } from './openclaw-dev-prewrite-reconcile.mjs';
@@ -130,12 +130,12 @@ async function exactTab(url){
   if(!Array.isArray(tabs))throw Error('OpenClaw tab list not available');
   if(!url)return tabs;
   const details=tabVisibility(tabs,url,profile);
-  const matches=tabs.filter(t=>t.url===url);
-  if(details.matchingTabs!==1)
+  const matches=tabs.filter(t=>sameChatConversationUrl(t?.url,url));
+  if(matches.length!==1)
     throw Error('Authorized ChatGPT tab unavailable: '+details.code+
      ' (profile='+details.profile+', visible='+details.visibleTabs+
      ', chatgpt='+details.chatgptTabs+', sameConversationId='+details.sameIdTabs+
-     ', exact='+details.matchingTabs+'). Verify exact tab URL and extension access; no automatic navigation or profile change.');
+     ', exact='+details.matchingTabs+', sameId='+matches.length+'). Verify one authorized conversation ID; no automatic navigation or profile change.');
   const id=matches[0].suggestedTargetId??matches[0].tabId??matches[0].targetId;
   if(typeof id!=='string'||!/^[a-zA-Z0-9_:-]{1,128}$/.test(id))throw Error('Browser has no safe exact target handle');
   return id;
@@ -165,7 +165,7 @@ function unpackMarked(value){
 async function readPage(target, url){
   const raw=await browser('--json','evaluate','--target-id',target,'--fn',readPageFunction);
   const parsed=unpackMarked(raw);
-  if(!parsed||parsed.url!==url)throw Error('Browser DOM result does not match the exact authorized conversation URL');
+  if(!parsed||!sameChatConversationUrl(parsed.url,url))throw Error('Browser DOM result does not match the authorized conversation ID');
   if(!parsed.composerPresent) {
     const detail='profile='+profile+', readyState='+(parsed.readyState??'unknown')+
       ', assistantTurns='+(parsed.selectorFound?'present':'absent')+

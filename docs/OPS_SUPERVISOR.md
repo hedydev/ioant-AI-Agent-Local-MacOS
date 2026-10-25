@@ -98,3 +98,22 @@ Note: shell continuation formatting should be used in the terminal, not copied w
 The Mac's candidate test gate rejected the first private-runtime release at `test/ops-runtime-isolation.test.mjs:25` (340/341 passed). The issue was a test/reconstruction path mismatch: the old LaunchAgent's Documents script path was previously reconstructed from module-relative `ROOT`. During pre-merge tests `ROOT` points to the updater's isolated LunaDrive candidate directory, not the fixed historical source checkout. The old exact-match plist must always reconstruct from `~/Documents/workspace/ioant-AI-Agent-Local-MacOS`, independent of where the candidate runs.
 
 The fix uses a fixed, explicit `LEGACY_REPO` under the operator's home only for recognized legacy service templates; the current LaunchAgent continues to use private Application Support runtime. Unit tests now enforce the separation and refuse arbitrary legacy variants. Do not skip the macOS candidate test gate or attempt install until all tests pass.
+
+
+## 2026-10-25 — Chrome All-tabs project-path drift and private runtime updates
+
+The user's Chrome extension is definitively **Connected, All tabs**, automatic bootstrap ready, extension v2.3.0 and Gateway healthy. Both Chrome screenshots showed the same user profile. Nevertheless `browser --browser-profile chrome --json tabs` returned only 2 eligible tabs (1 ChatGPT) while 4 ChatGPT tabs were visibly open across two Chrome windows. This is a separate OpenClaw target-enumeration discrepancy; do not mislabel it an All-tabs authorization error or assume missing tabs are hidden by our script.
+
+Crucial diagnostic: the single exposed ChatGPT URL shares the fixed target *conversation ID* but has a different complete project path. The launcher and worker previously demanded the old full project URL. They now select only a **single unique validated ChatGPT conversation ID**, preserving the originally configured ID, existing chat lock/state/receipt key, and validating the actual DOM URL again. Strict HTTPS, chatgpt.com origin, query/fragment-free `/c/id` or `/g/project/c/id` shape remain mandatory. Duplicate matching IDs refuse to run, even if one is exact. This fix does not expose other tabs or grant more browser permissions.
+
+A running *installed* service executes code from `~/Library/Application Support/ioant-openclaw-ops/runtime`, independently from the operator's Documents source checkout. For a code-only update with this service currently stopped, run both safe candidate-test-gated updaters before one restart:
+
+    cd ~/Documents/workspace/ioant-AI-Agent-Local-MacOS &&
+    bash scripts/dev-env.sh exec node stage2/project-self-update.mjs &&
+    cd "$HOME/Library/Application Support/ioant-openclaw-ops/runtime" &&
+    bash scripts/dev-env.sh exec node stage2/project-self-update.mjs &&
+    launchctl kickstart "gui/$(id -u)/com.ioant.openclaw.safe-watcher" &&
+    sleep 4 &&
+    bash scripts/dev-env.sh exec node stage2/ops-supervisor.mjs status
+
+Important: the final status invocation should be executed from **the Documents checkout** if there are ever source-based path checks on future revisions; the current status implementation uses only the known plist template and macOS. Avoid running a service before runtime project update passes. The Supervisor's `KeepAlive=false` still means a browser mismatch can leave it stopped. Inspect private local logs for actual browser match and then verify JSON task feedback separately; a PID alone does not prove conversation messaging.

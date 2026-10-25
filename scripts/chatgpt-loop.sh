@@ -160,7 +160,7 @@ if [[ -n "$CHAT_URL" ]]; then
   # startup even though the extension is connected. Retry *only* that case.
   # No navigation, automatic grouping, auth changes or browser restarts.
   read_authorized_tab_counts() {
-    printf '%s' "$1" | EXPECTED_CHAT_URL="$validated" node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);const t=Array.isArray(j)?j:(j.tabs??j.result?.tabs);if(!Array.isArray(t))process.exit(2);const u=new URL(process.env.EXPECTED_CHAT_URL);const id=u.pathname.split("/").at(-1);const chat=t.filter(x=>typeof x.url==="string"&&x.url.startsWith("https://chatgpt.com/"));const same=chat.filter(x=>{try{return new URL(x.url).pathname.split("/").at(-1)===id}catch{return false}});process.stdout.write([t.filter(x=>x.url===u.href).length,t.length,chat.length,same.length].join(" "))})'
+    printf '%s' "$1" | EXPECTED_CHAT_URL="$validated" node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);const t=Array.isArray(j)?j:(j.tabs??j.result?.tabs);if(!Array.isArray(t))process.exit(2);const u=new URL(process.env.EXPECTED_CHAT_URL);const id=u.pathname.split("/").at(-1);const chat=t.filter(x=>typeof x.url==="string"&&x.url.startsWith("https://chatgpt.com/"));const same=chat.filter(x=>{try{const p=new URL(x.url);return p.protocol==="https:"&&p.hostname==="chatgpt.com"&&!p.username&&!p.password&&!p.search&&!p.hash&&new RegExp("^/(?:g/[a-zA-Z0-9_-]+/)?c/[a-zA-Z0-9-]{15,}$").test(p.pathname)&&p.pathname.split("/").at(-1)===id}catch{return false}});process.stdout.write([same.length,t.length,chat.length,same.length].join(" "))})'
   }
   tabs="$("$OPENCLAW_BIN" browser --browser-profile "$BROWSER_PROFILE" --json tabs)"
   TAB_COUNTS="$(read_authorized_tab_counts "$tabs")" || {
@@ -201,24 +201,24 @@ if [[ -n "$CHAT_URL" ]]; then
     fi
   fi
   case "$TAB_COUNT" in
-    1) echo "[loop] Reusing exactly one matching ChatGPT tab in browser profile: $BROWSER_PROFILE"; log_event tab_found ;;
+    1) echo "[loop] Reusing exactly one authorized ChatGPT conversation ID in browser profile: $BROWSER_PROFILE"; log_event tab_found ;;
     0)
       if [[ "$BROWSER_PROFILE" == openclaw ]]; then
         echo '[loop] Opening only the selected conversation in isolated managed browser.'
         "$OPENCLAW_BIN" browser --browser-profile "$BROWSER_PROFILE" open "$validated"
       else
         if (( TAB_SAME_ID > 0 )); then
-          echo '[loop] An authorized tab has this conversation ID but a DIFFERENT project URL. Reopen the selected exact URL in that same authorized tab.' >&2
+          echo '[loop] A tab shares the conversation ID but did not pass the strict ChatGPT URL-shape check; refusing an unsafe match.' >&2
         elif (( TAB_VISIBLE == 0 )); then
           echo '[loop] Chrome profile exposes 0 eligible tabs. This does not prove the relay is connected. In the extension popup, check whether it says Relay unavailable WHILE this launcher is running. If Access=All tabs, no tab group is needed. If Access=Selected tabs, authorize the target tab in the OpenClaw group; ensure it is not paused.' >&2
         else
-          echo "[loop] No exact target tab among $TAB_VISIBLE authorized tabs ($TAB_CHATGPT on ChatGPT). Check the current tab URL and extension Selected tabs grant." >&2
+          echo "[loop] No unique matching ChatGPT conversation ID among $TAB_VISIBLE visible browser tabs ($TAB_CHATGPT on ChatGPT). Check relay tab visibility (All tabs/pauses) and current conversation ID." >&2
         fi
         log_event tab_missing || true
         exit 1
       fi
       ;;
-    *) log_event tab_missing || true; echo "[loop] Found $TAB_COUNT copies of the target ChatGPT tab; close duplicates before automation." >&2; exit 1 ;;
+    *) log_event tab_missing || true; echo "[loop] Found $TAB_COUNT copies of the target ChatGPT conversation ID; close duplicates before automation." >&2; exit 1 ;;
   esac
 fi
 # Reload only on worker exit code 75, which can be set solely after
