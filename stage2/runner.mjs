@@ -30,7 +30,9 @@ export function actionPlan(action, repoRoot) {
     'openclaw-alice-reconcile': {bin:process.execPath,args:['stage2/openclaw-alice-reconcile.mjs'],cwd:root,timeout:65000},
     'openclaw-alice-main-diff': {bin:process.execPath,args:['stage2/openclaw-alice-main-diff.mjs'],cwd:root,timeout:65000},
     'openclaw-alice-agent-smoke': {bin:process.execPath,args:['stage2/openclaw-alice-agent-smoke.mjs'],cwd:root,timeout:205000},
-    'openclaw-dev-preflight': {bin:process.execPath,args:['stage2/openclaw-dev-preflight.mjs'],cwd:root,timeout:65000}
+    'openclaw-dev-preflight': {bin:process.execPath,args:['stage2/openclaw-dev-preflight.mjs'],cwd:root,timeout:65000},
+    // Fixed, read-only Mac Maintainer evidence for the current registered Project.
+    'openclaw-maintainer-health': {bin:process.execPath,args:['stage2/maintainer-health.mjs','inspect','openclaw-workflow'],cwd:root,timeout:150000}
   };
   return plans[action] ?? null;
 }
