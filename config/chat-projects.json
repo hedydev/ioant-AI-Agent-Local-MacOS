@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "projects": [
+    {
+      "key": "openclaw-workflow",
+      "repo": "hedydev/ioant-AI-Agent-Local-MacOS",
+      "agentId": "openclaw-dev",
+      "role": "ops-platform",
+      "chatUrl": "https://chatgpt.com/g/g-p-6adbdb6e70348191bc5acb11efb0db5d-ai-openclawgong-zuo-liu/c/6add3565-d868-83ec-804e-1e7a00eb0a59"
+    }
+  ]
+}
