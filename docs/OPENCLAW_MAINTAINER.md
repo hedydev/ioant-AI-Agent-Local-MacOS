@@ -98,3 +98,29 @@ Read-only Maintainer classification:
 Never automatically click `Allow on this tab`, override `Pause`, retry a cancelled debugger attach, reopen tabs, set `All tabs`, restart Chrome/Gateway, or move the model's task execution to another browser profile. The next live Mac report will determine which constrained recovery path is appropriate.
 
 See https://docs.openclaw.ai/tools/chrome-extension and https://docs.openclaw.ai/cli/browser .
+
+
+## Phase 3 — classify visible-tab identity without exposing URLs
+
+After the operator's protected Mac update to `2fc670e4ec4187dcebf6787299a1a201d2a4c48f`, the real machine passed **400/400 tests** and reported **`relayVerification: authenticated`, `visibleTabs: 1` twice, and `matchingTabs: 0` twice**. This is an improvement over earlier empty tab lists: an authenticated Relay is presenting *an eligible tab*, but we do not yet know its identity. No browser page contents, URL, secrets, or browser control actions were captured. The running watcher is not proven to have reloaded its upgraded code; the private runtime checkout HEAD alone is not process-version evidence.
+
+The new pure `stage2/maintainer-tab-identity.mjs` classifies only validated metadata from the existing read-only `chrome tabs` command. It returns **counts, never another browser tab URL, title, DOM, message or page text**:
+
+- `matchingTabs`: same exact registered Project ID and Conversation ID. A renamed URL label under the same immutable project prefix still matches.
+- `sameConversationOtherProjectTabs`: same Conversation ID, structurally valid URL under a **different** Project ID. This is *not* proof of authorized membership or a migrated conversation; do not silently switch a project binding.
+- `sameConversationUnscopedTabs`: same Conversation ID on a plain `/c/<id>` URL, with Project membership not represented in the URL. Do not infer it.
+- `sameProjectOtherChatTabs`: same registered Project ID but a different Conversation ID, possibly a sibling chat.
+- `otherChatgptTabs`: an eligible ChatGPT tab that is not the registered target.
+- `otherVisibleTabs`: all other visible eligible browser targets, including invalid/foreign origins.
+
+Two independent tab samples must agree on a category before its new finding is selected. The classifications `same_conversation_different_project_path`, `same_conversation_unscoped_chat_path`, `other_chat_in_registered_project`, `other_chatgpt_chat_only` and `only_other_browser_tab_visible` are **diagnostic only**. Duplicate tabs sharing the registered conversation ID, even if one appears under a different Project prefix, are blocked before selecting a target. All records remain bound to the known `openclaw-workflow` registry entry and existing Chrome profile; no URL from the tab list is used to change permissions, send messages or navigate.
+
+Run the protected source update, then execute:
+
+    cd ~/Documents/workspace/ioant-AI-Agent-Local-MacOS
+    bash scripts/dev-env.sh exec node stage2/project-self-update.mjs
+    bash scripts/dev-env.sh exec node stage2/maintainer-health.mjs inspect openclaw-workflow
+
+The **first command must pass the full Mac test gate** before accepting the second result. Expected new tests: six; total should be **406** unless the suite has changed. A verified new finding can tell whether the operator must use the extension popup on the actual target ChatGPT tab, or whether an already-eligible tab corresponds to a different conversation or project path. It is never evidence that the entire self-healing workflow is complete.
+
+A later controlled watcher runtime reload requires a separate explicit procedure; a development checkout update does not restart or mutate the running background process.

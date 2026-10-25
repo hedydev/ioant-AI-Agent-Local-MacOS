@@ -7,7 +7,8 @@ import {promisify} from 'node:util';
 import {resolve,join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {homedir} from 'node:os';
-import {parseProjectChatUrl,validateProjectRoutes} from './project-chat-routing.mjs';
+import {validateProjectRoutes} from './project-chat-routing.mjs';
+import {tallyMaintainerTabs,validatedMaintainerTabCounts} from './maintainer-tab-identity.mjs';
 const run=promisify(execFile);
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const REGISTRY=join(ROOT,'config','chat-projects.json');
@@ -35,17 +36,7 @@ export function summarizeRelayVerification(raw){
 // Only compare strict ChatGPT Project and conversation identifiers. Never
 // serialize titles, other tab URLs, DOM, Gateway keys, or diagnostic stdout.
 export function summarizeVisibleTabs(raw,project){
- const value=readJson(raw);
- const tabs=Array.isArray(value)?value:value?.tabs??value?.result?.tabs;
- if(!Array.isArray(tabs)||tabs.length>1000)return {state:'unknown',reason:'invalid_tabs'};
- let matching=0;
- for(const tab of tabs){
-   try{
-     const chat=parseProjectChatUrl(tab?.url,{allowTracking:true});
-     if(chat.projectId===project.projectId&&chat.conversationId===project.conversationId)matching++;
-   }catch{/* Ignore other tabs without inspecting their contents. */}
- }
- return {state:'ok',visibleTabs:tabs.length,matchingTabs:matching};
+ return tallyMaintainerTabs(raw,project);
 }
 export function assessMaintainerHealth({project,checks}={}){
  if(!project||!checks)return {state:'blocked',reason:'missing_evidence'};
@@ -58,12 +49,23 @@ export function assessMaintainerHealth({project,checks}={}){
  const valid=a.every(x=>x?.state==='ok'&&Number.isInteger(x.visibleTabs)&&
    x.visibleTabs>=0&&x.visibleTabs<=1000&&Number.isInteger(x.matchingTabs)&&
    x.matchingTabs>=0&&x.matchingTabs<=x.visibleTabs);
- const duplicates=valid&&a.some(x=>x.matchingTabs>1);
+ // Older minimal fixtures remain safe, but only fresh fully tallied
+ // samples can identify a changed Project path or different ChatGPT tab.
+ const detailed=valid&&a.every(validatedMaintainerTabCounts);
+ const sameIdentityCount=x=>x.matchingTabs+
+   (detailed?x.sameConversationOtherProjectTabs+x.sameConversationUnscopedTabs:0);
+ const duplicates=valid&&a.some(x=>sameIdentityCount(x)>1);
  const bothMissing=valid&&a.every(x=>x.matchingTabs===0);
  const allEmpty=valid&&a.every(x=>x.visibleTabs===0);
+ const consistent=(key)=>detailed&&a.every(x=>x.matchingTabs===0&&x[key]>=1)&&
+   a.every(x=>sameIdentityCount(x)<=1);
  let finding='inconclusive',priority='investigate';
  if(duplicates){finding='duplicate_target_tabs';priority='blocked'}
- else if(valid&&a.every(x=>x.matchingTabs===1)&&doctor==='ok'){
+ else if(consistent('sameConversationOtherProjectTabs')){
+   finding='same_conversation_different_project_path';priority='investigate';
+ }else if(consistent('sameConversationUnscopedTabs')){
+   finding='same_conversation_unscoped_chat_path';priority='investigate';
+ }else if(valid&&a.every(x=>x.matchingTabs===1)&&doctor==='ok'){
    finding='target_visible';priority='normal';
  }else if(ext==='failed'||doctor==='failed'){
    finding='browser_or_gateway_diagnostic_failed';priority='investigate';
@@ -72,7 +74,13 @@ export function assessMaintainerHealth({project,checks}={}){
  }else if(allEmpty&&relay==='not_ready'){
    finding='relay_verification_not_ready';priority='investigate';
  }else if(allEmpty){finding='relay_reports_zero_tabs';priority='investigate'}
- else if(bothMissing){finding='registered_chat_unavailable';priority='investigate'}
+ else if(bothMissing&&consistent('sameProjectOtherChatTabs')){
+   finding='other_chat_in_registered_project';priority='investigate';
+ }else if(bothMissing&&consistent('otherChatgptTabs')){
+   finding='other_chatgpt_chat_only';priority='investigate';
+ }else if(bothMissing&&consistent('otherVisibleTabs')){
+   finding='only_other_browser_tab_visible';priority='investigate';
+ }else if(bothMissing){finding='registered_chat_unavailable';priority='investigate'}
  const actions=['read_only_recheck'];
  if(priority==='blocked')actions.push('operator_review_duplicate_tabs');
  else if(finding==='relay_authenticated_no_eligible_tabs')
@@ -81,12 +89,27 @@ export function assessMaintainerHealth({project,checks}={}){
    actions.push('operator_review_relay_setup');
  else if(finding==='relay_reports_zero_tabs'||finding==='browser_or_gateway_diagnostic_failed')
    actions.push('operator_review_extension_access');
+ else if(finding==='same_conversation_different_project_path')
+   actions.push('operator_review_conversation_project_membership');
+ else if(finding==='same_conversation_unscoped_chat_path')
+   actions.push('operator_review_unscoped_conversation');
+ else if(finding==='other_chat_in_registered_project')
+   actions.push('operator_review_target_conversation');
+ else if(finding==='other_chatgpt_chat_only'||finding==='only_other_browser_tab_visible')
+   actions.push('operator_review_target_tab');
  else if(finding==='registered_chat_unavailable')actions.push('operator_review_target_tab');
  if(sup!=='running')actions.push('operator_review_watcher_state');
  return {audit:AUDIT,schemaVersion:1,state:'assessed',projectKey:project.key,
   projectId:project.projectId,conversationId:project.conversationId,
   finding,priority,checks:{extension:ext,doctor,relayVerification:relay,watcher:sup,
-    tabSamples:valid?a.map(x=>({visibleTabs:x.visibleTabs,matchingTabs:x.matchingTabs})):[]},
+    tabSamples:valid?a.map(x=>({...{visibleTabs:x.visibleTabs,matchingTabs:x.matchingTabs},
+      ...(detailed?{
+        sameConversationOtherProjectTabs:x.sameConversationOtherProjectTabs,
+        sameConversationUnscopedTabs:x.sameConversationUnscopedTabs,
+        sameProjectOtherChatTabs:x.sameProjectOtherChatTabs,
+        otherChatgptTabs:x.otherChatgptTabs,
+        otherVisibleTabs:x.otherVisibleTabs
+      }:{})})):[]},
   recommendedActions:actions,autoChanged:false,permissionsChanged:false,
   reportDelivery:'not_attempted',note:
    'A zero-tab relay snapshot is not proof of user permission revocation. Never bypass Chrome pause or debugger Cancel.'};
