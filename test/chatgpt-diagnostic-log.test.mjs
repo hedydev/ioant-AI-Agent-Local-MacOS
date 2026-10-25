@@ -83,3 +83,20 @@ test('missing configured log file is optional for direct Node tests',()=>{
  try{assert.equal(recordDiagnosticEvent('worker_start'),false);}
  finally{if(prev!==undefined)process.env.IOANT_LOOP_LOG_FILE=prev;}
 });
+
+test('all watcher diagnostic event literals are allowlisted, including one-shot claims',()=>fixture(({logDir})=>{
+ const path=createDiagnosticLog(logDir);
+ const watcher=readFileSync(new URL('../stage2/chatgpt-loop.mjs',import.meta.url),'utf8');
+ const events=[...watcher.matchAll(/recordDiagnosticEvent\('([^']+)'/g)].map(x=>x[1]);
+ assert.ok(events.includes('openclaw_dev_create_claimed'));
+ assert.ok(events.includes('dev_discussion_claimed'));
+ const distinct=[...new Set(events)];
+ assert.ok(distinct.length>=10);
+ for(const event of distinct){
+  assert.doesNotThrow(()=>recordDiagnosticEvent(event,{},path),event);
+ }
+ const rows=readFileSync(path,'utf8').trim().split('\n').map(line=>JSON.parse(line));
+ assert.equal(rows.length,distinct.length);
+ assert.ok(rows.every(row=>row.source==='ioant-loop'&&
+  !('prompt' in row)&&!('url' in row)&&!('modelOutput' in row)));
+}));
