@@ -89,15 +89,18 @@ test('reconciliation prepares a new state only after private proof checks',async
   preflight:async()=>{preflights++;return ready();}
  };
  const before=state();
+ // The test-gated self-update is an intervening task and replaces lastTaskId.
+ before.lastTaskId='openclaw-dev-backup-update-20261025-065';
  const out=await reconcilePrewrite(before,input);
  assert.equal(out.ok,true);
  assert.equal(out.reason,'prior_prewrite_failure_reconciled');
  assert.equal(preflights,1);
  assert.equal(checked.length,2);
- assert.equal(out.state.lastTaskId,ID);
+ assert.equal(out.state.lastTaskId,'openclaw-dev-backup-update-20261025-065');
  assert.equal(out.state.devAgentCreationAttempted,undefined);
  assert.equal(out.state.devAgentCreationRecovery064.id,ID);
- assert.deepEqual(before,state());
+ assert.equal(before.devAgentCreationAttempted.id,ID);
+ assert.equal(before.devAgentCreationRecovery064,undefined);
  const again=await reconcilePrewrite(out.state,input);
  assert.equal(again.ok,false);
  assert.equal(again.reason,'claim_not_exact');

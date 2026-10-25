@@ -7,6 +7,9 @@ import {join} from 'node:path';
 import {preflightDev} from './openclaw-dev-preflight.mjs';
 
 const OLD='openclaw-dev-create-20261025-064';
+// The exact test-gated self-update task delivered BEFORE this recovery replaces
+// lastTaskId=064. No other intervening task ID is accepted.
+const UPDATE='openclaw-dev-backup-update-20261025-065';
 const CACHE='/Volumes/LunaDrive/DeveloperCache/projects/ioant-ai-agent-local-macos';
 const URL='https://chatgpt.com/g/g-p-6adbdb6e70348191bc5acb11efb0db5d-ai-openclawgong-zuo-liu/c/6add3565-d868-83ec-804e-1e7a00eb0a59';
 const RUN=/^run-[0-9]{8}T[0-9]{6}Z-[0-9]{1,9}-[0-9a-f]{8}\.jsonl$/;
@@ -53,7 +56,7 @@ export function verifyFailedPrewriteEvents(rows){
  return true;
 }
 export function canReconcilePrewrite(state,readiness,reportText,events){
- if(!object(state)||state.lastTaskId!==OLD||state.feedbackPending!==null||
+ if(!object(state)||![OLD,UPDATE].includes(state.lastTaskId)||state.feedbackPending!==null||
     state.devAgentCreationAttempted?.id!==OLD||
     state.devAgentCreationRecovery064!==undefined)return false;
  if(readiness?.audit!=='IOANT_OPENCLAW_DEV_PREFLIGHT'||
@@ -78,7 +81,7 @@ export async function reconcilePrewrite(state,{url,cache=process.env.PROJECT_DEV
  const logs=join(CACHE,'logs','chatgpt-loop');
  const reports=join(homedir(),'Desktop','Ioant-AI-Agent-Reports','chatgpt-loop');
  try{
-  if(!object(state)||state.lastTaskId!==OLD||state.feedbackPending!==null||
+  if(!object(state)||![OLD,UPDATE].includes(state.lastTaskId)||state.feedbackPending!==null||
     state.devAgentCreationAttempted?.id!==OLD||
     state.devAgentCreationRecovery064!==undefined)
    return {ok:false,reason:'claim_not_exact'};
