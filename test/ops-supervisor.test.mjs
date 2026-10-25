@@ -1,0 +1,58 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {supervisorManifest,renderPlist} from '../stage2/ops-supervisor.mjs';
+
+const filename=resolve(import.meta.dirname,'../stage2/ops-supervisor.mjs');
+const source=readFileSync(filename,'utf8');
+const manifest=supervisorManifest();
+const plist=renderPlist();
+test('ops supervisor is a user-only LaunchAgent, not an OpenClaw shell-enabled Agent',()=>{
+ assert.equal(manifest.label,'com.ioant.openclaw.safe-watcher');
+ assert.equal(manifest.repo,'hedydev/ioant-AI-Agent-Local-MacOS');
+ assert.equal(manifest.profile,'chrome');
+ assert.equal(manifest.devAgent,'openclaw-dev');
+ assert.equal(manifest.readOnlyGui,true);
+ assert.equal(manifest.portChanges,false);
+ assert.equal(manifest.configWrites,false);
+ assert.equal(manifest.remoteOps,false);
+ assert.equal(manifest.args[0],'/bin/bash');
+ assert.equal(manifest.args[1].endsWith('/scripts/chatgpt-loop.sh'),true);
+ assert.equal(manifest.args.includes('--enable-self-update'),true);
+ assert.equal(manifest.args.includes('--enable-gui-readonly'),true);
+ assert.equal(manifest.args.includes('--enable-openclaw-dev-create'),false);
+ assert.equal(manifest.args.includes('--enable-openclaw-agent-create'),false);
+ assert.equal(manifest.args.includes('--enable-openclaw-provision'),false);
+ assert.equal(manifest.args.includes('--enable-alice-lab-startup-probe'),false);
+ assert.equal(manifest.args.includes('--enable-mint-diagnostics'),false);
+ assert.equal(manifest.args.includes('--enable-alice-preflight'),false);
+ assert.equal(manifest.args.includes('--watch'),true);
+ assert.equal(manifest.args.includes('--chat-url'),true);
+ assert.equal(manifest.chatUrl,manifest.args[manifest.args.indexOf('--chat-url')+1]);
+ assert.equal(manifest.args.includes('--dev-agent'),true);
+ assert.equal(manifest.args[manifest.args.indexOf('--dev-agent')+1],'openclaw-dev');
+});
+test('generated launchd configuration is narrow and contains no secrets or elevation',()=>{
+ assert.match(plist,/<!DOCTYPE plist PUBLIC/);
+ assert.match(plist,/<key>Label<\/key><string>com\.ioant\.openclaw\.safe-watcher<\/string>/);
+ assert.match(plist,/<key>Umask<\/key><integer>63<\/integer>/);
+ assert.match(plist,/<key>RunAtLoad<\/key><true\/>/);
+ assert.match(plist,/<key>KeepAlive<\/key><false\/>/);
+ assert.match(plist,/<key>IOANT_CHATGPT_BROWSER_PROFILE<\/key><string>chrome<\/string>/);
+ assert.doesNotMatch(plist,/sk-[A-Za-z0-9]+|ghp_|OPENCLAW_GATEWAY_TOKEN|OPENCLAW_GATEWAY_PASSWORD|sudo|bash -c|sh -c/);
+ assert.equal((plist.match(/<key>ProgramArguments<\/key>/g)||[]).length,1);
+ assert.equal((plist.match(/--enable-gui-readonly/g)||[]).length,1);
+});
+test('installer never installs on behalf of a chat task or invokes general shell',()=>{
+ assert.doesNotMatch(source,/mcp__|process\.env\.TASK_ACTION|actionFromJson/);
+ assert.doesNotMatch(source,/shell:true|execSync|eval\(|new Function\(/);
+ const executable=source.split('\n').filter(line=>!line.trimStart().startsWith('//')).join('\n');
+ assert.doesNotMatch(executable,/\/bin\/sudo|gateway.*config\.patch|agent --agent|agents add/);
+ assert.match(source,/if\(args\.length!==1\|\|!\['install','status','uninstall'\]\.includes\(args\[0\]\)\)/);
+ assert.match(source,/watcher_already_active_or_uncertain/);
+ assert.match(source,/if\(await command\('git',\['status','--porcelain=v1','--untracked-files=all'\]\)\)/);
+ assert.match(source,/privateDir\(st\)/);
+ assert.match(source,/privateFile\(stat\)/);
+ assert.match(source,/No sudo/);
+});
