@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {mkdtemp,mkdir,rm,readFile,lstat,symlink,writeFile} from 'node:fs/promises';
+import {mkdtemp,mkdir,rm,readFile,lstat,realpath,symlink,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {createHash} from 'node:crypto';
@@ -19,7 +19,10 @@ const handoff='本项目负责 OpenClaw 与 ChatGPT 的多项目通信集成、P
   '下一步按安全方式持续开发日志、页面限额检测与 Agent 同步，禁止自动执行任意命令或接管其他项目。';
 process.env.IOANT_HANDOFF_TEST_ROOT='1';
 const fixture=async fn=>{
- const parent=await mkdtemp(join(tmpdir(),'ioant-private-handoff-'));
+ const created=await mkdtemp(join(tmpdir(),'ioant-private-handoff-'));
+ // macOS tempdir() can start at /var while its canonical APFS path is /private/var.
+ // The production journal deliberately rejects symlinked parent paths.
+ const parent=await realpath(created);
  const root=join(parent,'store','handoffs');
  try{return await fn(root,parent)}finally{await rm(parent,{recursive:true,force:true})}
 };
