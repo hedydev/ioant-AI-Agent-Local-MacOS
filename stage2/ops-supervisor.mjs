@@ -20,6 +20,12 @@ const VOLUME='/Volumes/LunaDrive';
 const CACHE=join(VOLUME,'DeveloperCache','projects','ioant-ai-agent-local-macos');
 const TARGET='https://chatgpt.com/g/g-p-6adbdb6e70348191bc5acb11efb0db5d-ai-openclawgong-zuo-liu/c/6add3565-d868-83ec-804e-1e7a00eb0a59';
 const PLIST=join(HOME,'Library','LaunchAgents',SLUG+'.plist');
+// Run from a private, independent copy outside macOS TCC-protected Documents.
+// The source repository is only read interactively during initial setup.
+const SUPPORT_PARENT=join(HOME,'Library','Application Support');
+const DEPLOY_DIR=join(SUPPORT_PARENT,'ioant-openclaw-ops');
+const RUNTIME=join(DEPLOY_DIR,'runtime');
+const REPORT_DIR=join(DEPLOY_DIR,'reports');
 // launchd opens StandardOutPath and StandardErrorPath BEFORE spawning bash.
 // External volume redirects can return EX_CONFIG(78) with empty log files.
 const LOCAL_LOG_PARENT=join(HOME,'Library','Logs');
@@ -29,6 +35,8 @@ const LOG_ERR=join(LOG_DIR,'stderr.log');
 const LEGACY_LOG_DIR=join(CACHE,'logs','ops-supervisor');
 const LEGACY_LOG_OUT=join(LEGACY_LOG_DIR,'stdout.log');
 const LEGACY_LOG_ERR=join(LEGACY_LOG_DIR,'stderr.log');
+const fixedOrigins=new Set(['https://github.com/'+REPO+'.git',
+ 'https://github.com/'+REPO,'git@github.com:'+REPO+'.git']);
 const SAFE_PATH='/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
 // Trust the actual running Node binary after canonical path and ownership checks,
 // not whichever node happens to be on Homebrew PATH.
@@ -73,9 +81,10 @@ function pinnedNodeDir(plist){
  const nodeDir=value.slice(0,-suffix.length);
  return safeNodeDir(nodeDir)?nodeDir:null;
 }
-const ARGS=['/bin/bash',join(ROOT,'scripts','chatgpt-loop.sh'),
- '--chat-url',TARGET,'--enable-self-update','--enable-gui-readonly',
- '--dev-agent','openclaw-dev','--watch'];
+const LAUNCH_FLAGS=['--chat-url',TARGET,'--enable-self-update',
+ '--enable-gui-readonly','--dev-agent','openclaw-dev','--watch'];
+const ARGS=['/bin/bash',join(RUNTIME,'scripts','chatgpt-loop.sh'),...LAUNCH_FLAGS];
+const LEGACY_ARGS=['/bin/bash',join(ROOT,'scripts','chatgpt-loop.sh'),...LAUNCH_FLAGS];
 const xml=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
 const owned=s=>typeof process.getuid!=='function'||s.uid===process.getuid();
@@ -90,16 +99,19 @@ export function supervisorManifest(){
   args:[...ARGS],readOnlyGui:true,selfUpdate:true,devAgent:'openclaw-dev',
   portChanges:false,configWrites:false,remoteOps:false};
 }
-export function renderPlist(nodeDir='/opt/homebrew/bin',{legacyExternalLogs=false}={}){
+export function renderPlist(nodeDir='/opt/homebrew/bin',
+ {legacyExternalLogs=false,legacyDocumentRoot=false,legacyBackgroundEnv=legacyExternalLogs||legacyDocumentRoot}={}){
+ const programArgs=legacyExternalLogs||legacyDocumentRoot?LEGACY_ARGS:ARGS;
  if(!safeNodeDir(nodeDir))throw Error('unsafe_node_runtime');
  return '<?xml version="1.0" encoding="UTF-8"?>\n'+
   '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'+
   '<plist version="1.0"><dict>'+
   '<key>Label</key>'+plString(SLUG)+
-  '<key>ProgramArguments</key>'+plArray(ARGS)+
+  '<key>ProgramArguments</key>'+plArray(programArgs)+
   '<key>EnvironmentVariables</key><dict>'+
    '<key>IOANT_CHATGPT_BROWSER_PROFILE</key>'+plString('chrome')+
    '<key>PATH</key>'+plString(nodeDir+':'+SAFE_PATH)+
+   (legacyBackgroundEnv?'':'<key>IOANT_BACKGROUND_SAFE_REPORTS</key>'+plString('1'))+
   '</dict>'+
   '<key>RunAtLoad</key><true/>'+
   // Fail closed on unexpected failures rather than looping on Gateway auth,
@@ -117,7 +129,11 @@ export function installedPlistKind(content){
  const nodeDir=pinnedNodeDir(content);
  if(!nodeDir)return null;
  if(content===renderPlist(nodeDir))return 'local';
- if(content===renderPlist(nodeDir,{legacyExternalLogs:true}))return 'legacy_external';
+ // Legacy versions never had the background private-report flag.
+ if(content===renderPlist(nodeDir,{legacyDocumentRoot:true,legacyBackgroundEnv:true}))
+  return 'legacy_document_local';
+ if(content===renderPlist(nodeDir,{
+   legacyExternalLogs:true,legacyBackgroundEnv:true}))return 'legacy_external';
  return null;
 }
 export function parseLaunchdRuntime(body){
@@ -129,6 +145,58 @@ export function parseLaunchdRuntime(body){
  return {state:state==='running'&&Number.isSafeInteger(pid)&&pid>0?'running':'stopped',
   ...(Number.isSafeInteger(pid)&&pid>0?{pid}:{}),
   ...(code?{lastExitCode:Number(code)}:{})};
+}
+async function trustedParent(path){
+ const info=await lstat(path);
+ if(!info.isDirectory()||info.isSymbolicLink()||!owned(info)||
+   (info.mode&0o022)!==0||await realpath(path)!==path)
+  throw Error('unsafe_runtime_parent');
+}
+async function verifyRuntime(expected){
+ await safeUserDir(RUNTIME);
+ const origin=await command('git',['-C',RUNTIME,'remote','get-url','origin']);
+ if(!fixedOrigins.has(origin))throw Error('unsafe_runtime_origin');
+ const branch=await command('git',['-C',RUNTIME,'symbolic-ref','--quiet','--short','HEAD']);
+ if(branch!=='main')throw Error('unsafe_runtime_branch');
+ const head=await command('git',['-C',RUNTIME,'rev-parse','--verify','HEAD']);
+ if(head!==expected)throw Error('runtime_revision_mismatch');
+ const dirty=await command('git',['-C',RUNTIME,'status','--porcelain=v1','--untracked-files=all']);
+ if(dirty)throw Error('dirty_runtime');
+ const script=join(RUNTIME,'scripts','chatgpt-loop.sh');
+ const info=await lstat(script);
+ if(!info.isFile()||info.isSymbolicLink()||!owned(info)||
+   (info.mode&0o022)!==0||await realpath(script)!==script)
+  throw Error('unsafe_runtime_script');
+}
+async function ensureRuntime(){
+ // This protected source checkout must already have passed the separate
+ // project self-update's complete candidate-test gate.
+ await trustedParent(SUPPORT_PARENT);
+ await mkdir(DEPLOY_DIR,{recursive:true,mode:0o700});
+ await safeUserDir(DEPLOY_DIR);
+ const expected=await command('git',['rev-parse','--verify','HEAD']);
+ const origin=await command('git',['remote','get-url','origin']);
+ try{
+  await lstat(RUNTIME);
+ }catch(e){
+  if(e.code!=='ENOENT')throw e;
+  // No source symlinks: git tracks only plain files/dirs from the verified
+  // exact clean main checkout. Never download or execute an unknown script.
+  const inventory=await command('git',['ls-files','--stage']);
+  const modes=inventory.split('\n').filter(Boolean);
+  if(modes.length===0||modes.length>3000||
+     modes.some(line=>!/^100(644|755) [a-f0-9]{40} 0\t/.test(line)))
+   throw Error('unsafe_runtime_inventory');
+  process.umask(0o077);
+  // Clone --no-local copies repository contents rather than linking mutable
+  // object storage back into the Documents worktree.
+  await command('git',['-c','init.templateDir=/dev/null','clone',
+    '--no-local','--single-branch','--branch','main',ROOT,RUNTIME],{timeout:120000});
+  await command('git',['-C',RUNTIME,'remote','set-url','origin',origin]);
+ }
+ await verifyRuntime(expected);
+ await mkdir(REPORT_DIR,{recursive:true,mode:0o700});
+ await safeUserDir(REPORT_DIR);
 }
 const safe=(audit,state,reason)=>({audit,schemaVersion:1,state,reason,
  label:SLUG,readOnlyGui:true,noSudo:true,agentToolGrant:false});
@@ -142,8 +210,7 @@ async function requireRepo(){
  if(ROOT!==join(HOME,'Documents','workspace','ioant-AI-Agent-Local-MacOS'))
   throw Error('repo_path_mismatch');
  const origin=await command('git',['remote','get-url','origin']);
- if(!['https://github.com/'+REPO+'.git','https://github.com/'+REPO,
-      'git@github.com:'+REPO+'.git'].includes(origin))
+ if(!fixedOrigins.has(origin))
   throw Error('unexpected_git_origin');
  if(await command('git',['symbolic-ref','--quiet','--short','HEAD'])!=='main')
   throw Error('not_main');
@@ -197,6 +264,7 @@ export async function installationPreflight(){
   throw Error('unsafe_launchagents_directory');
  try{await lstat(PLIST);throw Error('supervisor_already_installed')}
  catch(e){if(e.code!=='ENOENT')throw e;}
+ await ensureRuntime();
  return {ok:true,nodeDir};
 }
 async function install(){
@@ -266,6 +334,8 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
      'unexpected_git_origin','not_main','dirty_worktree','unsafe_external_volume',
      'gateway_health_empty','unsafe_node_runtime','unsupported_node_version','unsafe_private_directory','unsafe_log_file',
      'unsafe_launchagents_directory','unsafe_local_log_parent','watcher_already_active_or_uncertain',
+     'unsafe_runtime_parent','unsafe_runtime_origin','unsafe_runtime_branch','runtime_revision_mismatch',
+     'dirty_runtime','unsafe_runtime_script','unsafe_runtime_inventory',
      'supervisor_already_installed']);
    console.log(JSON.stringify(safe(audit,'blocked',
     messages.has(e.message)?e.message:'preflight_unavailable')));

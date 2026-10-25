@@ -305,14 +305,20 @@ async function loadState(file){
   try{return JSON.parse(await readFile(file,'utf8'))}catch(err){if(err.code==='ENOENT')return {lastTaskId:null,feedbackPending:null,initSent:false};throw err}
 }
 async function writeReport(dir,task,result){
-  const reports=join(homedir(),'Desktop','Ioant-AI-Agent-Reports','chatgpt-loop');
+  // launchd workers cannot assume TCC access to Desktop. This flag is
+  // injected only by the known, locally installed supervisor plist; it does
+  // not authorize additional ChatGPT actions or change one-shot task state.
+  const background=process.env.IOANT_BACKGROUND_SAFE_REPORTS==='1';
+  const reports=background
+    ?join(homedir(),'Library','Application Support','ioant-openclaw-ops','reports','chatgpt-loop')
+    :join(homedir(),'Desktop','Ioant-AI-Agent-Reports','chatgpt-loop');
   await privateReportDir(reports);
   const stamp=new Date().toISOString().replace(/[:.]/g,'-');
   const filename=join(reports,stamp+'-'+task.id+'.md');
   const clean=redactFeedback(result.output??'');
   const body=[`# ChatGPT local task — ${task.id}`,'',`- Action: ${task.action}`,`- Status: ${result.status}`,`- Exit code: ${result.exitCode??'n/a'}`,`- Time: ${new Date().toISOString()}`,'','## Bounded output','', '```text',clean,'```',''].join('\n');
   await writeFile(filename,body,{mode:0o600,flag:'wx'});
-  console.log('[loop] Desktop report: '+filename);
+  console.log(background?'[loop] Private runtime report saved':'[loop] Desktop report: '+filename);
 }
 
 const INIT=`Ioant Mac local command feedback protocol ${PROTOCOL}\n启用本地命令反馈。你可以讨论任何工作；只有需要本机自动执行安全检查时，才输出一个独立 JSON 代码块，字段必须恰好为 protocol、id、action。例如 {"protocol":"${PROTOCOL}","id":"test-001","action":"project-tests"}。可自动执行的 action 仅有 project-tests、project-status、project-head、environment-scan，作用于 ioant-AI-Agent-Local-MacOS 仓库。其他操作会被明确拒绝/要求审批。不要输出 shell 字符串、cwd、argv、密钥或敏感文件内容。收到以 [IOANT-MAC-OPS RESULT id] 开头的执行结果后再判断下一步，需要下一项检查就输出新的唯一 id；无任务就正常回答。不要重复先前 id。唯一例外是安全的本地 AI 开发讨论：action=openclaw-agent-dev-discuss 时必须额外包含 prompt 字符串（最多1600字符/2600字节），不得含敏感资料或任意 shell 代码；它只向由 Mac 启动参数 --dev-agent 固定绑定并经无工具权限预检的 Agent 发送技术讨论文本，结果是未经验证的模型建议，不能当作执行命令、Git提交、测试或游戏行为已成功的证据。`;

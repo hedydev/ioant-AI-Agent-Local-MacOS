@@ -65,3 +65,29 @@ Recovery of the already failed **known** service requires one terminal sequence 
     bash scripts/dev-env.sh exec node stage2/ops-supervisor.mjs status
 
 This is an explicit user-local graceful bootout of only the exact service followed by a new plist registration. Never manually edit launchd plists, move system logs, force-kill unknown PIDs or bypass the test gate. If any step reports blocked/inconclusive, stop and inspect that receipt. After local status returns `running`, verify a new read-only exact ChatGPT tab probe before claiming a healthy end-to-end loop.
+
+
+## 2026-10-25 — EX_CONFIG resolved; Documents TCC denial and isolated runtime
+
+The user confirmed the second migration's Mac suite **337/337 passed**; uninstall and install succeeded but status was **stopped**, `lastExitCode:126`, `logLocation:local`. Crucial new internal stderr evidence:
+
+`/bin/bash: /Users/ted/Documents/workspace/ioant-AI-Agent-Local-MacOS/scripts/chatgpt-loop.sh: Operation not permitted`
+
+No shell script startup output was produced. Its plain POSIX permission was `-rw-------` and parent Documents directory `drwx------@`: owner-read is not an executable-bit issue because /bin/bash reads the script. The background launchd process cannot assume Terminal.app's macOS privacy grant to Documents. Do NOT chmod 777, disable TCC, or grant broad Full Disk Access to /bin/bash.
+
+Candidate revision uses an independent fixed private local runtime checkout under `~/Library/Application Support/ioant-openclaw-ops/runtime`. During explicit local install, only the trusted clean main source checkout in Documents is read. The installer validates origin and HEAD, prevents Git symlinks/submodules with tracked mode checks, makes a separate local Git clone via `--no-local --single-branch --branch main` and then pins its origin to the previously verified public GitHub remote. It verifies the runtime copy is private, clean, on main, at the exact source HEAD, with real owned non-group-writable script and directory. No Git object hardlinks to Documents. The login agent's fixed ProgramArguments now points to the private runtime script, not Documents; ordinary test-gated updates operate on the runtime checkout itself and do not mutate the source Documents checkout. The documents checkout can still be updated manually when desired; project changes remain committed to GitHub main.
+
+The background worker's task Markdown reports now go to `~/Library/Application Support/ioant-openclaw-ops/reports/chatgpt-loop` instead of the TCC-protected Desktop. Existing foreground watcher mode retains Desktop reports; LunaDrive's current per-chat state, feedback receipts and one-shot claims are preserved. This new privacy mode is pinned only in the supervisor's plist. The installed Supervisor continues to use private stdout/stderr on `~/Library/Logs/ioant-openclaw-ops`.
+
+The updated explicit uninstall command recognizes the TWO existing exact legacy Documents plists: old external log redirection and newer local log redirection; unknown or modified services remain blocked. The new runtime plist is fully distinguished. No arbitrary command or model privilege has been introduced.
+
+After full candidate Mac tests pass, perform exactly one local migration:
+
+    cd ~/Documents/workspace/ioant-AI-Agent-Local-MacOS
+    bash scripts/dev-env.sh exec node stage2/project-self-update.mjs &&
+      bash scripts/dev-env.sh exec node stage2/ops-supervisor.mjs uninstall &&
+      bash scripts/dev-env.sh exec node stage2/ops-supervisor.mjs install &&
+      sleep 3 &&
+      bash scripts/dev-env.sh exec node stage2/ops-supervisor.mjs status
+
+Note: shell continuation formatting should be used in the terminal, not copied with Markdown indentation. If a step is blocked do not force delete the existing plist, Git runtime or task locks. Real Mac test-gated candidate, first runtime process PID, Gateway/browser health and GUI-readonly response remain UNVERIFIED as of this Git-only fix. If status remains stopped inspect LOCAL launchd stderr; if running, then issue a new read-only GUI probe rather than assuming end-to-end success.
