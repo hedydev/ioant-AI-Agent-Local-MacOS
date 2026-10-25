@@ -364,7 +364,7 @@ async function main(){
     recordDiagnosticEvent('worker_start',{mode:opts.mode,profile});
     state=await loadState(stateFile); // Must be within finally so a read failure does not leak lock.
     // A user may need to finish signing into ChatGPT in the managed browser.
-    let target;
+    let target, lastStartupMissingLog=0;
     while(!target){
       try{
         target=await exactTab(opts.url);
@@ -388,7 +388,14 @@ async function main(){
       catch(e){
         if(opts.mode==='once')throw e;
         target=null;
-        console.log('[loop] ChatGPT exact tab/page not ready: '+redactFeedback(e.message));
+        // Keep the per-login watcher alive through transient Chrome tab loss.
+        // Throttle public logs; private events carry only allowlisted reason codes.
+        const now=Date.now();
+        if(now-lastStartupMissingLog>=60000){
+          console.log('[loop] Waiting for authorized ChatGPT conversation: '+redactFeedback(e.message));
+          recordDiagnosticEvent('page_not_ready',{code:diagnosticCode(e)});
+          lastStartupMissingLog=now;
+        }
         await new Promise(r=>setTimeout(r,opts.interval*1000));
       }
     }

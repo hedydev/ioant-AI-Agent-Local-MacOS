@@ -43,6 +43,15 @@ case "$BROWSER_PROFILE" in
   *) echo "[loop] Unsupported browser profile: $BROWSER_PROFILE (choose openclaw, user, or chrome)." >&2; exit 2;;
 esac
 export IOANT_CHATGPT_BROWSER_PROFILE="$BROWSER_PROFILE"
+# Only watch mode may wait passively for a missing target. Read-only/once
+# probes fail closed; duplicate matching target IDs are always errors.
+WATCH_WAIT=0
+for flag in "$@"; do
+  case "$flag" in
+    --watch) WATCH_WAIT=1 ;;
+    --once) WATCH_WAIT=0 ;;
+  esac
+done
 # Privacy-first per-run log: local LunaDrive only, no browser DOM or command output.
 # Initialization fails closed if log storage is unsafe or unavailable.
 LOG_DIR="$PROJECT_DEV_CACHE/logs/chatgpt-loop"
@@ -215,7 +224,13 @@ if [[ -n "$CHAT_URL" ]]; then
           echo "[loop] No unique matching ChatGPT conversation ID among $TAB_VISIBLE visible browser tabs ($TAB_CHATGPT on ChatGPT). Check relay tab visibility (All tabs/pauses) and current conversation ID." >&2
         fi
         log_event tab_missing || true
-        exit 1
+        if (( WATCH_WAIT == 1 )); then
+          # The worker rechecks the current browser list and DOM every cycle.
+          # A missing target does NOT grant access to another conversation.
+          echo '[loop] Watch mode waiting for one validated ChatGPT conversation ID; no tabs opened, no permissions changed.'
+        else
+          exit 1
+        fi
       fi
       ;;
     *) log_event tab_missing || true; echo "[loop] Found $TAB_COUNT copies of the target ChatGPT conversation ID; close duplicates before automation." >&2; exit 1 ;;
