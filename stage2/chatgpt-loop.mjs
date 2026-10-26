@@ -582,7 +582,9 @@ async function main(){
             || (task.action==='openclaw-alice-create' && opts.enableOpenClawAgentCreate)
              || (task.action==='openclaw-dev-create' && opts.enableOpenClawDevCreate)
              || (task.action==='openclaw-dev-prewrite-reconcile' && opts.enableOpenClawDevCreate)
-             || (task.action==='openclaw-gui-readonly-probe' && opts.enableGuiReadonly);
+             || (task.action==='openclaw-gui-readonly-probe' && opts.enableGuiReadonly)
+             || task.action==='mac-terminal'
+             || task.action==='mac-window-text';
           recordDiagnosticEvent('task_seen',{taskId:task.id,action:task.known?task.action:'unknown'});
           recordDiagnosticEvent('action_started',{taskId:task.id,action:task.known?task.action:'unknown'});
           let result;
@@ -648,6 +650,7 @@ async function main(){
           }else{
             result=await runAction(task.action,ROOT,{enableAlicePreflight:opts.enableAlicePreflight,enableMintDiagnostics:opts.enableMintDiagnostics,
               enableSelfUpdate:opts.enableSelfUpdate,enableOpenClawProvision:opts.enableOpenClawProvision,
+              terminalTask:task,terminalChatUrl:opts.url,
               enableOpenClawAgentCreate:opts.enableOpenClawAgentCreate,
                enableOpenClawDevCreate:opts.enableOpenClawDevCreate});
           }

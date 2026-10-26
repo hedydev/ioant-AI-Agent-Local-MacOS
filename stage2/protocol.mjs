@@ -4,7 +4,7 @@ export const PROTOCOL = 'ioant-mac-ops-v1';
 const CHAT_PATH = /^\/(?:g\/[a-zA-Z0-9_-]+\/)?c\/[a-zA-Z0-9-]{15,}$/;
 const TASK_ID = /^[a-zA-Z0-9][a-zA-Z0-9_-]{3,79}$/;
 const AUTO_ACTIONS = new Set(['project-tests', 'project-status', 'project-head', 'environment-scan', 'openclaw-config-preflight', 'openclaw-main-speed', 'openclaw-config-rpc-diagnostic', 'openclaw-patch-failure-diagnostic', 'openclaw-ollama-dryrun', 'openclaw-rejection-evidence', 'openclaw-version-parity', 'openclaw-ollama-smoke', 'openclaw-alice-agent-preflight', 'openclaw-alice-reconcile', 'openclaw-alice-main-diff', 'openclaw-alice-agent-smoke', 'openclaw-dev-preflight', 'openclaw-maintainer-health', 'openclaw-alice-dev-discuss', 'openclaw-agent-dev-discuss']);
-const KNOWN_ACTIONS = new Set([...AUTO_ACTIONS, 'project-update-verify', 'audit-example', 'alice-witness-preflight', 'alice-lab-startup-probe', 'mint-bds-process-identity', 'mint-bds-process-lineage', 'openclaw-ollama-provision', 'openclaw-alice-create', 'openclaw-dev-create', 'openclaw-dev-prewrite-reconcile', 'openclaw-gui-readonly-probe']);
+const KNOWN_ACTIONS = new Set([...AUTO_ACTIONS, 'project-update-verify', 'audit-example', 'alice-witness-preflight', 'alice-lab-startup-probe', 'mint-bds-process-identity', 'mint-bds-process-lineage', 'openclaw-ollama-provision', 'openclaw-alice-create', 'openclaw-dev-create', 'openclaw-dev-prewrite-reconcile', 'openclaw-gui-readonly-probe', 'mac-terminal', 'mac-window-text']);
 
 export function validateChatUrl(value) {
   const url = new URL(value);
@@ -34,19 +34,35 @@ export function actionFromJson(code) {
   if (!value || Array.isArray(value) || typeof value !== 'object' || value.protocol !== PROTOCOL) return null;
   // Whitelist exact fields. Shell fragments, argv or cwd supplied by the page are never executed.
   const discussion=value.action==='openclaw-alice-dev-discuss'||value.action==='openclaw-agent-dev-discuss';
+  const terminal=value.action==='mac-terminal';
+  const windowText=value.action==='mac-window-text';
   // The discussion action accepts BOUNDED model text only. It cannot become
   // shell arguments, a file path, a model override or an OpenClaw tool call.
-  const allowed=discussion?['protocol','id','action','prompt']:['protocol','id','action'];
+  const allowed=discussion?['protocol','id','action','prompt']:
+    terminal?['protocol','id','action','cwd','command']:
+    windowText?['protocol','id','action','app','text','submit']:['protocol','id','action'];
   if (!TASK_ID.test(value.id ?? '') || typeof value.action !== 'string' ||
     Object.keys(value).some(k => !allowed.includes(k)) ||
     (discussion&&(typeof value.prompt!=='string'||value.prompt.trim().length<1||
       value.prompt.length>1600||Buffer.byteLength(value.prompt,'utf8')>2600||
       /[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(value.prompt))) ||
-    (!discussion&&Object.hasOwn(value,'prompt'))) {
+    (!discussion&&Object.hasOwn(value,'prompt')) ||
+    (terminal&&(typeof value.command!=='string'||!value.command.trim()||
+      value.command.length>2048||Buffer.byteLength(value.command,'utf8')>4096||
+      /[\x00-\x08\x0B-\x1F\x7F]/.test(value.command)||
+      !['workspace','desktop','downloads'].includes(value.cwd))) ||
+    (windowText&&(
+      typeof value.app!=='string'||!/^[a-z][a-z0-9-]{0,47}$/.test(value.app)||
+      typeof value.text!=='string'||!value.text.trim()||value.text.length>1600||
+      Buffer.byteLength(value.text,'utf8')>3600||
+      /[\x00-\x1f\x7f]/.test(value.text)||typeof value.submit!=='boolean'
+    ))) {
     throw new Error('Malformed structured task (strict action-specific fields).');
   }
   return Object.freeze({ protocol: PROTOCOL, id: value.id, action: value.action,
     ...(discussion?{prompt:value.prompt}:{}),
+    ...(terminal?{cwd:value.cwd,command:value.command}:{}),
+    ...(windowText?{app:value.app,text:value.text,submit:value.submit}:{}),
     authorized: AUTO_ACTIONS.has(value.action), known: KNOWN_ACTIONS.has(value.action) });
 }
 

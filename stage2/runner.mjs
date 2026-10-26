@@ -6,6 +6,8 @@ import {safeAudit} from './openclaw-ollama-provision.mjs';
 import {discussBoundAgent} from './openclaw-agent-dev-discuss.mjs';
 import {isBoundDevDiscussion} from './development-agent-route.mjs';
 import { spawn } from 'node:child_process';
+import {runMacTerminal} from './mac-terminal-access.mjs';
+import {runWindowText} from './mac-window-text.mjs';
 import { summarizeTestEvidence,validTestEvidence,passingTestSummary } from './test-failure-evidence.mjs';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
@@ -43,6 +45,10 @@ export async function executeStep(plan) {
 }
 
 export async function runAction(action, repoRoot, options={}) {
+  if(action==='mac-terminal')
+    return runMacTerminal(options.terminalTask,{conversationUrl:options.terminalChatUrl});
+  if(action==='mac-window-text')
+    return runWindowText(options.terminalTask,{conversationUrl:options.terminalChatUrl});
   if(action==='openclaw-alice-dev-discuss'||action==='openclaw-agent-dev-discuss'){
     if(!isBoundDevDiscussion(action,options.agentId))
       return {status:'approval_required',reason:'A matching local --dev-agent binding is required.'};
