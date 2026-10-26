@@ -8,6 +8,7 @@ import {mkdir,lstat,readFile,writeFile,realpath,unlink} from 'node:fs/promises';
 import {homedir} from 'node:os';
 import {resolve,join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {parseProjectChatUrl} from './project-chat-routing.mjs';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 
@@ -20,6 +21,12 @@ const VOLUME='/Volumes/LunaDrive';
 const CACHE=join(VOLUME,'DeveloperCache','projects','ioant-ai-agent-local-macos');
 const TARGET='https://chatgpt.com/g/g-p-6adbdb6e70348191bc5acb11efb0db5d-ai-openclawgong-zuo-liu/c/6add3565-d868-83ec-804e-1e7a00eb0a59';
 const PLIST=join(HOME,'Library','LaunchAgents',SLUG+'.plist');
+const PROJECT_ID=parseProjectChatUrl(TARGET).projectId;
+export function boundChat(url){
+ const parsed=parseProjectChatUrl(url);
+ if(parsed.projectId!==PROJECT_ID)throw Error('cross_project_rebind');
+ return parsed;
+}
 // Run from a private, independent copy outside macOS TCC-protected Documents.
 // The source repository is only read interactively during initial setup.
 const SUPPORT_PARENT=join(HOME,'Library','Application Support');
@@ -103,8 +110,11 @@ export function supervisorManifest(){
   portChanges:false,configWrites:false,remoteOps:false};
 }
 export function renderPlist(nodeDir='/opt/homebrew/bin',
- {legacyExternalLogs=false,legacyDocumentRoot=false,legacyBackgroundEnv=legacyExternalLogs||legacyDocumentRoot}={}){
- const programArgs=legacyExternalLogs||legacyDocumentRoot?LEGACY_ARGS:ARGS;
+ {legacyExternalLogs=false,legacyDocumentRoot=false,
+  legacyBackgroundEnv=legacyExternalLogs||legacyDocumentRoot,chatUrl=TARGET}={}){
+ const parsed=boundChat(chatUrl);
+ const template=legacyExternalLogs||legacyDocumentRoot?LEGACY_ARGS:ARGS;
+ const programArgs=template.map((v,i)=>i===template.indexOf('--chat-url')+1?parsed.canonicalUrl:v);
  if(!safeNodeDir(nodeDir))throw Error('unsafe_node_runtime');
  return '<?xml version="1.0" encoding="UTF-8"?>\n'+
   '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'+
@@ -128,16 +138,28 @@ export function renderPlist(nodeDir='/opt/homebrew/bin',
 }
 // Status and explicit uninstall accept ONLY the exact local or previously
 // shipped external-log plist. Unknown/edited LaunchAgents are never touched.
-export function installedPlistKind(content){
+// Reject any changed argument, environment, label or privilege. The *only*
+// variable field may be a strictly validated same-Project chat URL.
+export function installedPlistBinding(content){
  const nodeDir=pinnedNodeDir(content);
  if(!nodeDir)return null;
- if(content===renderPlist(nodeDir))return 'local';
- // Legacy versions never had the background private-report flag.
- if(content===renderPlist(nodeDir,{legacyDocumentRoot:true,legacyBackgroundEnv:true}))
-  return 'legacy_document_local';
- if(content===renderPlist(nodeDir,{
-   legacyExternalLogs:true,legacyBackgroundEnv:true}))return 'legacy_external';
+ const urls=[...content.matchAll(/<string>(https:\/\/chatgpt\.com\/g\/g-p-[A-Za-z0-9_-]+\/c\/[A-Za-z0-9-]+)<\/string>/g)];
+ if(urls.length!==1)return null;
+ let chat;
+ try{chat=boundChat(urls[0][1]);}catch{return null;}
+ const layouts=[
+  ['local',{chatUrl:chat.canonicalUrl}],
+  ['legacy_document_local',{legacyDocumentRoot:true,legacyBackgroundEnv:true,chatUrl:chat.canonicalUrl}],
+  ['legacy_external',{legacyExternalLogs:true,legacyBackgroundEnv:true,chatUrl:chat.canonicalUrl}]
+ ];
+ for(const [kind,opts] of layouts){
+  if(content===renderPlist(nodeDir,opts))
+   return Object.freeze({kind,nodeDir,chatUrl:chat.canonicalUrl,conversationId:chat.conversationId});
+ }
  return null;
+}
+export function installedPlistKind(content){
+ return installedPlistBinding(content)?.kind??null;
 }
 export function parseLaunchdRuntime(body){
  if(typeof body!=='string')return {state:'unverified'};
@@ -290,7 +312,7 @@ async function status(){
   const kind=installedPlistKind(content);
   if(!privateFile(stat)||await realpath(PLIST)!==PLIST||!kind)
    return safe(audit,'blocked','unexpected_launch_agent');
-  const base={logLocation:kind,registered:false,running:false};
+  const base={logLocation:kind,chatConversationId:installedPlistBinding(content).conversationId,registered:false,running:false};
   let printed;
   try{printed=await command('/bin/launchctl',['print','gui/'+process.getuid()+'/'+SLUG]);}
   catch{return {...safe(audit,'unloaded','launchctl_not_registered'),...base}}

@@ -159,3 +159,54 @@ Exact observed legacy event counts: `launcher_start=10`, `gateway_existing=9`, `
 Deployment order: (1) protected clean-main source update + test gate, (2) protected separate private-runtime update + test gate, (3) deliberate *one* `launchctl kickstart` of only the known stopped managed LaunchAgent, (4) verify Supervisor `running` **and** a fresh `background-events.jsonl` `launcher_start`/`worker_start` event, (5) separately verify the target ChatGPT conversation identity and delivery receipt. A PID alone is not a ChatGPT roundtrip; without a fresh matching target tab, `--watch` should wait safely. Do not change the fixed chat URL by guessing another conversation ID. Do not delete watcher locks, kill unknown processes, reset state, change Chrome permissions, or touch Alice/Minecraft. The standalone `project-self-update` applies only a fixed origin/main ff-only update after tests, and must be run separately in BOTH checkouts.
 
 **Residual risk:** moving event logs and the temporary Gateway redirection off LunaDrive does not itself migrate `PROJECT_DEV_CACHE`/the ChatGPT task-state ledger, which still references the external volume; if launchd TCC blocks other cache reads/writes after rollout, obtain the new local background stderr and stop for a separate safe, idempotent state migration, not a blind path rewrite that loses one-shot receipts.
+
+## 2026-10-27 — Operator-approved same-Project Chat rebind (deployment pending)
+
+The operator supplied the **exact active ChatGPT conversation URL**:
+
+```text
+https://chatgpt.com/g/g-p-6adbdb6e70348191bc5acb11efb0db5d-ai-openclawgong-zuo-liu/c/6adf6584-1a40-83ec-a4ab-c59ac7e28cf7
+```
+
+It has the same verified URL-derived Project ID as the legacy Supervisor target `6add3565-d868-83ec-804e-1e7a00eb0a59`, but a different conversation ID. The separate `config/chat-projects.json` Project binding now points at the operator-confirmed new conversation. URL-derived Project ID alone is not a live browser access/DOM receipt.
+
+**New implementation**: `stage2/ops-rebind.mjs` exposes two **terminal-only** commands `rebind <exact-project-chat-url>` and `start <exact-project-chat-url>`. Neither is an `ioant-mac-ops-v1` ChatGPT task action; no model gets arbitrary LaunchAgent control. `stage2/ops-supervisor.mjs` now recognizes only a strict known plist template where the single `--chat-url` argument can vary within the exact registered Project; other ProgramArguments, environment, script root, stdout/stderr, privilege flags and permissions must match unchanged.
+
+**Rebind gate:** macOS + expected Documents repository path; both source and private runtime clean on `main`, matching exact HEAD with allowlisted GitHub origin; required external state cache mounted; installed plist private and fully recognized; **launchctl explicitly proves the existing service stopped, no PID**; neither old nor new conversation has `watch.lock`; the requested new chat has no preexisting `state.json`. Copy the exact old plist to an owner-private, non-overwriting `~/Library/Application Support/ioant-openclaw-ops/rebind-backups` recovery file before `launchctl bootout`. Then atomically replace just the validated plist URL. **Do not bootstrap during `rebind`**. Return `rebound_unloaded` and old/new IDs only if the new plist is independently recognized and launchd remains unregistered. If failure occurs after bootout, stop and inspect the recovery backup; **never auto-replay or guess**. Old watcher state, receipt history, service logs, locks and AliceAI/Minecraft are untouched.
+
+**Start gate:** an explicit separate `start <exact-project-chat-url>` must match the stored current plist, with launchd still unregistered, both Git HEADs matching and clean, no target `watch.lock`, and a healthy already configured Gateway. `launchctl bootstrap` then invokes `RunAtLoad`; `start_requested` is **not** proof the Worker remained alive or that it accessed/sent to ChatGPT. Current `--watch` behavior is passive on missing tab. Check `stage2/ops-supervisor.mjs status`, fresh local background events, the exact Chrome target, and an actual new `[IOANT-MAC-OPS RESULT ...]` receipt before claiming success.
+
+### Mac operator rollout (only after candidate gates pass)
+
+```bash
+SRC="$HOME/Documents/workspace/ioant-AI-Agent-Local-MacOS"
+RUNTIME="$HOME/Library/Application Support/ioant-openclaw-ops/runtime"
+CHAT="https://chatgpt.com/g/g-p-6adbdb6e70348191bc5acb11efb0db5d-ai-openclawgong-zuo-liu/c/6adf6584-1a40-83ec-a4ab-c59ac7e28cf7"
+
+cd "$SRC" || exit 1
+bash scripts/dev-env.sh exec node stage2/project-self-update.mjs || exit 1
+cd "$RUNTIME" || exit 1
+bash scripts/dev-env.sh exec node stage2/project-self-update.mjs || exit 1
+cd "$SRC" || exit 1
+test "$(git rev-parse HEAD)" = "$(git -C "$RUNTIME" rev-parse HEAD)" || exit 1
+
+# Read-only before the potentially mutating rebind:
+bash scripts/dev-env.sh exec node stage2/ops-supervisor.mjs status
+
+# The rebind alone leaves the service UNLOADED.
+bash scripts/dev-env.sh exec node stage2/ops-rebind.mjs rebind "$CHAT"
+
+# Check the returned state: must be rebound_unloaded, with the new ID.
+bash scripts/dev-env.sh exec node stage2/ops-supervisor.mjs status
+
+# Only after reviewing the rebind receipt, explicitly launch once.
+bash scripts/dev-env.sh exec node stage2/ops-rebind.mjs start "$CHAT"
+
+# Observe live state. Do not claim completion based on bootstrap alone.
+bash scripts/dev-env.sh exec node stage2/ops-supervisor.mjs status
+bash scripts/chatgpt-loop-logs.sh bundle
+```
+
+**IMPORTANT**: Avoid chaining `rebind` to `start` if the first command fails or reports `blocked_or_inconclusive`. The rebind program preserves a backup and never silently restarts the old worker. If `start` returns `start_requested`, the worker still requires an observed live PID, fresh `page_ready`, and an independently confirmed two-way message. Don't broaden Chrome permissions, delete session state, manually alter the LaunchAgent, reset/clean the repo or relaunch under an unrelated agent.
+
+Existing source/runtime Mac acceptance on the previous commit: 420/420 Node tests in both updaters, 4/4 Python ZIP tests. The **new rebind code/tests have not yet been verified on the real Mac** at the time of this Git-only change.
