@@ -4,7 +4,7 @@
 // Unlike browser DOM tools this cannot confirm app message delivery.
 import {lstat,readFile,writeFile,rename,unlink} from 'node:fs/promises';
 import {homedir} from 'node:os';
-import {join,resolve} from 'node:path';
+import {join,resolve,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {randomBytes} from 'node:crypto';
 import {spawn} from 'node:child_process';
@@ -208,8 +208,61 @@ export function windowTextScript(app,text,submit){
   'return "IOANT_UI_ERR_PERMISSION_OR_SCRIPT"\n'+
   'end try\n';
 }
+
+// Only the locally bound OpenClaw App has a proven WebArea/AXTextArea tree.
+// Keep the old AppleScript path for other applications, unchanged.
+export const OPENCLAW_NATIVE_BUNDLE='ai.openclaw.mac';
+export const NATIVE_AX_HELPER=join(dirname(fileURLToPath(import.meta.url)),'openclaw-native-ax.swift');
+export function focusedEditorKeysScript(app,text,submit){
+ if(!obj(app)||!NAME.test(app.name??'')||!APP_ID.test(app.bundleId??'')||
+  !validText(text)||typeof submit!=='boolean')throw Error('invalid_window_task');
+ return 'tell application "System Events"\n'+
+  'set p to first application process whose frontmost is true\n'+
+  'if (name of p) is not '+asString(app.name)+' then error number 9031\n'+
+  'if (bundle identifier of p) is not '+asString(app.bundleId)+' then error number 9032\n'+
+  'set e to value of attribute "AXFocusedUIElement" of p\n'+
+  'set r to value of attribute "AXRole" of e\n'+
+  'if r is not "AXTextArea" and r is not "AXTextField" then error number 9034\n'+
+  'keystroke '+asString(text)+'\n'+
+  (submit?'key code 36\n':'')+
+  'return "IOANT_UI_KEYS_SENT"\nend tell\n';
+}
+export function runNativeAX(mode,bundleId,{execute=spawn,timeout=32000}={}){
+ if(!['focus','probe'].includes(mode)||bundleId!==OPENCLAW_NATIVE_BUNDLE)
+  return Promise.resolve({ok:false,reason:'unsupported_native_app'});
+ return new Promise(resolveResult=>{
+  let done=false,proc,timer,output='',timedOut=false;
+  const finish=value=>{if(done)return;done=true;clearTimeout(timer);resolveResult(value)};
+  try{
+   proc=execute('/usr/bin/swift',[NATIVE_AX_HELPER,mode,bundleId],{
+    shell:false,stdio:['ignore','pipe','pipe'],
+    env:{HOME,PATH:'/usr/bin:/bin:/usr/sbin:/sbin'}});
+  }catch{return finish({ok:false,reason:'native_launch_failed'})}
+  proc.stdout.on('data',data=>{output=(output+String(data)).slice(-280)});
+  // Never relay native crash dumps, raw UI strings, application text or stderr.
+  proc.stderr.on('data',()=>{});
+  proc.on('error',()=>finish({ok:false,reason:'native_launch_failed'}));
+  timer=setTimeout(()=>{timedOut=true;try{proc.kill('SIGKILL')}catch{}},timeout);
+  proc.on('close',code=>{
+   const value=output.trim();
+   if(!timedOut&&code===0&&
+      (mode==='focus'?value==='AX_FOCUS_READY':value.startsWith('AX_PROBE_OK '))){
+    return finish({ok:true,value});
+   }
+   const codes=new Set(['AX_BAD_ARGUMENTS','AX_BAD_MODE','AX_APP_NOT_ALLOWLISTED',
+    'AX_NOT_TRUSTED','AX_APP_NOT_UNIQUE','AX_APP_NOT_RUNNING',
+    'AX_WINDOW_NOT_UNIQUE','AX_TREE_BOUNDED','AX_EDITOR_NOT_FOUND',
+    'AX_EDITOR_AMBIGUOUS','AX_EDITOR_DISABLED','AX_EDITOR_NOT_FOCUSABLE',
+    'AX_EDITOR_NOT_EMPTY','AX_ACTIVATION_FAILED','AX_NOT_FRONTMOST',
+    'AX_FOCUS_REJECTED','AX_FOCUS_UNVERIFIED','AX_FRONTMOST_CHANGED']);
+   finish({ok:false,reason:timedOut?'native_ax_timeout':
+    codes.has(value)?value.toLowerCase():'native_ax_script_or_permission_failure'});
+  });
+ });
+}
+
 export async function runWindowText(task,{conversationUrl,context=privateContext,
- readGrant=currentGrant,run=runOsascript}={}){
+ readGrant=currentGrant,run=runOsascript,axRun=runNativeAX}={}){
  if(!obj(task)||task.action!=='mac-window-text'||!ALIAS.test(task.app??'')||
   !validText(task.text)||typeof task.submit!=='boolean')
   return {status:'approval_required',reason:'invalid_window_task'};
@@ -222,9 +275,17 @@ export async function runWindowText(task,{conversationUrl,context=privateContext
   return {status:'approval_required',reason:'gui_authorization_required'};
  const app=grant.apps.find(a=>a.alias===task.app);
  if(!app)return {status:'approval_required',reason:'target_app_not_authorized'};
- let script;try{script=windowTextScript(app,task.text,task.submit)}
- catch{return {status:'approval_required',reason:'invalid_window_task'};}
+ let script;try{
+  script=app.bundleId===OPENCLAW_NATIVE_BUNDLE?
+   focusedEditorKeysScript(app,task.text,task.submit):
+   windowTextScript(app,task.text,task.submit);
+ }catch{return {status:'approval_required',reason:'invalid_window_task'};}
  const start=Date.now();
+ if(app.bundleId===OPENCLAW_NATIVE_BUNDLE){
+  const focused=await axRun('focus',app.bundleId);
+  if(!focused.ok)return {status:'inconclusive',reason:focused.reason,
+   elapsedMs:Date.now()-start};
+ }
  const r=await run(script);
  // A failed script may have partially typed or submitted. Never auto-retry.
  if(!r.ok||r.value!=='IOANT_UI_KEYS_SENT'){

@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
+import {spawnSync} from 'node:child_process';
+import {readFileSync} from 'node:fs';
 import {actionFromJson,extractAction,responseForTask} from '../stage2/protocol.mjs';
 import {actionPlan,runAction} from '../stage2/runner.mjs';
 import {runMacTerminal} from '../stage2/mac-terminal-access.mjs';
-import {windowTextScript,runWindowText} from '../stage2/mac-window-text.mjs';
+import {windowTextScript,focusedEditorKeysScript,runWindowText,runNativeAX,NATIVE_AX_HELPER,OPENCLAW_NATIVE_BUNDLE} from '../stage2/mac-window-text.mjs';
 
 const CHAT='https://chatgpt.com/g/g-p-6adbdb6e70348191bc5acb11efb0db5d-ai-openclawgong-zuo-liu/c/6adf6584-1a40-83ec-a4ab-c59ac7e28cf7';
 const CONVERSATION='6adf6584-1a40-83ec-a4ab-c59ac7e28cf7';
@@ -206,4 +208,56 @@ test('GUI returns a specific bounded focus failure and never reports delivery',a
  const a=await runWindowText(t,{...opts,
   run:async()=>({ok:true,value:'IOANT_UI_ERR_TARGET_NOT_FRONTMOST',reason:'ok'})});
  assert.equal(a.reason,'target_not_frontmost_after_activation');
+});
+
+test('native OpenClaw path always validates AX focus before generating keystrokes',async()=>{
+ const t={action:'mac-window-text',app:'openclaw',text:'原生AX验证',submit:false};
+ let typed=0,axCalled=0,jsScript='';
+ const opts={conversationUrl:CHAT,context:async()=>({conversationId:CONVERSATION}),
+  readGrant:async()=>({state:'enabled',conversationId:CONVERSATION,
+   apps:[{alias:'openclaw',name:'OpenClaw',bundleId:'ai.openclaw.mac'}]}),
+  axRun:async(mode,bundle)=>{axCalled++;assert.equal(mode,'focus');
+   assert.equal(bundle,'ai.openclaw.mac');return {ok:true,value:'AX_FOCUS_READY'}},
+  run:async script=>{jsScript=script;typed++;return {ok:true,value:'IOANT_UI_KEYS_SENT'}}};
+ const r=await runWindowText(t,opts);
+ assert.equal(r.status,'passed');
+ assert.equal(axCalled,1);
+ assert.equal(typed,1);
+ assert.match(jsScript,/AXFocusedUIElement/);
+ assert.match(jsScript,/keystroke "原生AX验证"/);
+ assert.doesNotMatch(jsScript,/entire contents|key code 36|activate/);
+ const failed=await runWindowText(t,{...opts,axRun:async()=>({ok:false,reason:'ax_editor_not_found'}),
+  run:async()=>{throw Error('must not type after native failure')}});
+ assert.equal(failed.status,'inconclusive');
+ assert.equal(failed.reason,'ax_editor_not_found');
+});
+
+test('native AX rejects other app IDs before spawning external code',async()=>{
+ let executed=false;
+ const r=await runNativeAX('focus','com.example.not-openclaw',{execute:()=>{
+   executed=true;throw Error('spawn should not happen')}});
+ assert.equal(executed,false);
+ assert.equal(r.ok,false);
+ assert.equal(OPENCLAW_NATIVE_BUNDLE,'ai.openclaw.mac');
+ const s=focusedEditorKeysScript({name:'OpenClaw',bundleId:'ai.openclaw.mac'},'hello',false);
+ assert.match(s,/keystroke "hello"/);
+ assert.doesNotMatch(s,/key code 36|entire contents|do shell script/);
+});
+
+test('native AX Swift source stays bounded and compiles on macOS',()=>{
+ const source=readFileSync(NATIVE_AX_HELPER,'utf8');
+ assert.match(source,/kAXWindowsAttribute/);
+ assert.match(source,/kAXChildrenAttribute/);
+ assert.match(source,/AXTextArea/);
+ assert.match(source,/AX_EDITOR_AMBIGUOUS/);
+ assert.match(source,/AX_EDITOR_NOT_EMPTY/);
+ assert.match(source,/AXIsProcessTrusted/);
+ assert.match(source,/nodes\.count >= 400/);
+ assert.doesNotMatch(source,/print\(.*(?:kAXValueAttribute|existingValue)|CGEventPost|write\(to:)/);
+ if(process.platform==='darwin'){
+  const r=spawnSync('/usr/bin/swiftc',['-typecheck',NATIVE_AX_HELPER],
+   {timeout:85000,encoding:'utf8',maxBuffer:1024*1024});
+  assert.equal(r.status,0,
+   'Swift helper must type-check on macOS; first error: '+(r.stderr||'').slice(0,2800));
+ }
 });
