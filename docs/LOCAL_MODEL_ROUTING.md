@@ -37,3 +37,11 @@ A plan is `ready_for_separate_operator_run` only when the locally configured nat
 ## Next stage — not deployed
 
 Develop a separately opted-in isolated no-tools `agent exec` adapter using only validated task types, a private short-lived config, bounded stdin, serialized router-owned calls, model release evidence, and safe diagnostics. Preserve current Agent policies, Gateway PID, browser/watchers and user state. A router-owned lock cannot arbitrate unrelated Ollama/Gateway traffic; resolve external concurrency before claiming 32 GB protection. Subsequent Whisper/Kokoro adaptation requires a strict disconnected runtime smoke before promising offline voice. Do not repeat downloads or model capability benchmarks.
+
+## Operator Mac route-plan acceptance — 2026-10-26 23:36
+
+The operator cleanly fast-forwarded local main from `63b7b2b` to `a51f4b7`. Running `scripts/local-model-plan.mjs --task` sequentially for all four explicit categories returned `status="ready_for_separate_operator_run"`, `reason="fixed_task_route_verified"`, `execution="none"` for each: daily → `ollama/gemma4:26b-a4b`, architecture → `ollama/gemma4:31b-mlx`, coding → `ollama/qwen3.6:27b-coding`, planning → `ollama/nemotron-3-nano:30b-mlx`. **All four real-Mac read-only route decisions passed.**
+
+This is model selection and local-catalog validation, **not** four fresh inferences or the presence of an active automatic executor. The report's `tools="deny-all"` describes the proposed isolated *analysis* execution; it is not a mandate to disable Mac development tools. User explicitly confirmed that the local primary AI should retain working Mac command execution. The real main Gateway `exec` tool already succeeded separately; preserve existing main permissions and existing two development-advisor policies.
+
+The next source candidate is an operator-triggered, standalone Phase-2 `local-model-run` that distinguishes `analysis` and explicitly selected tool-enabled `work` runs. Treat it as staged until real Mac test passes. Do not wire it into the ChatGPT watcher, install a service, or modify existing Agent policies as part of this route-plan milestone.
