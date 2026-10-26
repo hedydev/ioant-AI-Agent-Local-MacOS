@@ -252,6 +252,8 @@ test('native AX Swift source stays bounded and compiles on macOS',()=>{
  assert.match(source,/AX_EDITOR_AMBIGUOUS/);
  assert.match(source,/AX_EDITOR_NOT_EMPTY/);
  assert.match(source,/AXIsProcessTrusted/);
+ assert.match(source,/CFGetTypeID\(focus\) == AXUIElementGetTypeID\(\)/);
+ assert.doesNotMatch(source,/as\? AXUIElement/);
  assert.match(source,/nodes\.count >= 400/);
  assert.doesNotMatch(source,/print\(.*(?:kAXValueAttribute|existingValue)|CGEventPost|write\(to:)/);
  if(process.platform==='darwin'){

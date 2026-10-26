@@ -24,10 +24,13 @@ func children(_ element: AXUIElement) -> [AXUIElement] {
     attribute(element, kAXChildrenAttribute as CFString) as? [AXUIElement] ?? []
 }
 func focusedRole(_ app: AXUIElement) -> String {
-    guard let focus = attribute(app, kAXFocusedUIElementAttribute as CFString) as? AXUIElement else {
+    guard let focus = attribute(app, kAXFocusedUIElementAttribute as CFString) else {
         return "unavailable"
     }
-    return role(focus)
+    guard CFGetTypeID(focus) == AXUIElementGetTypeID() else {
+        return "unavailable"
+    }
+    return role(focus as! AXUIElement)
 }
 guard CommandLine.arguments.count == 3 else { finish("AX_BAD_ARGUMENTS") }
 let mode = CommandLine.arguments[1]
