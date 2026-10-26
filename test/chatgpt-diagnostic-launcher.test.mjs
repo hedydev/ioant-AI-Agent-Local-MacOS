@@ -40,7 +40,10 @@ test('watch-loop records status-only checkpoints and heartbeat, not raw messages
 
 test('log viewer is local, constrained and excludes raw Gateway log files',()=>{
  assert.match(viewer,/source "\$ROOT\/scripts\/dev-env\.sh"/);
- assert.match(viewer,/latest\|tail\|bundle/);
+ assert.ok(viewer.includes('MODE="${1:-bundle}"'), 'bundle is the default');
+ assert.ok(viewer.includes('bundle) exec python3 "$ROOT/scripts/openclaw-desktop-logs.py"'), 'bundle mode uses Desktop exporter');
+ assert.ok(viewer.includes('latest|tail) ;;'), 'latest and tail remain supported');
+ assert.ok(viewer.includes('[bundle|latest|tail]'), 'usage lists supported modes');
  assert.match(viewer,/jsonl/);
  assert.match(viewer,/openclaw-desktop-logs\.py/);
  assert.doesNotMatch(viewer,/gateway.*\.log.*z\.write/);
