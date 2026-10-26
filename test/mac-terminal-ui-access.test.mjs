@@ -152,3 +152,24 @@ test('unknown or blocked requests cannot bypass the runner with freeform shell',
   {status:'approval_required',reason:'terminal_grant_required'},'abc12345');
  assert.match(l,/terminal_grant_required/);
 });
+
+test('terminal failed child exits promptly with a bounded error receipt, without leaking timer',async()=>{
+ const result=await runMacTerminal({action:'mac-terminal',cwd:'downloads',command:'false'},{
+  conversationUrl:CHAT,
+  authorize:async()=>({state:'enabled'}),
+  rootResolve:async()=>'/Users/ted/Downloads',
+  execute:()=>{
+   const child=new EventEmitter();child.pid=22001;
+   child.stdout=new EventEmitter();child.stderr=new EventEmitter();
+   queueMicrotask(()=>{
+    child.stderr.emit('data',Buffer.from('expected test error'));
+    child.emit('close',12);
+   });
+   return child;
+  }
+ });
+ assert.equal(result.status,'failed');
+ assert.equal(result.exitCode,12);
+ assert.equal(result.output,'expected test error');
+ assert.ok(Number.isInteger(result.elapsedMs)&&result.elapsedMs>=0);
+});

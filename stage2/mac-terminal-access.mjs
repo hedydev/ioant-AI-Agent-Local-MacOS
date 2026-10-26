@@ -165,7 +165,6 @@ export async function runMacTerminal(task,{conversationUrl,authorize=inspectTerm
    try{process.kill(-proc.pid,'SIGKILL');}catch{try{proc.kill('SIGKILL');}catch{}}
   },timeout);
   proc.on('close',code=>{
-   exited=true;
    finish({status:timedOut?'timed_out':code===0?'passed':'failed',
     exitCode:Number.isInteger(code)?code:-1});
   });
