@@ -210,3 +210,15 @@ bash scripts/chatgpt-loop-logs.sh bundle
 **IMPORTANT**: Avoid chaining `rebind` to `start` if the first command fails or reports `blocked_or_inconclusive`. The rebind program preserves a backup and never silently restarts the old worker. If `start` returns `start_requested`, the worker still requires an observed live PID, fresh `page_ready`, and an independently confirmed two-way message. Don't broaden Chrome permissions, delete session state, manually alter the LaunchAgent, reset/clean the repo or relaunch under an unrelated agent.
 
 Existing source/runtime Mac acceptance on the previous commit: 420/420 Node tests in both updaters, 4/4 Python ZIP tests. The **new rebind code/tests have not yet been verified on the real Mac** at the time of this Git-only change.
+
+## 2026-10-27 — Orphaned old-session watch.lock blocks rebind (fix pending Mac gate)
+
+Mac read-only witness:
+- Both source and runtime at `8e36d7cf0354642073d8e01d3be42df508788d47`, 425/425 candidate tests passed.
+- Supervisor `com.ioant.openclaw.safe-watcher` is **registered, not running**, last exit code 1, still bound to `6add3565-d868-83ec-804e-1e7a00eb0a59`.
+- Old chat: `watch.lock` exists (100 bytes) with recorded PID **79690**, for which Mac `kill(pid,0)` returned **ESRCH** (process not found). No `watch.lock.recovery` exists. The old `state.json` exists (689 bytes) and must be preserved.
+- New chat `6adf6584-1a40-83ec-a4ab-c59ac7e28cf7`: no `watch.lock`, `watch.lock.recovery`, or `state.json`. The old `rebind` blocked with `watcher_lock_or_target_state_exists` before any plist changes.
+
+A left-behind old lock does **not** imply a live owner, but the observed ESRCH is point-in-time only. The revised `stage2/ops-rebind.mjs` implements a separate, **read-only, fail-closed** `inspectOldWatchLock`: require a regular same-user 0600 file of at most 512 bytes; open `O_NOFOLLOW`, compare file identity and timestamps, validate the lock record (`pid`, `startedAt`, `nonce`), require `kill(pid,0)` to produce ESRCH twice; forbid any `watch.lock.recovery`; then repeat all old-lock checks immediately before bootout. A changed/unknown/live owner blocks. **No old `watch.lock`, `state.json`, or other history is removed or reset.** The target still must have no lock, recovery guard, or state. New test `test/ops-rebind-lock.test.mjs` covers orphan, missing, live, invalid, symlink, recovery, and changed-file states.
+
+This code does **not** fix browser permissions or establish a live ChatGPT receipt. After a Git-only commit, run the protected `project-self-update.mjs` separately in BOTH checkouts, confirm matching HEAD, rebind from the operator's terminal, verify `rebound_unloaded`, then explicitly start the exact new route and check a real process plus current background events. Stop on any failed gate; do not manually delete or rename old lock/state, stop unknown processes, reset Git or modify Gateway credentials.

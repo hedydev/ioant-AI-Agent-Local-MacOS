@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Explicit operator-only same-Project LaunchAgent rebind. No ChatGPT task action.
 // A successful rebind leaves launchd UNLOADED. A separate start is required.
-import {readFile,lstat,realpath,mkdir,writeFile,rename,unlink} from 'node:fs/promises';
+import {readFile,lstat,realpath,mkdir,writeFile,rename,unlink,open} from 'node:fs/promises';
+import {constants as fsConstants} from 'node:fs';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {homedir} from 'node:os';
@@ -63,13 +64,75 @@ async function registered(){
  try{return await cmd('/bin/launchctl',['print','gui/'+process.getuid()+'/'+LABEL]);}
  catch{return null;}
 }
+// New target is never allowed to inherit an existing lock, recovery guard,
+// or state file. Nothing here deletes or repairs the new conversation's files.
 async function noLock(url,{fresh=false}={}){
  const base=join(CACHE,'chatgpt-loop',chatKey(url));
- for(const name of fresh?['watch.lock','state.json']:['watch.lock']){
+ for(const name of fresh?['watch.lock','watch.lock.recovery','state.json']:
+  ['watch.lock','watch.lock.recovery']){
   try{await lstat(join(base,name));return false;}
   catch(e){if(e.code!=='ENOENT')throw Error('lock_state_unknown');}
  }
  return true;
+}
+const validPid=pid=>Number.isSafeInteger(pid)&&pid>1&&pid<=2147483647;
+const lockMetadataSafe=(st,uid)=>st.isFile()&&!st.isSymbolicLink()&&
+ st.size>0&&st.size<=512&&(st.mode&0o077)===0&&
+ (typeof uid!=='number'||st.uid===uid);
+const sameLock=(a,b)=>a.dev===b.dev&&a.ino===b.ino&&
+ a.size===b.size&&a.mtimeMs===b.mtimeMs&&a.ctimeMs===b.ctimeMs;
+function ownerPidDead(pid){
+ try{process.kill(pid,0);return false;}
+ catch(e){return e?.code==='ESRCH';} // EPERM, EINVAL and all other failures block.
+}
+// Read-only preservation check: an orphaned old lock is inert for changing
+// the launchd target. Never unlink it or lose the old conversation's state.
+export async function inspectOldWatchLock(url,{
+ root=CACHE,stat=lstat,openFile=open,probe=ownerPidDead,uid=process.getuid?.()
+}={}){
+ const directory=join(root,'chatgpt-loop',chatKey(url));
+ const guard=join(directory,'watch.lock.recovery');
+ // No recovery may be underway or interrupted, even if watch.lock is absent.
+ try{await stat(guard);throw Error('old_lock_recovery_present');}
+ catch(e){if(e?.code!=='ENOENT')throw e;}
+ const path=join(directory,'watch.lock');
+ let first;
+ try{first=await stat(path);}
+ catch(e){
+  if(e?.code==='ENOENT')return {state:'absent'};
+  throw Error('old_lock_unverifiable');
+ }
+ if(!lockMetadataSafe(first,uid))throw Error('old_lock_untrusted');
+ let handle;
+ try{
+  handle=await openFile(path,fsConstants.O_RDONLY|fsConstants.O_NOFOLLOW|fsConstants.O_NONBLOCK);
+  const opened=await handle.stat();
+  if(!lockMetadataSafe(opened,uid)||!sameLock(first,opened))
+   throw Error('old_lock_changed');
+  const raw=await handle.readFile('utf8');
+  let value;
+  try{value=JSON.parse(raw);}catch{throw Error('old_lock_untrusted');}
+  if(!value||!validPid(value.pid)||
+     typeof value.startedAt!=='string'||!Number.isFinite(Date.parse(value.startedAt))||
+     typeof value.nonce!=='string'||!/^[0-9a-f-]{36}$/i.test(value.nonce))
+   throw Error('old_lock_untrusted');
+  // A dead PID is only a point-in-time observation. Recheck the same file
+  // identity and PID just before taking any irreversible rebind action.
+  if(probe(value.pid)!==true)throw Error('old_lock_owner_not_proven_dead');
+  const last=await stat(path);
+  if(!lockMetadataSafe(last,uid)||!sameLock(opened,last)||
+     probe(value.pid)!==true)
+   throw Error('old_lock_changed_or_owner_unverified');
+  try{await stat(guard);throw Error('old_lock_recovery_present');}
+  catch(e){if(e?.code!=='ENOENT')throw e;}
+  return {state:'orphan',pid:value.pid,dev:opened.dev,ino:opened.ino,
+    mtimeMs:opened.mtimeMs,ctimeMs:opened.ctimeMs,nonce:value.nonce};
+ }catch(e){
+  if(['old_lock_untrusted','old_lock_changed','old_lock_owner_not_proven_dead',
+      'old_lock_changed_or_owner_unverified','old_lock_recovery_present'].includes(e?.message))
+   throw e;
+  throw Error('old_lock_unverifiable');
+ }finally{if(handle)await handle.close();}
 }
 export function candidatePlist(current,newUrl){
  const parsed=boundChat(newUrl);
@@ -95,8 +158,9 @@ async function rebind(url){
  const original=await readFile(PLIST,'utf8');
  const plan=candidatePlist(original,target.canonicalUrl);
  await requireStopped();
- if(!await noLock(plan.old.chatUrl)||!await noLock(plan.target.canonicalUrl,{fresh:true}))
-  throw Error('watcher_lock_or_target_state_exists');
+ const oldLock=await inspectOldWatchLock(plan.old.chatUrl);
+ if(!await noLock(plan.target.canonicalUrl,{fresh:true}))
+  throw Error('target_lock_or_state_exists');
  const backupDir=join(DEPLOY,'rebind-backups');
  await mkdir(backupDir,{recursive:true,mode:0o700});
  if(!await privateDirectory(backupDir))throw Error('unsafe_backup_dir');
@@ -104,6 +168,14 @@ async function rebind(url){
  const backup=join(backupDir,'before-'+nonce+'.plist');
  // Restore evidence exists before launchctl unload or plist write.
  await writeFile(backup,original,{flag:'wx',mode:0o600});
+ // Compare the complete old-file observation immediately before bootout.
+ // A worker reclaiming the lock, or any changed identity, halts rebind.
+ const lastLock=await inspectOldWatchLock(plan.old.chatUrl);
+ if(JSON.stringify(lastLock)!==JSON.stringify(oldLock))
+  throw Error('old_lock_changed_before_bootout');
+ if(!await noLock(plan.target.canonicalUrl,{fresh:true}))
+  throw Error('target_lock_or_state_exists');
+ await requireStopped();
  await cmd('/bin/launchctl',['bootout','gui/'+process.getuid()+'/'+LABEL]);
  if(await registered())throw Error('bootout_unconfirmed');
  // Atomic plist replacement; preserve old state/lock/backup, never delete these.
@@ -154,7 +226,11 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
     'worker_not_proven_stopped','lock_state_unknown','watcher_lock_or_target_state_exists',
     'unsafe_backup_dir','bootout_unconfirmed','plist_changed','temporary_file_cleanup_failed',
     'new_binding_unverified','target_not_bound','service_already_registered',
-    'watcher_lock_exists','cross_project_rebind','not_a_project_chat',
+    'watcher_lock_exists','target_lock_or_state_exists',
+    'old_lock_recovery_present','old_lock_untrusted','old_lock_changed',
+    'old_lock_owner_not_proven_dead','old_lock_changed_or_owner_unverified',
+    'old_lock_unverifiable','old_lock_changed_before_bootout',
+    'cross_project_rebind','not_a_project_chat',
     'invalid_chat_url','invalid_chat_origin','unapproved_chat_query']);
    console.log(JSON.stringify(reply('blocked_or_inconclusive',
     safe.has(e?.message)?e.message:'inspect_local_logs_no_auto_retry')));
