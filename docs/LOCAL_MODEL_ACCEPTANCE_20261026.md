@@ -41,3 +41,18 @@ The original Qwen smoke allowed 32 output tokens and did not disable thinking. I
 ## Validation boundary
 
 All observations in this note are operator-supplied terminal logs, not assistant-executed tests on the Mac. This documentation commit neither modifies any Mac file nor deploys the routing runtime.
+
+## Gateway main Agent: real Mac terminal execution (operator witnessed, 2026-10-26 23:35)
+
+This **supersedes earlier uncertainty about main Agent's host-terminal capability**, without changing the separately restricted `alice-ai` / `openclaw-dev` identities.
+
+- Operator called `~/.openclaw/bin/openclaw agent --agent main --session-id <fresh UUID> --thinking off --timeout 180 --message <single sw_vers verification request> --json` against the running Gateway; **not** `agent exec`, and **not** `--local`.
+- `status="ok"`, `summary="completed"`, `origin` represented by the Gateway-backed invocation. Result contained `payloads[0].text="27.0.1"` after the model was instructed to call only `/usr/bin/sw_vers -productVersion`.
+- **Actual tool evidence**, not model self-report: `terminalReceipt.successfulToolNames=["exec"]`, `toolSummary.calls=1`, `toolSummary.tools=["exec"]`, `toolSummary.failures=0`, `terminalDisposition="visible"`. `terminalReceipt.requested` and `effective` both identified `ollama/gemma4:26b-a4b`. No model fallback was reported.
+- `systemPromptReport.sandbox.mode="off"`, `sandboxed=false`; full main-session `exec` and `process` inclusion was observed independently with `exec-policy show --session agent:main:main --verbose`. Effective main command policy was `security=full`, `ask=off`. This was the operator's expressed intended Mac-local automation behavior; **do not silently restrict or widen it**. `alice-ai` and `openclaw-dev` remain `minimal`, deny-all, and separate from main.
+- The complete model turn took `55988 ms`, including inference/orchestration. It is **not** the measured duration of `sw_vers`; investigate model latency separately if needed. The receipt also showed `sourceReplyDeliveryState="missing"`, `replayInvalid=true` and `livenessState="working"` despite completed status; don't interpret these auxiliary flags as a failed `exec` or verified external-channel delivery without separate evidence. No `--deliver` flag was supplied.
+- Therefore the original claim from the earlier chat that this OpenClaw instance was cloud-hosted and could not access the Mac terminal was **incorrect for this main session**. This log does not prove browser/Computer Use abilities or Agent-level terminal execution on the three newly registered models.
+
+## Concurrent full Node suite issue (2026-10-26)
+
+After fast-forwarding repo to `63b7b2b3`, Mac `node --test` ran `415` tests, `413` passed, `2` failed: `test/chatgpt-loop-protocol.test.mjs` line 69 and `test/watcher-test-env-isolation.test.mjs` line 22. Both expected one nested `project-tests` test but the bounded summary contained `tests:null`. All nine new `local-model-routing` tests passed. A later read-only synthetic test with both Node default/spec and explicit TAP reporters returned `tests=1,pass=1,fail=0`; **root cause of nested `runAction` reporting remains unproven**. Do not claim the entire repository suite passes or mask the two errors. Existing watcher/Gateway should not be restarted to diagnose a test parser.
