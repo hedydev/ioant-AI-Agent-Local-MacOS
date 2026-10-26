@@ -9,6 +9,8 @@ function fixture(run){
  const root=mkdtempSync(join(tmpdir(),'ioant-event-log-'));
  const prevStore=process.env.PROJECT_DEV_CACHE;
  const prevLog=process.env.IOANT_LOOP_LOG_FILE;
+ const prevBackground=process.env.IOANT_BACKGROUND_SAFE_REPORTS;
+ delete process.env.IOANT_BACKGROUND_SAFE_REPORTS;
  const store=join(root,'LunaDrive','DeveloperCache','projects','ioant-ai-agent-local-macos');
  mkdirSync(store,{recursive:true});
  process.env.PROJECT_DEV_CACHE=store;
@@ -19,6 +21,8 @@ function fixture(run){
    else process.env.PROJECT_DEV_CACHE=prevStore;
    if(prevLog===undefined)delete process.env.IOANT_LOOP_LOG_FILE;
    else process.env.IOANT_LOOP_LOG_FILE=prevLog;
+   if(prevBackground===undefined)delete process.env.IOANT_BACKGROUND_SAFE_REPORTS;
+   else process.env.IOANT_BACKGROUND_SAFE_REPORTS=prevBackground;
    rmSync(root,{recursive:true,force:true});
  }
 }

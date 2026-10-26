@@ -52,9 +52,14 @@ for flag in "$@"; do
     --once) WATCH_WAIT=0 ;;
   esac
 done
-# Privacy-first per-run log: local LunaDrive only, no browser DOM or command output.
-# Initialization fails closed if log storage is unsafe or unavailable.
-LOG_DIR="$PROJECT_DEV_CACHE/logs/chatgpt-loop"
+# launchd must not depend on Terminal's external-volume/Desktop TCC grants.
+# Background logs stay local/private; the operator exports a sanitized ZIP to Desktop.
+if [[ "${IOANT_BACKGROUND_SAFE_REPORTS:-0}" == 1 ]]; then
+  LOG_ROOT="$HOME/Library/Application Support/ioant-openclaw-ops/logs"
+else
+  LOG_ROOT="$PROJECT_DEV_CACHE/logs"
+fi
+LOG_DIR="$LOG_ROOT/chatgpt-loop"
 export IOANT_LOOP_LOG_FILE
 IOANT_LOOP_LOG_FILE="$(node "$ROOT/stage2/diagnostic-log.mjs" init "$LOG_DIR")"
 echo "[loop] Diagnostic log: $IOANT_LOOP_LOG_FILE"
@@ -134,8 +139,8 @@ if (( GATEWAY_HEALTHY == 0 )); then
   command -v openssl >/dev/null || { echo '[loop] openssl missing' >&2; exit 1; }
   export OPENCLAW_GATEWAY_TOKEN
   OPENCLAW_GATEWAY_TOKEN="$(openssl rand -hex 32)"
-  mkdir -p "$PROJECT_DEV_CACHE/logs"
-  GATEWAY_LOG="$PROJECT_DEV_CACHE/logs/chatgpt-gateway-$(date -u +%Y%m%dT%H%M%SZ)-$$.log"
+  # The parent has already been validated by diagnostic-log.mjs init.
+  GATEWAY_LOG="$LOG_ROOT/chatgpt-gateway-$(date -u +%Y%m%dT%H%M%SZ)-$.log"
   "$OPENCLAW_BIN" gateway run --allow-unconfigured --bind loopback --auth token --tailscale off >"$GATEWAY_LOG" 2>&1 &
   GATEWAY_PID=$!
   ready=0

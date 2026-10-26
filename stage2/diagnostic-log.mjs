@@ -7,6 +7,7 @@ import {
 import { join, basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
+import { homedir } from 'node:os';
 
 const MAX_SEGMENT=2*1024*1024;
 const MAX_SEGMENTS=4;
@@ -36,22 +37,40 @@ function requireSafeFile(file){
    throw Error('Diagnostic log file is not private and regular');
  return st;
 }
-function safeDir(dir){
- const store=process.env.PROJECT_DEV_CACHE;
- if(!store||resolve(dir)!==resolve(store,'logs','chatgpt-loop'))
-   throw Error('Log destination must remain in this project cache');
- const expected=join(realpathSync(store),'logs','chatgpt-loop');
- if(realpathSync(dir)!==expected || lstatSync(dirname(dir)).isSymbolicLink())
-   throw Error('Diagnostic log parent directory must not redirect outside LunaDrive');
- const st=lstatSync(dir);
+// A background LaunchAgent cannot assume Terminal's LunaDrive or Desktop TCC grants.
+function location(){
+ if(process.env.IOANT_BACKGROUND_SAFE_REPORTS==='1'){
+   const base=join(homedir(),'Library','Application Support','ioant-openclaw-ops');
+   return {base,dir:join(base,'logs','chatgpt-loop'),background:true};
+ }
+ const base=process.env.PROJECT_DEV_CACHE;
+ if(!base)throw Error('Project cache not configured');
+ return {base,dir:join(base,'logs','chatgpt-loop'),background:false};
+}
+function ownedPrivateDir(path){
+ const st=lstatSync(path);
  if(!st.isDirectory()||st.isSymbolicLink()||(st.mode&0o077)!==0||
     (typeof process.getuid==='function'&&st.uid!==process.getuid()))
-   throw Error('Diagnostic log directory is not private');
+   throw Error('Background diagnostic directory is not private');
+}
+function safeDir(dir){
+ const target=location();
+ if(resolve(dir)!==resolve(target.dir))throw Error('Unsafe diagnostic destination');
+ const root=realpathSync(target.base);
+ if(realpathSync(dir)!==join(root,'logs','chatgpt-loop')||
+    lstatSync(dirname(dir)).isSymbolicLink()||
+    lstatSync(target.base).isSymbolicLink())
+   throw Error('Diagnostic log path redirect refused');
+ if(target.background){
+   // The background root and logs folder must be owner-only and non-symlink.
+   ownedPrivateDir(target.base);
+   ownedPrivateDir(dirname(dir));
+ }
+ ownedPrivateDir(dir);
 }
 export function createDiagnosticLog(dir){
- const store=process.env.PROJECT_DEV_CACHE;
- if(!store||resolve(dir)!==resolve(store,'logs','chatgpt-loop'))
-   throw Error('Unsafe diagnostics destination');
+ const target=location();
+ if(resolve(dir)!==resolve(target.dir))throw Error('Unsafe diagnostics destination');
  mkdirSync(dir,{recursive:true,mode:0o700});
  safeDir(dir);
  const stamp=new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z';
