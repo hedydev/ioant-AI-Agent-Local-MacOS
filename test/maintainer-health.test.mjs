@@ -14,9 +14,9 @@ const project={key:'openclaw-workflow',...parsed};
 test('only strictly validated Project and Chat IDs count as matches',()=>{
  const a=summarizeVisibleTabs(JSON.stringify({tabs:[
   {url:target+'?utm_source=chatgpt.com'},
-  {url:'https://chatgpt.com/g/g-p-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-a/c/6add3565-d868-83ec-804e-1e7a00eb0a59'},
+  {url:'https://chatgpt.com/g/g-p-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-a/c/'+parsed.conversationId},
   {url:'https://evil.example/secret'},
-  {url:'https://chatgpt.com/c/6add3565-d868-83ec-804e-1e7a00eb0a59'}
+  {url:'https://chatgpt.com/c/'+parsed.conversationId}
  ]}),project);
  assert.deepEqual(a,{state:'ok',visibleTabs:4,matchingTabs:1,
   sameConversationOtherProjectTabs:1,sameConversationUnscopedTabs:1,
