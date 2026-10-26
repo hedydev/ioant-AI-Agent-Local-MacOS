@@ -42,3 +42,10 @@ export function validTestEvidence(data){
    Number.isSafeInteger(x.line)&&x.line>=0&&
    Number.isSafeInteger(x.column)&&x.column>=0);
 }
+
+// Reject an exit-zero test run whose complete counts were never observed.
+// The summary is independently validated; no raw child stdout is disclosed.
+export function passingTestSummary(data){
+ return validTestEvidence(data)&&Number.isSafeInteger(data.tests)&&data.tests>0&&
+   Number.isSafeInteger(data.pass)&&data.pass===data.tests&&data.fail===0;
+}

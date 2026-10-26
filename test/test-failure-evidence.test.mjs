@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
-import {summarizeTestEvidence,validTestEvidence} from '../stage2/test-failure-evidence.mjs';
+import {summarizeTestEvidence,validTestEvidence,passingTestSummary} from '../stage2/test-failure-evidence.mjs';
 
 test('spec reporter produces bounded failed test source locations rather than assertion values',()=>{
  const sample=[
@@ -74,4 +74,21 @@ test('watcher-scoped diagnostic path is scrubbed by BOTH local and candidate tes
  assert.match(updater,/function privateTestEnv\(parent=process\.env\)\{[\s\S]*?delete env\.IOANT_LOOP_LOG_FILE;/);
  assert.match(runner,/delete env\.NODE_TEST_CONTEXT/);
  assert.match(updater,/delete env\.NODE_TEST_CONTEXT/);
+});
+
+test('a zero exit code without complete test counters is not a verified pass',()=>{
+ const valid=summarizeTestEvidence('# tests 1\n# pass 1\n# fail 0\n');
+ assert.equal(passingTestSummary(valid),true);
+ for(const input of ['','\u2714 local smoke without counters','# tests 1\n# pass 1\n', '# tests 1\n# pass 0\n# fail 1\n','# tests 0\n# pass 0\n# fail 0\n']){
+   assert.equal(passingTestSummary(summarizeTestEvidence(input)),false);
+ }
+});
+test('nested project test paths pin TAP reporter and preserve env scrubbing',()=>{
+ const runner=readFileSync(resolve(import.meta.dirname,'..','stage2/runner.mjs'),'utf8');
+ const updater=readFileSync(resolve(import.meta.dirname,'..','stage2/project-self-update.mjs'),'utf8');
+ assert.match(runner,/args:\['--test','--test-reporter=tap'\]/);
+ assert.match(updater,/command\(process\.execPath,\['--test','--test-reporter=tap'\]/);
+ assert.match(runner,/passingTestSummary\(summarizeTestEvidence\(output\)\)/);
+ assert.match(runner,/delete env\.NODE_TEST_CONTEXT/);
+ assert.match(runner,/delete env\.IOANT_LOOP_LOG_FILE/);
 });

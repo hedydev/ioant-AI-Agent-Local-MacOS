@@ -46,7 +46,7 @@ test('feedback redacts credentials, excludes raw commands and has deterministic 
 });
 
 test('safe command plan ignores strings supplied in tasks',()=>{
-  assert.deepEqual(actionPlan('project-tests','/a').args,['--test']);
+  assert.deepEqual(actionPlan('project-tests','/a').args,['--test','--test-reporter=tap']);
   assert.deepEqual(actionPlan('project-status','/a').args,['status','--short','--branch']);
   assert.equal(actionPlan('bash -c rm','/a'),null);
 });

@@ -145,7 +145,8 @@ export async function verifyProjectUpdate({cache=process.env.PROJECT_DEV_CACHE,v
  const temp=await mkdtemp(join(workDir,'candidate-'));
  try{
   if(!await archiveCandidate(sha,temp))throw Error('candidate_archive_failed');
-  const test=await command(process.execPath,['--test'],{
+  // Use a stable reporter for nested subprocess runs, independently of host Node defaults.
+  const test=await command(process.execPath,['--test','--test-reporter=tap'],{
    cwd:temp,timeout:TIMEOUT.tests,env:privateTestEnv()});
   if(!test.ok)throw Object.assign(Error('candidate_tests_failed'),{
    testEvidence:summarizeTestEvidence(test.stdout)

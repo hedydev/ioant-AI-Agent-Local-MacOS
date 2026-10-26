@@ -6,7 +6,7 @@ import {safeAudit} from './openclaw-ollama-provision.mjs';
 import {discussBoundAgent} from './openclaw-agent-dev-discuss.mjs';
 import {isBoundDevDiscussion} from './development-agent-route.mjs';
 import { spawn } from 'node:child_process';
-import { summarizeTestEvidence,validTestEvidence } from './test-failure-evidence.mjs';
+import { summarizeTestEvidence,validTestEvidence,passingTestSummary } from './test-failure-evidence.mjs';
 import { resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
@@ -15,7 +15,7 @@ const OUTPUT_LIMIT=6000;
 export function actionPlan(action, repoRoot) {
   const root=resolve(repoRoot);
   const plans={
-    'project-tests': {bin:process.execPath,args:['--test'],cwd:root,timeout:150000},
+    'project-tests': {bin:process.execPath,args:['--test','--test-reporter=tap'],cwd:root,timeout:150000},
     'project-status': {bin:'git',args:['status','--short','--branch'],cwd:root,timeout:15000},
     'project-head': {bin:'git',args:['rev-parse','HEAD'],cwd:root,timeout:15000},
     'environment-scan': {bin:process.execPath,args:['src/environment.mjs','scan'],cwd:root,timeout:30000},
@@ -174,7 +174,8 @@ async function runFixedPlan(plan) {
   const start=performance.now();
   return new Promise(resolveResult=>{
     let output='',finished=false,timedOut=false;
-    const isProjectTests=plan.bin===process.execPath&&plan.args?.length===1&&plan.args[0]==='--test';
+    const isProjectTests=plan.bin===process.execPath&&plan.args?.length===2&&
+      plan.args[0]==='--test'&&plan.args[1]==='--test-reporter=tap';
     const done=(result)=>{
       if(!finished){
         finished=true;
@@ -200,6 +201,12 @@ async function runFixedPlan(plan) {
     const collect=chunk=>{output=(output+chunk.toString('utf8')).slice(-(isProjectTests?128*1024:OUTPUT_LIMIT))}; // Only a bounded test buffer is parsed; private assertion values are never forwarded.
     p.stdout.on('data',collect);p.stderr.on('data',collect);
     p.on('error',err=>{clearTimeout(timer);done({status:'execution_error',reason:err.code||'spawn_failure'})});
-    p.on('close',code=>{clearTimeout(timer);done({status:timedOut?'timed_out':code===0?'passed':'failed',exitCode:code??-1})});
+    p.on('close',code=>{
+      clearTimeout(timer);
+      // A zero exit code is not proof if Node emitted no parseable test counters.
+      // The bounded summary remains the only output exposed to a chat task.
+      const summaryOk=!isProjectTests||passingTestSummary(summarizeTestEvidence(output));
+      done({status:timedOut?'timed_out':code===0&&summaryOk?'passed':'failed',exitCode:code??-1});
+    });
   });
 }
