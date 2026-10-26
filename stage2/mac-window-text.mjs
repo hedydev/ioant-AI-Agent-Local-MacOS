@@ -65,7 +65,7 @@ export async function inspectWindowAccess({conversationUrl,app}={}){
   });
  }catch{return reply('blocked','app_grant_or_binding_unverified');}
 }
-function runOsascript(script,{timeout=12000}={}){
+function runOsascript(script,{timeout=20000}={}){
  return new Promise(resolveResult=>{
   let proc,done=false,timer;
   const complete=value=>{
@@ -135,19 +135,78 @@ async function change(action,name){
 export function windowTextScript(app,text,submit){
  if(!obj(app)||!NAME.test(app.name??'')||!APP_ID.test(app.bundleId??'')||
   !validText(text)||typeof submit!=='boolean')throw Error('invalid_window_task');
- // Every validation is performed before keystrokes; do not activate an app or
- // focus a new input. Focus must already be in the intended target textbox.
- return 'tell application "System Events"\n'+
+ // The app was explicitly bound to a bundle ID via local interactive approval.
+ // First check that the existing process is EXACTLY that app, then activate it.
+ // This is a UI focus change, not a privilege elevation or app installation.
+ return 'try\n'+
+  'tell application "System Events"\n'+
+  'set targetApps to (every application process whose name is '+asString(app.name)+')\n'+
+  'if (count of targetApps) is not 1 then error number 9030\n'+
+  'set targetApp to item 1 of targetApps\n'+
+  'if (bundle identifier of targetApp) is not '+asString(app.bundleId)+' then error number 9032\n'+
+  'if (count of windows of targetApp) is less than 1 then error number 9033\n'+
+  'end tell\n'+
+  'tell application id '+asString(app.bundleId)+' to activate\n'+
+  'delay 0.25\n'+
+  'tell application "System Events"\n'+
+  'set frontReady to false\n'+
+  'repeat 12 times\n'+
   'set focusedApp to (first application process whose frontmost is true)\n'+
-  'if (name of focusedApp) is not '+asString(app.name)+' then error number 9031\n'+
-  'if (bundle identifier of focusedApp) is not '+asString(app.bundleId)+' then error number 9032\n'+
+  'if (name of focusedApp) is '+asString(app.name)+' and (bundle identifier of focusedApp) is '+asString(app.bundleId)+' then\n'+
+  'set frontReady to true\n'+
+  'exit repeat\n'+
+  'end if\n'+
+  'delay 0.2\n'+
+  'end repeat\n'+
+  'if frontReady is false then error number 9031\n'+
   'if (count of windows of focusedApp) is less than 1 then error number 9033\n'+
+  // Prefer the textbox that retains focus after activating the right app.
+  // If not a textbox, search the front window and select ONLY an unambiguous
+  // single editable candidate. Search fields are excluded from auto-selection.
+  'set inputReady to false\n'+
+  'try\n'+
   'set focusedItem to value of attribute "AXFocusedUIElement" of focusedApp\n'+
   'set uiRole to value of attribute "AXRole" of focusedItem\n'+
-  'if uiRole is not "AXTextArea" and uiRole is not "AXTextField" and uiRole is not "AXComboBox" and uiRole is not "AXSearchField" then error number 9034\n'+
+  'if uiRole is "AXTextArea" or uiRole is "AXTextField" or uiRole is "AXComboBox" then set inputReady to true\n'+
+  'end try\n'+
+  'if inputReady is false then\n'+
+  'set editableItems to {}\n'+
+  'try\n'+
+  'set uiItems to entire contents of front window of focusedApp\n'+
+  'if (count of uiItems) > 1200 then error number 9035\n'+
+  'repeat with uiItem in uiItems\n'+
+  'try\n'+
+  'set roleName to value of attribute "AXRole" of uiItem\n'+
+  'if roleName is "AXTextArea" or roleName is "AXTextField" then\n'+
+  'set end of editableItems to contents of uiItem\n'+
+  'end if\n'+
+  'end try\n'+
+  'end repeat\n'+
+  'end try\n'+
+  'if (count of editableItems) is not 1 then error number 9034\n'+
+  'set focusedItem to item 1 of editableItems\n'+
+  'set focused of focusedItem to true\n'+
+  'set actualFocused to value of attribute "AXFocusedUIElement" of focusedApp\n'+
+  'set actualRole to value of attribute "AXRole" of actualFocused\n'+
+  'if actualRole is not "AXTextArea" and actualRole is not "AXTextField" then error number 9034\n'+
+  'end if\n'+
+  // Recheck foreground app immediately before keystrokes to avoid cross-app
+  // delivery if the user switches windows while this task is running.
+  'set finalApp to (first application process whose frontmost is true)\n'+
+  'if (name of finalApp) is not '+asString(app.name)+' then error number 9031\n'+
+  'if (bundle identifier of finalApp) is not '+asString(app.bundleId)+' then error number 9032\n'+
   'keystroke '+asString(text)+'\n'+
   (submit?'key code 36\n':'')+
-  'return "IOANT_UI_KEYS_SENT"\nend tell\n';
+  'return "IOANT_UI_KEYS_SENT"\nend tell\n'+
+  'on error errMsg number errNum\n'+
+  'if errNum is 9030 then return "IOANT_UI_ERR_APP_NOT_RUNNING"\n'+
+  'if errNum is 9031 then return "IOANT_UI_ERR_TARGET_NOT_FRONTMOST"\n'+
+  'if errNum is 9032 then return "IOANT_UI_ERR_APP_IDENTITY_MISMATCH"\n'+
+  'if errNum is 9033 then return "IOANT_UI_ERR_NO_WINDOW"\n'+
+  'if errNum is 9034 then return "IOANT_UI_ERR_INPUT_AMBIGUOUS"\n'+
+  'if errNum is 9035 then return "IOANT_UI_ERR_UI_TREE_TOO_LARGE"\n'+
+  'return "IOANT_UI_ERR_PERMISSION_OR_SCRIPT"\n'+
+  'end try\n';
 }
 export async function runWindowText(task,{conversationUrl,context=privateContext,
  readGrant=currentGrant,run=runOsascript}={}){
@@ -168,9 +227,19 @@ export async function runWindowText(task,{conversationUrl,context=privateContext
  const start=Date.now();
  const r=await run(script);
  // A failed script may have partially typed or submitted. Never auto-retry.
- if(!r.ok||r.value!=='IOANT_UI_KEYS_SENT')
-  return {status:'inconclusive',reason:r.reason??'gui_delivery_unverified',
+ if(!r.ok||r.value!=='IOANT_UI_KEYS_SENT'){
+  const reasons={
+   IOANT_UI_ERR_APP_NOT_RUNNING:'target_app_not_running_or_ambiguous',
+   IOANT_UI_ERR_TARGET_NOT_FRONTMOST:'target_not_frontmost_after_activation',
+   IOANT_UI_ERR_APP_IDENTITY_MISMATCH:'registered_app_identity_mismatch',
+   IOANT_UI_ERR_NO_WINDOW:'target_window_missing',
+   IOANT_UI_ERR_INPUT_AMBIGUOUS:'target_input_unfocused_or_ambiguous',
+   IOANT_UI_ERR_UI_TREE_TOO_LARGE:'accessibility_tree_too_large',
+   IOANT_UI_ERR_PERMISSION_OR_SCRIPT:'accessibility_or_script_error'
+  };
+  return {status:'inconclusive',reason:reasons[r.value]??r.reason??'gui_delivery_unverified',
    elapsedMs:Date.now()-start};
+ }
  return {status:'passed',elapsedMs:Date.now()-start,
   output:JSON.stringify({audit:'IOANT_MAC_WINDOW_TEXT',schemaVersion:1,
    app:task.app,state:'keys_sent',submitRequested:task.submit,

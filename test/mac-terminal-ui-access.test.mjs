@@ -173,3 +173,37 @@ test('terminal failed child exits promptly with a bounded error receipt, without
  assert.equal(result.output,'expected test error');
  assert.ok(Number.isInteger(result.elapsedMs)&&result.elapsedMs>=0);
 });
+
+test('GUI auto-activates only enrolled app, validates exact frontmost ID and focused editor',()=>{
+ const app={name:'OpenClaw',bundleId:'org.example.openclaw'};
+ const script=windowTextScript(app,'测试自动激活',false);
+ const identityAt=script.indexOf('if (bundle identifier of targetApp) is not');
+ const activateAt=script.indexOf('tell application id "org.example.openclaw" to activate');
+ const checkAt=script.indexOf('set finalApp to (first application process whose frontmost is true)');
+ const typingAt=script.indexOf('keystroke "测试自动激活"');
+ assert.ok(identityAt>=0&&identityAt<activateAt&&activateAt<checkAt&&checkAt<typingAt);
+ assert.match(script,/set targetApps to \(every application process whose name is "OpenClaw"\)/);
+ assert.match(script,/if \(count of targetApps\) is not 1 then error number 9030/);
+ assert.match(script,/if \(count of editableItems\) is not 1 then error number 9034/);
+ assert.match(script,/set focused of focusedItem to true/);
+ assert.match(script,/if \(count of uiItems\) > 1200 then error number 9035/);
+ assert.match(script,/return "IOANT_UI_ERR_INPUT_AMBIGUOUS"/);
+ assert.match(script,/repeat 12 times/);
+ assert.doesNotMatch(script,/click at|do shell script|set the clipboard|System Events" to activate/);
+ assert.doesNotMatch(script,/key code 36/);
+});
+
+test('GUI returns a specific bounded focus failure and never reports delivery',async()=>{
+ const t={action:'mac-window-text',app:'openclaw',text:'中文测试',submit:false};
+ const opts={conversationUrl:CHAT,context:async()=>({conversationId:CONVERSATION}),
+  readGrant:async()=>({state:'enabled',conversationId:CONVERSATION,
+   apps:[{alias:'openclaw',name:'OpenClaw',bundleId:'org.example.openclaw'}]}),
+  run:async()=>({ok:true,value:'IOANT_UI_ERR_INPUT_AMBIGUOUS',reason:'ok'})};
+ const r=await runWindowText(t,opts);
+ assert.equal(r.status,'inconclusive');
+ assert.equal(r.reason,'target_input_unfocused_or_ambiguous');
+ assert.equal(r.output,undefined);
+ const a=await runWindowText(t,{...opts,
+  run:async()=>({ok:true,value:'IOANT_UI_ERR_TARGET_NOT_FRONTMOST',reason:'ok'})});
+ assert.equal(a.reason,'target_not_frontmost_after_activation');
+});
