@@ -47,8 +47,8 @@ test('log viewer is local, constrained and excludes raw Gateway log files',()=>{
 });
 
 test('background event and temporary Gateway logs use one private local root',()=>{
- assert.match(launcher,/IOANT_BACKGROUND_SAFE_REPORTS:-0/);
- assert.match(launcher,/Application Support\\/ioant-openclaw-ops\\/logs/);
- assert.match(launcher,/GATEWAY_LOG="\\$LOG_ROOT\\/chatgpt-gateway-/);
- assert.doesNotMatch(launcher,/GATEWAY_LOG="\\$PROJECT_DEV_CACHE\\/logs/);
+ assert.ok(launcher.includes('IOANT_BACKGROUND_SAFE_REPORTS:-0'));
+ assert.ok(launcher.includes('Application Support/ioant-openclaw-ops/logs'));
+ assert.ok(launcher.includes('GATEWAY_LOG="$LOG_ROOT/chatgpt-gateway-'));
+ assert.ok(!launcher.includes('GATEWAY_LOG="$PROJECT_DEV_CACHE/logs/'));
 });
