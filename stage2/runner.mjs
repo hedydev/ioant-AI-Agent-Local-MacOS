@@ -19,7 +19,8 @@ export function actionPlan(action, repoRoot) {
     'project-status': {bin:'git',args:['status','--short','--branch'],cwd:root,timeout:15000},
     'project-head': {bin:'git',args:['rev-parse','HEAD'],cwd:root,timeout:15000},
     'environment-scan': {bin:process.execPath,args:['src/environment.mjs','scan'],cwd:root,timeout:30000},
-    'openclaw-config-preflight': {bin:process.execPath,args:['stage2/openclaw-config-preflight.mjs'],cwd:root,timeout:50000},
+    'openclaw-config-preflight': {bin:process.execPath,args:['stage2/openclaw-config-preflight.mjs'],cwd:root,timeout:50000,reportAudit:'IOANT_OPENCLAW_CONFIG_PREFLIGHT'},
+    'openclaw-main-speed': {bin:process.execPath,args:['stage2/openclaw-main-speed.mjs','--run'],cwd:root,timeout:60000,reportAudit:'IOANT_OPENCLAW_MAIN_SPEED'},
     'openclaw-config-rpc-diagnostic': {bin:process.execPath,args:['stage2/openclaw-config-rpc-diagnostic.mjs'],cwd:root,timeout:50000},
     'openclaw-patch-failure-diagnostic': {bin:process.execPath,args:['stage2/openclaw-patch-failure-diagnostic.mjs'],cwd:root,timeout:50000},
     'openclaw-ollama-dryrun': {bin:process.execPath,args:['stage2/openclaw-ollama-dryrun.mjs'],cwd:root,timeout:90000},
@@ -206,7 +207,17 @@ async function runFixedPlan(plan) {
       // A zero exit code is not proof if Node emitted no parseable test counters.
       // The bounded summary remains the only output exposed to a chat task.
       const summaryOk=!isProjectTests||passingTestSummary(summarizeTestEvidence(output));
-      done({status:timedOut?'timed_out':code===0&&summaryOk?'passed':'failed',exitCode:code??-1});
+      let reportOk=true;
+      if(plan.reportAudit){
+        try{
+          const obj=JSON.parse(output.trim());
+          reportOk=obj&&typeof obj==='object'&&!Array.isArray(obj)&&
+           obj.audit===plan.reportAudit&&obj.schemaVersion===1&&obj.readOnly===true;
+        }catch{reportOk=false;}
+      }
+      done({status:timedOut?'timed_out':code===0&&summaryOk&&reportOk?'passed':'failed',
+       exitCode:code??-1,
+       ...(!reportOk?{reason:'missing_or_invalid_diagnostic_report'}:{})});
     });
   });
 }
