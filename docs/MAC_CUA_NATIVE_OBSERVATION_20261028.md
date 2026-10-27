@@ -206,3 +206,49 @@ https://docs.openclaw.ai/nodes/troubleshooting
 Next: deploy via full project-update-verify, then execute exactly one
 bounded read-only diagnostic. Do not re-run the GUI fixture until the
 native caller can return actionable structured results or refusal codes.
+
+## 2026-10-28 — 162B both native reads fail (Gateway error envelope)
+
+The deployed 162B read-only native comparison returned:
+
+- `get_cursor_position`: `state=failed`, `exitCode=1`,
+  `category=unclassified`, `structuredErrorBody=true`,
+  `stdoutPresent=true`, `stderrPresent=true`, error digest prefix
+  `cf464ded5722`.
+- `list_windows`: same state, exit and coarse classification, digest
+  `c071c8f51e7a` (different). Both used one execution ID.
+- No mouse/keyboard input, test-app launch, screenshot, browser access,
+  or native window details reported.
+
+These results rule out classifying this particular run as a pure
+window-matching error. They do **not** prove the CUA Driver socket is
+unavailable: Gateway operator scopes, node pairing approvals,
+command deny policy, transport errors or driver dispatch could all
+reject before a native action runs.
+
+The OpenClaw operator-scopes reference requires `operator.write` for
+`node.invoke` command relays, including read-only computer actions;
+read-only status queries can succeed with `operator.read`. Pairing
+approval is separately needed for the `computer.act` node command.
+A capability advertisement alone does not prove either approval.
+
+The revised `scripts/openclaw-cua-readonly-invoke-diagnostic.mjs`
+adds a strictly allowlisted structured-error shape (JSON error keys,
+types, recognized public code categories, boolean scopes/pairing/
+driver markers). All raw JSON error messages, arbitrary keys,
+native return data, device tokens, and window titles are discarded.
+Its `--cursor-only` mode issues **one** `get_cursor_position` native
+read at most, with no GUI fixture or `list_windows`. The report
+only classifies the denied call, not attempts to change authorization.
+
+Next: deploy under `project-update-verify` requiring full clean tests;
+then run `node scripts/openclaw-cua-readonly-invoke-diagnostic.mjs
+--cursor-only` against the pinned version. If it identifies a missing
+scope, pairing approval or command policy denial, do not silently
+override it; stop and handle authorization through the proper
+operator-controlled channel.
+
+Sources:
+https://docs.openclaw.ai/gateway/operator-scopes
+https://docs.openclaw.ai/nodes/computer-use
+https://docs.openclaw.ai/cli/nodes
