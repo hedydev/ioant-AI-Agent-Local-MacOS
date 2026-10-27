@@ -271,3 +271,22 @@ test('default diagnostic never lists windows after Gateway operator scope denial
  assert.equal(r.windowListRead.state,'skipped');
  assert.equal(r.nativeInputAttempted,false);
 });
+
+test('explicit Gateway policy denial outranks generic computer.act mention',()=>{
+ const r=classifyInvokeFailure({code:1,stderr:
+  'command denied by policy: computer.act'});
+ assert.equal(r.category,'gateway_command_policy');
+ assert.equal(r.safeErrorShape.computerCommandDeniedMentioned,true);
+ assert.equal(r.nativeCode,undefined);
+});
+test('node pairing and a specific unapproved computer.act remain distinct',()=>{
+ const pairing=classifyInvokeFailure({code:1,stdout:JSON.stringify({
+  error:{code:'NOT_PAIRED',
+   message:'node pairing not approved on this Gateway'}})});
+ assert.equal(pairing.category,'node_pairing_required');
+ assert.equal(pairing.safeErrorShape.nodePairingMentioned,true);
+ const approval=classifyInvokeFailure({code:1,stderr:
+  'computer.act command not approved on paired node'});
+ assert.equal(approval.category,'computer_act_approval_or_policy');
+ assert.equal(approval.safeErrorShape.computerCommandDeniedMentioned,true);
+});
