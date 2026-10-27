@@ -46,6 +46,7 @@ test('invalid native envelopes remain inconclusive without disclosing content',(
 test('legacy get_cursor_position uses one own UUID and exactly matching close',async()=>{
  const calls=[];
  const out=await inspectNativeComputerRead({
+  runtimeAllowed:async()=>true,
   uuid:()=>uuid,
   call:async args=>{
    calls.push(args);
@@ -71,6 +72,7 @@ test('legacy get_cursor_position uses one own UUID and exactly matching close',a
 test('legacy cursor read never attempts to close a busy unknown owner',async()=>{
  const calls=[];
  const out=await inspectNativeComputerRead({
+  runtimeAllowed:async()=>true,
   uuid:()=>uuid,
   call:async args=>{
    calls.push(args);
