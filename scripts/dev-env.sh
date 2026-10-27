@@ -4,7 +4,9 @@
 #   bash scripts/dev-env.sh exec node --test
 #   source scripts/dev-env.sh
 #   bash scripts/dev-env.sh shell
-_ioant_sourced() { [[ "${BASH_SOURCE[0]}" != "$0" ]]; }
+# Under zsh with nounset, BASH_SOURCE is undefined. An absent value means
+# sourced from a non-Bash shell; never index an unset array under set -u.
+_ioant_sourced() { [[ -z "${BASH_SOURCE[0]-}" || "${BASH_SOURCE[0]}" != "$0" ]]; }
 _ioant_error() { printf '[dev-env] ERROR: %s\n' "$*" >&2; }
 _ioant_prepare() {
   local var old

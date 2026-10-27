@@ -41,11 +41,16 @@ function matchesPolicy(agent,id,strict){
 // Fail closed on any new Agent, changed policy, unexpected routing or roster
 // disagreement across the four Gateway views. The selected target is pinned
 // on the Mac, never selected by an untrusted ChatGPT model turn.
+// The Mac computer Agent is an independently configured host-capability
+// identity. Its presence is NOT permission to call it from a text advisor.
+// Only advisor isolation is attested here. Opaque Mac policy must agree across
+// all Gateway views; this does not certify the computer Agent's own privileges.
 export function verifyBoundAgentConfig(snapshot,agentId){
  if(!validDevAgent(agentId))return false;
  const doc=rpcEnvelope(snapshot);
  if(!object(doc)||doc.valid!==true||doc.exists===false)return false;
- let baselineRoster=null;
+ let baselineRoster=null,baselineComputer=null;
+ const known=new Set(['main',...DEV_AGENT_IDS,'mac-computer']);
  for(const layer of ['sourceConfig','config','parsed','resolved']){
   const root=doc[layer];
   if(!object(root)||!object(root.agents)||root.agents.ownership!=='explicit'||
@@ -53,7 +58,7 @@ export function verifyBoundAgentConfig(snapshot,agentId){
      !object(root.agents.entries)||!object(root.agents.entries.main))return false;
   const entries=root.agents.entries;
   const names=Object.keys(entries).sort();
-  if(names.some(id=>!['main',...DEV_AGENT_IDS].includes(id))||
+  if(names.some(id=>!known.has(id))||
      !Object.hasOwn(entries,agentId))return false;
   const roster=names.join(',');
   if(baselineRoster===null)baselineRoster=roster;
@@ -63,8 +68,19 @@ export function verifyBoundAgentConfig(snapshot,agentId){
       !matchesPolicy(entries[id],id,layer==='sourceConfig'||layer==='config'))
     return false;
   }
-  // Neither Alice nor Dev may be attached to an external channel, even when
-  // evaluating the other Agent or while the second Agent is not yet present.
+  // A computer Agent must never be treated as an advisor or a recipient of
+  // advisor delegation. It may be present only as a separate roster identity.
+  if(Object.hasOwn(entries,'mac-computer')){
+   const computer=entries['mac-computer'];
+   if(!object(computer)||typeof computer.model!=='string'||!computer.model||
+      typeof computer.workspace!=='string'||!computer.workspace||
+      DEV_AGENT_IDS.some(id=>computer.workspace===agentPolicy(id).workspace))
+    return false;
+   if(baselineComputer===null)baselineComputer=structuredClone(computer);
+   else if(!isDeepStrictEqual(computer,baselineComputer))return false;
+  }
+  // Neither advisor may be bound to an external channel. An unexpected
+  // binding schema is unsafe; absence is compatible with an unbound roster.
   if(root.bindings!==undefined&&
      (!Array.isArray(root.bindings)||
       root.bindings.some(b=>DEV_AGENT_IDS.includes(b?.agentId))))return false;
