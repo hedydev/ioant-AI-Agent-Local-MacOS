@@ -1145,3 +1145,58 @@ The next step remains full candidate tests via
 `openclaw-cua-fixture-native-observe.mjs` execution. There is no
 permission escalation, force-owner release, driver restart,
 screenshot, GUI input, browser access or automatic retry.
+
+## 2026-10-28 — 181B code-free CLI error envelope; 182A canonical-type diagnostics
+
+181A was deployed successfully at
+`787028125e98b805a8417452d5b13b60e24aafde`
+with **860/860 passing tests**. In Mac 181B the existing hash-pinned
+fixture `9d297fd10418fcf9` was reused and both private-child
+window self-proof and external PID proof passed the scripted gates
+before the first `computer.act list_windows` read. It failed again:
+- `state=inconclusive`, `phase=window_list`,
+  `nativeFailure.errorClass=unclassified`, `cliExitCode=1`;
+- `stdoutKind=json`, `stderrKind=text`,
+  `stdoutErrorEnvelope=true`, `hint=none_recognized`;
+- `gatewayErrorEvidence.available=true`,
+  `origin=top`, `errorForm=object`,
+  `codePresent=false`, `codeFamily=unknown`,
+  `messageFamily=none`, `dispatchKnown=false`;
+- own execution closure request was acknowledged but not
+  independently verified; no other lease was closed;
+- no screenshots, GUI input, Chrome access or Gateway restarts.
+
+The official v2026.10.7 root CLI
+[`formatCliJsonFailure`](https://github.com/openclaw/openclaw/blob/v2026.10.7/src/cli/failure-output.ts)
+**can emit `error.type=cli_error` with no `error.code`**,
+even when the underlying error originated in a Gateway RPC.
+Other official types:
+`gateway_transport_error` with optional **numeric** code,
+`gateway_request_error` with string code, and
+`gateway_credentials_required` without code, as documented in
+[`src/gateway/call.ts`](https://github.com/openclaw/openclaw/blob/v2026.10.7/src/gateway/call.ts).
+The 181B response is compatible with a wrapped CLI error, but
+`error.type` was not previously inspected, so that hypothesis
+remains **unverified**.
+
+182A only extends the same already redacted
+`safeGatewayNativeError` output with:
+- `typeFamily`: a fixed allowlist of four official error type
+  literals, otherwise `unknown`;
+- `transportKind`: a fixed allowlist of known transport terms;
+- `codeKind`: `absent|string|number|other` (never actual code);
+- `detailForm`: `absent|object|array|string`;
+- `messageIndicators`: at most six categories matched against
+  a fixed vocabulary of native CLI/Gateway/policy/driver/transport/
+  runtime terms; **no substrings or unknown tokens** copied;
+- `retryableKnown` and optional exact boolean `retryable`;
+- `rootOriginMarker`: `gateway|other|absent` only.
+
+No file paths, error messages, stack traces, window titles, secret
+IDs, tokens, private user data, unknown error types/kinds, native
+window refs or raw CLI JSON are emitted. The attempted read and
+scoped-cleanup flow remain unchanged. Full candidate test-gate
+verification is required before one controlled 182B live run.
+Do not claim driver failure or granted accessibility permissions
+without independent evidence. Do not retry with broader authority,
+request Screen Recording privileges or force-close a CUA owner.
