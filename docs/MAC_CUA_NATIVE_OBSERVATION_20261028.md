@@ -637,3 +637,27 @@ Official references:
 - https://docs.openclaw.ai/cli/node
 - https://docs.openclaw.ai/nodes/computer-use
 - https://github.com/openclaw/openclaw/issues/147420
+
+## 2026-10-28 — 171A blocked by comment-only source test false positive
+
+The Mac project-update-verify gate correctly refused the 171A
+candidate with 802 tests, 801 pass, 1 fail; the installed runtime
+remained on the previously accepted `a66c0791a41a74153653459b57bd289646907a74`.
+The candidate's newly added
+`test/openclaw-cua-node-host-topology-readonly.test.mjs`
+searched the complete text of the passive script for prohibited
+`launchctl` use, and matched the *documentation comment*
+`// launchctl, CLI restart, owner close, or config mutation.`
+No executable `launchctl` call exists.
+
+The test has been fixed to remove standalone line comments from
+the subject before enforcing the unchanged prohibited-call regex.
+The safety assertion remains enabled and continues to reject real
+`launchctl`, `nodes invoke`, `__close_execution`, GUI input and
+CLI restart statements. Static recheck confirms the real-code-only
+scan has zero matches while the full-source scan still sees only
+the documentation comment.
+
+Retest through the normal exact-HEAD `project-update-verify`
+candidate gate. No service, Node, Gateway, Watcher or Computer
+owner should be changed by this test-only correction.
