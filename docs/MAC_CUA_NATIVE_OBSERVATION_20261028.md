@@ -406,3 +406,59 @@ no match remains only an absence in that sampled tail, not proof
 of no stale execution.
 
 Reference: https://docs.openclaw.ai/cli/logs
+
+## 2026-10-28 — 167B verified host ownership conflict; upgrade readiness gate
+
+The deployed 167B bounded passive Gateway log audit completed successfully:
+
+- Local OpenClaw CLI: **2026.10.7**.
+- Inspect 287 log lines within the 300–450k JSON output band.
+- **Exact `COMPUTER_HOST_BUSY` occurred 4 times.**
+- Exact provider-execution-ownership phrase observed.
+- No `COMPUTER_EXECUTION_*MISMATCH` or `__close_execution` mention
+  in the bounded tail.
+- `currentOwnerVerified=false`, `staleOwnerVerified=false`,
+  `activeExecutionVerified=false`, `safeToReleaseOwner=false`.
+
+This establishes that real Computer Host ownership conflicts reached the
+Gateway at least four times in the sampled logs. It **does not**
+establish when the owner first started, who owns it, whether it remains
+active or stuck, or whether a release is safe.
+
+Upstream OpenClaw
+[issue #147420](https://github.com/openclaw/openclaw/issues/147420)
+documents that a missing run-lifecycle cleanup leaves a provider-owned
+`executionId` blocking new executions and records a fix in
+[PR #151127](https://github.com/openclaw/openclaw/pull/151127), merged
+2026-10-11. This does not prove the Mac's node has the same original
+path, and updating binaries alone does not prove or release an old
+owner. A random `__close_execution` can silently no-op; attempting
+direct or forced cleanup without owner identity may disrupt other
+legitimate work. No cleanup/restart is authorized.
+
+New `scripts/openclaw-cua-upgrade-readiness-passive.mjs` reads only
+official CLI `--version`, `update status --json`,
+`gateway status --json`, and `status --json --timeout 15000`;
+its output is a tightly allowlisted status summary, never raw
+session/state/log or token data. The summary reports CLI-vs-Gateway
+version agreement and update availability where those facts are
+supported, plus an explicit UNKNOWN where not. Even if the
+`status` projection has zero running tasks, that does **not**
+certify no active computer execution. Any next move that mutates
+the version, node/provider, Gateway or owner requires a separately
+reviewed maintenance plan and active-run safety check.
+
+The installed CLI is older than the upstream fix date and a potential
+upgrade candidate exists in current release notes, but the candidate
+must be grounded in **local** `openclaw update status --json`
+before selection. Official updater guidance says updates can activate
+managed services, Doctor maintenance and restarts. An earlier user
+upgrade attempt failed with shared SQLite offline-maintenance busy;
+do not repeat it blindly.
+
+Authoritative references:
+- https://docs.openclaw.ai/cli/update/status-and-history
+- https://docs.openclaw.ai/install/updating
+- https://docs.openclaw.ai/cli/status
+- https://github.com/openclaw/openclaw/issues/147420
+- https://github.com/openclaw/openclaw/pull/151127
