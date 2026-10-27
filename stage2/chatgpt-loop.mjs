@@ -11,7 +11,7 @@ import { randomUUID } from 'node:crypto';
 import { privateReportDir } from '../src/report-storage.mjs';
 import { fileURLToPath } from 'node:url';
 import { PROTOCOL, validateChatUrl, sameChatConversationUrl, chatKey, responseForTask, redactFeedback } from './protocol.mjs';
-import {extractWatchedAction} from './task-observation.mjs';
+import {extractWatchedAction,invalidTaskResponse} from './task-observation.mjs';
 import { runAction } from './runner.mjs';
 import { reserveDevDiscussion } from './dev-discussion-claim.mjs';
 import { reconcilePrewrite } from './openclaw-dev-prewrite-reconcile.mjs';
@@ -568,6 +568,41 @@ async function main(){
         continue;
       }
       const a=extractWatchedAction(page);
+      // A malformed task with a valid protocol, known action and safe task ID
+      // gets at most one correction receipt. Nothing from its command is run or echoed.
+      if(a.status==='rejected_invalid_task'&&a.report&&a.report.id!==state.lastTaskId){
+        const bad=a.report;
+        if(bad.fingerprint===previousFingerprint)stable++;
+        else {previousFingerprint=bad.fingerprint;stable=1;}
+        if(stable>=2){
+          const feedback=invalidTaskResponse(bad);
+          const receipt='[IOANT-MAC-OPS RESULT '+bad.id+']';
+          state.feedbackPending={id:bad.id,action:'invalid-task-feedback',
+            reloadRequired:false,phase:'prepared',feedback};
+          await atomicState(stateFile,state); // Persist before typing or pressing Enter.
+          recordDiagnosticEvent('invalid_task_feedback_pending',{taskId:bad.id,reason:bad.reason});
+          try{
+            await sendToChat(nowTarget,opts.url,feedback,receipt,{
+              beforePress:async()=>{
+                state.feedbackPending.phase='press_intent';
+                await atomicState(stateFile,state);
+              }
+            });
+          }catch{
+            console.log('[loop] Invalid-task correction receipt deferred; no command executed or repeat Enter.');
+            await new Promise(r=>setTimeout(r,opts.interval*1000));
+            continue;
+          }
+          state.lastTaskId=bad.id;
+          state.feedbackPending=null;
+          await atomicState(stateFile,state);
+          recordDiagnosticEvent('invalid_task_feedback_confirmed',{taskId:bad.id,reason:bad.reason});
+          console.log('[loop] Invalid task rejected and correction receipt confirmed in exact chat.');
+          stable=0;previousFingerprint='';
+        }
+        await new Promise(r=>setTimeout(r,opts.interval*1000));
+        continue;
+      }
       if(a.status==='task'&&a.task.id!==state.lastTaskId){
         if(a.fingerprint===previousFingerprint)stable++; else {previousFingerprint=a.fingerprint;stable=1;}
         if(stable>=2){

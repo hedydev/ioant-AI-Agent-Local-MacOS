@@ -111,3 +111,5 @@ export function responseForTask(task, execution, session) {
 
 export function chatKey(url) { return createHash('sha256').update(validateChatUrl(url)).digest('hex').slice(0,24); }
 export function isSafeAction(action) { return AUTO_ACTIONS.has(action); }
+export function isKnownAction(action) { return KNOWN_ACTIONS.has(action); }
+
