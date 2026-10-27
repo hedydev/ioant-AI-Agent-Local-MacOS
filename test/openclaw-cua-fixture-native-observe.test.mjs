@@ -363,7 +363,7 @@ test('OS proof does not permit missing CUA windowRef or wrong row title',()=>{
 });
 test('live native fixture requires independent OS attestation before and after CUA reads',()=>{
  assert.match(s,/randomBytes\(12\)\.toString\('hex'\)/);
- assert.match(s,/--prove-window/);
+ assert.match(s,/--prove-owned-window/);
  assert.match(s,/ownerProof\(binary,child\.pid,token\)/);
  assert.match(s,/findOSAttestedFixtureWindow\(windows,child\.pid,title/);
  assert.match(s,/independentOSPidVerified:true/);
