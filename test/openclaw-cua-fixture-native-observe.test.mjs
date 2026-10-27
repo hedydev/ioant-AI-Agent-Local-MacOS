@@ -198,3 +198,14 @@ test('deeply nested arbitrary wrapper cannot bypass finite traversal limit',()=>
  assert.equal(found.some(x=>x.windowRef==='should-not-be-reachable'),false);
  assert.equal(findExactFixtureWindow(data,pid).state,'inconclusive');
 });
+
+test('fixture observation retains exact execution ID for scoped lease cleanup',()=>{
+ assert.match(s,/leasedExecutionId=executionId/);
+ assert.match(s,/leasedNodeId=chosen\.id/);
+ assert.match(s,/nativeReadAttempted=true/);
+ assert.match(s,/scopedCloseRequest\(leasedNodeId,leasedExecutionId\)/);
+ assert.match(s,/preAdmissionRejected/);
+ assert.match(s,/ownerReleaseVerified:false/);
+ assert.match(s,/existingComputerOwnerReleased=false/);
+ assert.match(s,/own_execution_close_not_acknowledged/);
+});
