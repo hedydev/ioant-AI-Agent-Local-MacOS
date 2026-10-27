@@ -1228,3 +1228,54 @@ and unknown secret-bearing error cases. Source-level test
 assertion checks show no mismatches. **This does not replace
 Mac's complete candidate 865-test gate**, required before a
 new live CUA read attempt.
+
+## 2026-10-28 — 182B code-free cli_error confirmed; 183A noncontent fingerprint
+
+182A-R1 deployed at `21685f90ecbd2b57489e4b799f36d701f29171cf`,
+865/865 Mac tests passing. The native fixture was reused (source digest
+`9d297fd10418fcf9`) and reached its first native
+`list_windows` read only after self-attested nonce/PID window creation
+and independent PID/window-layer checks. No screenshot or input occurred.
+
+182B native `nodes invoke` exited 1. Sanitized result:
+`nativeFailure.errorClass=unclassified`;
+`nativeCliEvidence.stdoutKind=json`,
+`stdoutErrorEnvelope=true`;
+`gatewayErrorEvidence.origin=top`, `errorForm=object`,
+`typeFamily=cli_error`, `codePresent=false`,
+`codeKind=absent`, `messageFamily=none`,
+`messageIndicators=[]`, `dispatchKnown=false`.
+This **confirms CLI-owned JSON error formatting**, not a root cause
+or a verified Gateway-to-node dispatch. The own execution closure
+was acknowledged, but the provider's effective release is unknown.
+Do not alter privileges, restart driver, close other execution IDs,
+or treat the CLI's `cli_error` as a CUA driver fault.
+
+The official OpenClaw 2026.10.7 CLI failure format
+(`src/cli/failure-output.ts`) has a required
+`error.message` but often no structured `error.code` under
+`type=cli_error`. Existing 182A safe message indicator patterns
+recognized no terms, so 183A adds a **strict bounded,
+noncontent-only message fingerprint**, stored only in the sanitized
+return structure:
+- `state`: missing/empty/present; `lengthBand`:
+  none/empty/tiny/short/medium/long/very_long;
+- `technicalTerms`: up to 16 distinct terms from a finite built-in
+  list of generic CLI/computer/driver/transport/status words, matched
+  case-insensitively. No unmatched word or phrase can enter output;
+- `nestedErrorForm`: none/object and `nestedCodeFamily`: a
+  finite known family only when the **entire** message parses as a
+  bounded nested JSON error.
+
+The raw message, arbitrary tokens, paths, URLs, credentials, app
+names, window titles and node refs never leave the process. This
+does not change the actual CUA call, CLI invocation, fixture
+window, permission policy or exact-own-execution closure.
+
+Before 183B live observation, run the complete
+`project-update-verify` test gate. The 183A candidate includes
+five new tests and focused parser evaluation was performed before
+proposing Mac deployment. If technicalTerms is empty again, do not
+continue unbounded trial-and-error; switch to reviewing a private
+on-device error with explicit consent or an alternative read-only
+diagnostic whose privacy scope is approved.
