@@ -306,7 +306,7 @@ export function safeGatewayNativeError(error){
   if(typeof value!=='string')return 'none';
   const v=value.slice(0,6000);
   const patterns=[
-   ['authorization',/\b(?:operator\.(?:write|admin)|missing scope|scope mismatch|approval|permission denied|forbidden|unauthorized|not authorized|risk classification|cannot be classified)\b/i],
+   ['authorization',/\b(?:operator\.(?:write|admin)|missing scope|scope mismatch|approval|permission denied|forbidden|unauthorized|not authorized|risk classification|cannot be classified|could not be classified)\b/i],
    ['owner_busy',/\b(?:computer host busy|host busy|another execution|execution occupied|execution already owned)\b/i],
    ['invalid_request',/\b(?:invalid request|invalid params|invalid parameters|validation failed|schema rejected|unrecognized field)\b/i],
    ['provider_unavailable',/\b(?:provider unavailable|computer driver unavailable|driver not available|node driver not installed|provider not ready)\b/i],
