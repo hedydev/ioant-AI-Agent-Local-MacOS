@@ -155,3 +155,18 @@ test('script does not launch GUI, browser, screenshot or keyboard actions',()=>{
  assert.match(source,/appsOrWindowsReturned:false/);
  assert.match(source,/changedFocus:false/);
 });
+
+test('documented driver error and refusal preserve only public error codes',()=>{
+ const driver=classifyInvokeFailure({code:1,stderr:
+  'COMPUTER_DRIVER_ERROR: /Users/private/driver.sock'});
+ assert.equal(driver.category,'cua_driver_transport');
+ assert.equal(driver.nativeCode,'COMPUTER_DRIVER_ERROR');
+ const invalid=classifyInvokeFailure({code:1,stdout:JSON.stringify({
+  error:{message:'COMPUTER_INVALID_REQUEST with private text'}})});
+ assert.equal(invalid.category,'invalid_native_params');
+ const refused=classifyInvokeFailure({code:1,stderr:
+  'COMPUTER_REFUSED_BACKGROUND_UNAVAILABLE: private window title'});
+ assert.equal(refused.category,'native_action_refused');
+ assert.equal(refused.nativeCode,'COMPUTER_REFUSED_BACKGROUND_UNAVAILABLE');
+ assert.equal(JSON.stringify(refused).includes('private window'),false);
+});
