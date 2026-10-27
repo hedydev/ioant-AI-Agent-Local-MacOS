@@ -124,3 +124,26 @@ test('confirmed provider with missing action advertisement also skips native cal
  assert.equal(called,0);
  assert.equal(r.reason,'list_apps_not_advertised');
 });
+
+test('canonical public CUA ID is forwarded without trusting background execution',async()=>{
+ const result=await auditNonInterferingComputer({
+  providerScan:async()=>verified({canonicalProviderId:'cua-computer',
+   listAppsAdvertised:false,agentCursorAdvertised:false}),
+  appsScan:async()=>{throw Error('never call');}
+ });
+ assert.equal(result.canonicalProviderId,'cua-computer');
+ assert.equal(result.provider,'cua');
+ assert.equal(result.backgroundControlProven,false);
+ assert.equal(result.listApps.state,'skipped');
+});
+test('unrecognized provider ID is discarded from composite status',async()=>{
+ const result=await auditNonInterferingComputer({
+  providerScan:async()=>verified({provider:'unknown',
+   providerIndependentlyConfirmed:false,
+   canonicalProviderId:'private-token-or-node-path'}),
+  appsScan:async()=>{throw Error('never call');}
+ });
+ assert.equal(result.canonicalProviderId,null);
+ assert.equal(result.listApps.reason,'unverified_provider');
+ assert.equal(JSON.stringify(result).includes('private-token'),false);
+});
