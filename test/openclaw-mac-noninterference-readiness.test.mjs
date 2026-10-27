@@ -7,11 +7,14 @@ const provider=(overrides={})=>({
  state:'observed',computerAdvertised:true,provider:'unknown',
  providerIndependentlyConfirmed:false,backgroundDeliveryAdvertised:false,
  listAppsAdvertised:null,...overrides});
+const verified=(extra={})=>provider({provider:'cua',
+ providerIndependentlyConfirmed:true,descriptorSchemaValid:true,
+ descriptorAvailable:true,listAppsAdvertised:true,
+ backgroundDeliveryAdvertised:true,...extra});
 test('one combined scan reports provider and read-only success without app names',async()=>{
  let calls=0;
  const result=await auditNonInterferingComputer({
-  providerScan:async()=>provider({provider:'cua',
-   providerIndependentlyConfirmed:true,backgroundDeliveryAdvertised:true}),
+  providerScan:async()=>verified(),
   appsScan:async()=>{calls++;return {state:'observed',
     reason:'native_read_completed',rawApps:[{name:'private app'}]};}
  });
@@ -25,16 +28,16 @@ test('one combined scan reports provider and read-only success without app names
 test('explicitly unsupported list_apps is not invoked again',async()=>{
  let calls=0;
  const result=await auditNonInterferingComputer({
-  providerScan:async()=>provider({listAppsAdvertised:false}),
+  providerScan:async()=>verified({listAppsAdvertised:false}),
   appsScan:async()=>{calls++;return {state:'observed'};}
  });
  assert.equal(result.listApps.state,'skipped');
- assert.equal(result.reason,'list_apps_explicitly_unavailable');
+ assert.equal(result.reason,'list_apps_not_advertised');
  assert.equal(calls,0);
 });
-test('unknown provider read failure carries bounded error classification',async()=>{
+test('verified provider read failure carries bounded error classification',async()=>{
  const result=await auditNonInterferingComputer({
-  providerScan:async()=>provider(),
+  providerScan:async()=>verified(),
   appsScan:async()=>({state:'inconclusive',
    reason:'native_call_rejected_or_unavailable',
    errorClass:'unsupported_action',nativeCode:'COMPUTER_UNSUPPORTED_ACTION',
@@ -58,7 +61,7 @@ test('provider failure skips native call entirely',async()=>{
 });
 test('malicious backend error strings never reach chat report',async()=>{
  const result=await auditNonInterferingComputer({
-  providerScan:async()=>provider(),
+  providerScan:async()=>verified(),
   appsScan:async()=>({state:'inconclusive',
    reason:'internal/sensitive/path',
    errorClass:'private-token-xyz',nativeCode:'TOKEN_SECRET',
@@ -93,10 +96,31 @@ test('throwing provider probe safely skips all app reads',async()=>{
 });
 test('throwing app probe returns safe diagnosis without raw exception',async()=>{
  const result=await auditNonInterferingComputer({
-  providerScan:async()=>provider(),
+  providerScan:async()=>verified(),
   appsScan:async()=>{throw Error('private password in log');}
  });
  assert.equal(result.listApps.state,'inconclusive');
  assert.equal(result.listApps.reason,'app_inventory_probe_failed');
  assert.equal(JSON.stringify(result).includes('password'),false);
+});
+
+test('unverified descriptor skips app invocation; never guess from computer.act',async()=>{
+ let called=0;
+ const r=await auditNonInterferingComputer({
+  providerScan:async()=>provider({provider:'unknown',listAppsAdvertised:null}),
+  appsScan:async()=>{called++;return {state:'observed'};}
+ });
+ assert.equal(called,0);
+ assert.equal(r.reason,'provider_descriptor_not_verified');
+ assert.equal(r.listApps.state,'skipped');
+ assert.equal(r.backgroundControlProven,false);
+});
+test('confirmed provider with missing action advertisement also skips native call',async()=>{
+ let called=0;
+ const r=await auditNonInterferingComputer({
+  providerScan:async()=>verified({listAppsAdvertised:null}),
+  appsScan:async()=>{called++;return {state:'observed'};}
+ });
+ assert.equal(called,0);
+ assert.equal(r.reason,'list_apps_not_advertised');
 });
