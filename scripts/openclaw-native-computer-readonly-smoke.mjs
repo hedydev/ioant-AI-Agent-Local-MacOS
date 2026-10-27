@@ -57,12 +57,13 @@ async function cli(args,timeout){
  if(stdout.length>1024*1024)throw Error('unexpected_cli_reply');
  return JSON.parse(stdout);
 }
-export async function inspectNativeComputerRead({call=cli,uuid=randomUUID}={}){
+export async function inspectNativeComputerRead({call=cli,uuid=randomUUID,
+ runtimeAllowed=async()=>ROOT===RUNTIME&&await realpath(RUNTIME)===RUNTIME}={}){
  const base={audit:AUDIT,schemaVersion:1,readOnly:true,mutatedDesktop:false,
    invokedComputerAct:false,requestedAction:'get_cursor_position',
    browserAccess:false,chatContentRead:false};
  try{
-  if(ROOT!==RUNTIME||await realpath(RUNTIME)!==RUNTIME)
+  if(!await runtimeAllowed())
    return {...base,state:'blocked',reason:'private_runtime_required'};
   let target;
   try{target=chooseConnectedMacNode(await call(['nodes','status','--json'],18000))}
