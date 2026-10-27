@@ -11,6 +11,7 @@ import {realpath} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {chooseConnectedMacNode} from './openclaw-mac-visual.mjs';
+import {scopedCloseRequest,knownPreAdmissionNativeFailure} from './openclaw-cua-owned-session-guard.mjs';
 
 const ROOT=resolve(fileURLToPath(new URL('..',import.meta.url)));
 const RUNTIME=join(homedir(),'Library','Application Support','ioant-openclaw-ops','runtime');
@@ -69,14 +70,30 @@ export async function inspectNativeComputerRead({call=cli,uuid=randomUUID}={}){
    reason:REJECTED.has(e.message)?e.message:'node_status_unavailable'};}
   if(!target.snapshotAdvertised||!target.computerActAdvertised)
    return {...base,state:'blocked',reason:'native_computer_not_advertised'};
-  let args;
-  try{args=makeCursorReadArgs(target.id,uuid())}
-  catch{return {...base,state:'blocked',reason:'invalid_native_request'};}
-  let result;
-  try{result=await call(args,25000)}
-  catch{return {...base,state:'inconclusive',invokedComputerAct:true,
-   reason:'native_call_unavailable_or_rejected'};}
-  return {...base,invokedComputerAct:true,...classifiedComputerReply(result)};
+  let args,executionId;
+  try{
+   executionId=uuid();
+   args=makeCursorReadArgs(target.id,executionId);
+  }catch{return {...base,state:'blocked',reason:'invalid_native_request'};}
+  let output,preAdmissionDenied=false;
+  let closure={attempted:false,acknowledged:false,ownerReleaseVerified:false};
+  try{
+   const result=await call(args,25000);
+   output={...base,invokedComputerAct:true,...classifiedComputerReply(result)};
+  }catch(error){
+   preAdmissionDenied=knownPreAdmissionNativeFailure(error);
+   output={...base,state:'inconclusive',invokedComputerAct:true,
+    reason:'native_call_unavailable_or_rejected'};
+  }finally{
+   if(!preAdmissionDenied){
+    closure.attempted=true;
+    try{
+     const r=await call(scopedCloseRequest(target.id,executionId),15000);
+     closure.acknowledged=r?.ok===true||r?.result?.ok===true;
+    }catch{}
+   }
+  }
+  return {...output,ownExecutionClosure:closure,existingOwnerReleased:false};
  }catch{return {...base,state:'inconclusive',reason:'local_probe_failure'};}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
