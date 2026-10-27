@@ -542,7 +542,9 @@ test('Gateway INVALID_REQUEST error is typed without leaking opaque error values
   code:'INVALID_REQUEST',message:'secret user window password'}})});
  assert.deepEqual(obj,{available:true,origin:'top',errorForm:'object',
   codePresent:true,codeFamily:'invalid_request',messageFamily:'none',
-  dispatchKnown:false});
+  typeFamily:'unknown',transportKind:'unknown',codeKind:'string',
+  detailForm:'absent',messageIndicators:[],retryableKnown:false,
+  rootOriginMarker:'absent',dispatchKnown:false});
  assert.equal(JSON.stringify(obj).includes('secret'),false);
  assert.equal(JSON.stringify(obj).includes('password'),false);
 });
@@ -598,5 +600,73 @@ test('CLI observer only reports Gateway bounded refusal; own UUID only',()=>{
  assert.match(s,/gatewayErrorEvidence\?\.nodeCommandDispatched===false/);
  assert.match(s,/scopedCloseRequest\(leasedNodeId,leasedExecutionId\)/);
  assert.match(s,/performedComputerInput:false/);
+ assert.doesNotMatch(s,/console\.log\(error\)|console\.error\(error\)|rawFailure:error/);
+});
+
+test('canonical OpenClaw 2026.10.7 CLI failure has type cli_error and no code',()=>{
+ const output=safeGatewayNativeError({code:1,stdout:JSON.stringify({
+  ok:false,error:{
+   type:'cli_error',
+   message:'nodes invoke failed: node.invoke Computer provider unavailable. PRIVATE WINDOW'
+  }
+ })});
+ assert.equal(output.available,true);
+ assert.equal(output.typeFamily,'cli_error');
+ assert.equal(output.codePresent,false);
+ assert.equal(output.codeKind,'absent');
+ assert.deepEqual(output.messageIndicators,
+  ['cli_invoke','computer','driver','node']);
+ assert.equal(output.rootOriginMarker,'absent');
+ const flat=JSON.stringify(output);
+ assert.equal(flat.includes('PRIVATE WINDOW'),false);
+ assert.equal(flat.includes('nodes invoke failed'),false);
+});
+test('canonical Gateway transport error identifies kind even for numeric code',()=>{
+ const output=safeGatewayNativeError({stdout:JSON.stringify({
+  ok:false,error:{type:'gateway_transport_error',kind:'timeout',code:504,
+   message:'Sensitive URL https://internal.local/password'
+  }
+ })});
+ assert.equal(output.typeFamily,'gateway_transport_error');
+ assert.equal(output.transportKind,'timeout');
+ assert.equal(output.codeKind,'number');
+ assert.equal(output.codePresent,false);
+ assert.equal(JSON.stringify(output).includes('504'),false);
+ assert.equal(JSON.stringify(output).includes('internal.local'),false);
+});
+test('gateway request and credentials error types are recognized without private details',()=>{
+ for(const kind of ['gateway_request_error','gateway_credentials_required']){
+  const out=safeGatewayNativeError({stdout:JSON.stringify({
+   origin:'gateway',
+   error:{type:kind,message:'token secret',details:{password:'private'},
+    retryable:false}
+  })});
+  assert.equal(out.typeFamily,kind);
+  assert.equal(out.detailForm,'object');
+  assert.equal(out.retryableKnown,true);
+  assert.equal(out.retryable,false);
+  assert.equal(out.rootOriginMarker,'gateway');
+  assert.equal(JSON.stringify(out).includes('password'),false);
+ }
+});
+test('unknown error type, kind and message are never reflected',()=>{
+ const out=safeGatewayNativeError({stdout:JSON.stringify({
+  error:{type:'user secret nickname',kind:'private code 1',
+   message:'my secret browser account title',
+   code:'custom-very-sensitive-value'}
+ })});
+ assert.equal(out.typeFamily,'unknown');
+ assert.equal(out.transportKind,'unknown');
+ assert.equal(out.codeFamily,'unknown');
+ assert.equal(out.messageFamily,'none');
+ assert.deepEqual(out.messageIndicators,[]);
+ for(const secret of ['secret nickname','private code','browser account','custom-very-sensitive'])
+  assert.equal(JSON.stringify(out).includes(secret),false);
+});
+test('gateway structural classifier remains readonly and bounded on code-free CLI error',()=>{
+ assert.match(s,/type='cli_error'/);
+ assert.match(s,/typeFamily,transportKind,codeKind,detailForm,messageIndicators/);
+ assert.match(s,/gatewayErrorEvidence/);
+ assert.match(s,/scopedCloseRequest\(leasedNodeId,leasedExecutionId\)/);
  assert.doesNotMatch(s,/console\.log\(error\)|console\.error\(error\)|rawFailure:error/);
 });
