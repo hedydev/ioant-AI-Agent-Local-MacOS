@@ -586,3 +586,54 @@ Official source: https://github.com/openclaw/openclaw/blob/v2026.10.7/src/plugin
 Do not re-run old deployed `computer.act` read scripts if the
 full 170A rollout has not passed. No active-owner ID has been
 recovered, and the old lease remains untouched.
+
+## 2026-10-28 — 170B passive recovery readiness and 171 Mac host topology gate
+
+Mac 170B passed at deployed HEAD
+`a66c0791a41a74153653459b57bd289646907a74`
+with **792/792 passing regression tests** beforehand.
+
+- Paired Mac Node connected and native computer capability advertised.
+- Gateway RPC healthy.
+- Watcher reported `running`, and **must not be interrupted
+  without separate maintenance authorization**.
+- Bounded `sessions --all-agents --active 30 --limit 50` reported
+  0 recent sessions; `snapshotLimited=true`. This is **not**
+  a proof of no active tools, queued jobs or other Agents.
+- `nodeStatusIncludesExplicitComputerOwner=false`:
+  neither current owning ID nor whether the owner is still live/stale
+  is known. `safeToDisconnectOrRestartNode=false`.
+- No CUA action, UI interaction, browser access, owner release, node
+  restart, Gateway restart or Watcher stop occurred.
+
+A crucial operational distinction from official OpenClaw
+`docs/cli/node.md`: `openclaw node restart` controls **installed
+headless node services**; the macOS `OpenClaw.app` normally supplies
+a native app-owned Mac Node with its own TCC identity and bundled
+CUA driver. Headless node service operations must never be assumed to
+restart the app-owned Node, and the Gateway should not be restarted
+just to reset a node-local in-memory owner.
+
+New `scripts/openclaw-cua-node-host-topology-readonly.mjs` uses only:
+1. One `openclaw nodes status --json` to classify a connected
+   Mac Node and the canonical CUA v2 descriptor.
+2. One `openclaw node status --json` to inspect whether a
+   *separate headless Node service* is installed.
+3. Exact process-presence checks (`pgrep -x OpenClaw` and
+   `pgrep -x cua-driver`) without returning PIDs.
+
+This **does not** prove which process owns the selected Node. It
+only makes app-owned vs headless hypotheses visible without
+perturbation. It never invokes `computer.act`, obtains a screenshot,
+enumerates windows, queries Chrome, restarts a service, or releases
+any execution. All owner-safety and restart flags remain false.
+
+Gate before recovery: deploy with exact HEAD and complete test suite,
+then run the passive topology check. A live-app result guides which
+proper node-specific maintenance procedure should be prepared but
+**does not authorize any restart**.
+
+Official references:
+- https://docs.openclaw.ai/cli/node
+- https://docs.openclaw.ai/nodes/computer-use
+- https://github.com/openclaw/openclaw/issues/147420
