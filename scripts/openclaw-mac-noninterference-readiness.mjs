@@ -10,7 +10,17 @@ const AUDIT='IOANT_MAC_NONINTERFERENCE_READINESS';
 export async function auditNonInterferingComputer({
  providerScan=inspectComputerProvider,appsScan=inspectNativeAppInventory
 }={}){
- const provider=await providerScan();
+ let provider;
+ try{provider=await providerScan();}
+ catch{return {audit:AUDIT,schemaVersion:1,state:'inconclusive',
+   reason:'provider_scan_failed',readOnly:true,changedDesktop:false,
+   changedBrowser:false,backgroundControlProven:false,
+   listApps:{state:'skipped'}};}
+ if(!provider||typeof provider!=='object')
+  return {audit:AUDIT,schemaVersion:1,state:'inconclusive',
+   reason:'invalid_provider_result',readOnly:true,changedDesktop:false,
+   changedBrowser:false,backgroundControlProven:false,
+   listApps:{state:'skipped'}};
  const base={audit:AUDIT,schemaVersion:1,readOnly:true,
   browserAccess:false,chatContentRead:false,changedBrowser:false,
   changedDesktop:false,performedPointerOrKeyboardInput:false,
@@ -27,7 +37,9 @@ export async function auditNonInterferingComputer({
  if(base.listAppsAdvertised===false)return {...base,state:'observed',
   reason:'list_apps_explicitly_unavailable',
   listApps:{state:'skipped',reason:'not_advertised'}};
- const result=await appsScan();
+ let result;
+ try{result=await appsScan();}
+ catch{result={state:'inconclusive',reason:'app_inventory_probe_failed'};}
  // Explicit output field whitelist. Any raw app data is discarded.
  const listApps={state:['observed','inconclusive','blocked','refused'].includes(result?.state)?
   result.state:'inconclusive',reason:typeof result?.reason==='string'&&
