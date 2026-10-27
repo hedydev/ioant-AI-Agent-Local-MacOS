@@ -4,7 +4,8 @@ import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {makeReadOnlyNativeArgs,findExactFixtureWindow,findFixtureElement,
  walkNativePayload,nativeCUAFixtureObserve,fixtureWindowEvidence,
- shouldCloseOwnFixtureExecution,findOSAttestedFixtureWindow}
+ shouldCloseOwnFixtureExecution,findOSAttestedFixtureWindow,
+ safeFixtureOSDiagnosis}
  from '../scripts/openclaw-cua-fixture-native-observe.mjs';
 
 const root=resolve(import.meta.dirname,'..');
@@ -368,4 +369,47 @@ test('live native fixture requires independent OS attestation before and after C
  assert.match(s,/independentOSPidVerified:true/);
  assert.match(s,/scopedCloseRequest\(leasedNodeId,leasedExecutionId\)/);
  assert.doesNotMatch(s,/osascript|--browser-profile|CGEventPost|killall/);
+});
+
+test('strict OS diagnosis emits only approved booleans and bounded count buckets',()=>{
+ const raw={
+  verified:false,metadataAvailable:true,screenRecordingGranted:false,
+  targetPidWindowCount:'one',targetPidNormalWindowSeen:true,
+  targetPidWindowNameVisible:false,exactTitleWindowCount:'none',
+  exactTitleOwnerMatched:false,exactTitleNormalLayerMatched:false,
+  privateWindowTitle:'Top secret note',
+  privateOwnerPID:58321,otherAppNames:['Chrome','ChatGPT']
+ };
+ const out=safeFixtureOSDiagnosis(raw);
+ assert.equal(out.available,true);
+ assert.equal(out.screenRecordingGranted,false);
+ assert.equal(out.targetPidWindowNameVisible,false);
+ assert.equal(out.targetPidWindowCount,'one');
+ assert.equal(out.exactTitleWindowCount,'none');
+ const json=JSON.stringify(out);
+ assert.equal(json.includes('Top secret'),false);
+ assert.equal(json.includes('58321'),false);
+ assert.equal(json.includes('Chrome'),false);
+ assert.equal(json.includes('ChatGPT'),false);
+ assert.equal(out.privateWindowTitle,undefined);
+});
+test('untrusted or incomplete OS diagnosis fails closed',()=>{
+ for(const raw of [
+  null,false,{},'private contents',
+  {verified:true,metadataAvailable:true},
+  {verified:false,metadataAvailable:true,screenRecordingGranted:false,
+   targetPidWindowCount:'123 private',targetPidNormalWindowSeen:true,
+   targetPidWindowNameVisible:false,exactTitleWindowCount:'one',
+   exactTitleOwnerMatched:false,exactTitleNormalLayerMatched:false}
+ ]){
+  assert.deepEqual(safeFixtureOSDiagnosis(raw),{available:false});
+ }
+});
+test('first independent WindowServer proof failure never calls CUA or relaxes identity',()=>{
+ assert.match(s,/if\(osVerified!==true\)\{/);
+ assert.match(s,/ownerDiagnosis\(binary,child\.pid,token\)/);
+ assert.match(s,/nativeReadAttempted:false,fixtureOSDiagnosis:diagnosis/);
+ assert.match(s,/findOSAttestedFixtureWindow\(windows,child\.pid,title/);
+ assert.match(s,/scopedCloseRequest\(leasedNodeId,leasedExecutionId\)/);
+ assert.doesNotMatch(s,/CGRequestScreenCaptureAccess|screencapture|--browser-profile/);
 });
