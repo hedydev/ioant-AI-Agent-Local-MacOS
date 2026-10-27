@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
-import {makeSafeReadArgs,classifyInvokeFailure,
+import {makeSafeReadArgs,classifyInvokeFailure,safeInvokeFailureShape,
  classifyInvokeResult,inspectCUAInvokeReads}
  from '../scripts/openclaw-cua-readonly-invoke-diagnostic.mjs';
 const source=readFileSync(resolve(import.meta.dirname,
@@ -169,4 +169,84 @@ test('documented driver error and refusal preserve only public error codes',()=>
  assert.equal(refused.category,'native_action_refused');
  assert.equal(refused.nativeCode,'COMPUTER_REFUSED_BACKGROUND_UNAVAILABLE');
  assert.equal(JSON.stringify(refused).includes('private window'),false);
+});
+
+test('safe Gateway error envelope identifies operator.write without emitting any private text',()=>{
+ const raw={code:1,stdout:JSON.stringify({
+  error:{code:'INSUFFICIENT_SCOPE',
+   message:'operator.write required; private AliceAI chat /Users/ted'},
+  statusCode:403
+ }),stderr:'private access token'};
+ const r=classifyInvokeFailure(raw);
+ assert.equal(r.category,'operator_scope_missing');
+ assert.equal(r.safeErrorShape.recognizedGatewayErrorCode,
+  'operator_scope_missing');
+ assert.equal(r.safeErrorShape.operatorWriteMentioned,true);
+ assert.equal(r.safeErrorShape.jsonObjectParsed,true);
+ assert.equal(r.safeErrorShape.errorFieldType,'object');
+ assert.deepEqual(r.safeErrorShape.topLevelKeys,['error','statusCode']);
+ assert.deepEqual(r.safeErrorShape.errorObjectKeys,['code','message']);
+ assert.equal(JSON.stringify(r).includes('AliceAI'),false);
+ assert.equal(JSON.stringify(r).includes('/Users/ted'),false);
+ assert.equal(JSON.stringify(r).includes('private access'),false);
+});
+test('unknown structured Gateway code is suppressed instead of reflected',()=>{
+ const r=safeInvokeFailureShape({code:1,stdout:JSON.stringify({
+  ok:false,error:{code:'SECRET_CUSTOM_NODE_TOKEN',
+   message:'application window: Secret window title'},
+  strangeUserKey:'secret developer data'
+ })});
+ assert.equal(r.recognizedGatewayErrorCode,null);
+ assert.equal(JSON.stringify(r).includes('SECRET_CUSTOM'),false);
+ assert.equal(JSON.stringify(r).includes('strangeUserKey'),false);
+ assert.equal(JSON.stringify(r).includes('Secret window'),false);
+ assert.deepEqual(r.topLevelKeys,['ok','error']);
+});
+test('pairing and computer.act refusal are classified using fixed categories',()=>{
+ const r=classifyInvokeFailure({code:1,stdout:JSON.stringify({
+  error:{code:'NOT_PAIRED',
+   message:'node pairing not approved on this Gateway'}})});
+ assert.equal(r.category,'node_pairing_required');
+ assert.equal(r.safeErrorShape.nodePairingMentioned,true);
+ const blocked=classifyInvokeFailure({code:1,stderr:
+  'computer.act command not approved on paired node'});
+ assert.equal(blocked.category,'computer_act_approval_or_policy');
+ assert.equal(blocked.safeErrorShape.computerCommandDeniedMentioned,true);
+});
+test('cursor-only mode issues exactly one native call and returns no window list',async()=>{
+ let invokes=0;
+ const run=async args=>{
+  if(args[1]==='status')return status();
+  invokes++;
+  assert.equal(JSON.parse(args[7]).action,'get_cursor_position');
+  throw Object.assign(Error('private node failure'),{code:1,
+   stdout:JSON.stringify({error:{code:'FORBIDDEN',
+    message:'operator.write required; secret path'}})});
+ };
+ const r=await inspectCUAInvokeReads({
+  allowedRuntime:async()=>true,uuid:()=>UUID,call:run,cursorOnly:true
+ });
+ assert.equal(r.state,'observed');
+ assert.equal(invokes,1);
+ assert.equal(r.cursorRead.category,'gateway_forbidden');
+ assert.equal(r.windowListRead.state,'skipped');
+ assert.equal(r.windowListRead.reason,'cursor_only_mode');
+ assert.equal(r.nativeInputAttempted,false);
+ assert.equal(r.appsOrWindowsReturned,false);
+ assert.equal(JSON.stringify(r).includes('secret path'),false);
+});
+test('cursor-only success remains observation-only, not background execution proof',async()=>{
+ let invokes=0;
+ const run=async args=>{
+  if(args[1]==='status')return status();
+  invokes++;
+  return {result:{ok:true,details:{cursorX:5,cursorY:6}}};
+ };
+ const r=await inspectCUAInvokeReads({
+  allowedRuntime:async()=>true,uuid:()=>UUID,call:run,cursorOnly:true
+ });
+ assert.equal(invokes,1);
+ assert.equal(r.cursorRead.state,'observed');
+ assert.equal(r.windowListRead.state,'skipped');
+ assert.equal(r.nativeInputAttempted,false);
 });
