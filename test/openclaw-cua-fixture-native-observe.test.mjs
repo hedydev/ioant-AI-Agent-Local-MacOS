@@ -235,3 +235,72 @@ test('ambiguous failure of first native read attempts to close only its own UUID
  }),true);
  assert.match(s,/ownerReleaseVerified:false/);
 });
+
+test('CUA SDK WindowInfo.app.pid matches only the exact fixture window',()=>{
+ const raw={result:{payload:{windows:[
+  {title:'Personal browser',app:{pid:1234,app_id:'private.browser'},
+   windowRef:'do-not-emit'},
+  {title:name,app:{pid},windowRef:'fixture-v2-window'}
+ ]}}};
+ assert.deepEqual(findExactFixtureWindow(raw,pid),{
+  state:'matched',windowRef:'fixture-v2-window',matchedWindowCount:1
+ });
+ const evidence=fixtureWindowEvidence(raw,pid);
+ assert.equal(evidence.fixtureTitleHasNestedAppPid,true);
+ assert.equal(evidence.fixtureTitleHasDirectPid,false);
+ assert.equal(evidence.fixtureTitleNestedPidMatched,true);
+ assert.equal(evidence.fixtureTitleHasConflictingPid,false);
+ assert.equal(evidence.fixtureTitleAndPidSameRecord,true);
+ assert.equal(evidence.fixtureWindowRefSeen,true);
+ assert.equal(JSON.stringify(evidence).includes('private.browser'),false);
+ assert.equal(JSON.stringify(evidence).includes('do-not-emit'),false);
+ assert.equal(JSON.stringify(evidence).includes(String(pid)),false);
+});
+test('nested SDK process mismatch cannot use matching title alone',()=>{
+ const raw={result:{windows:[
+  {title:name,app:{pid:pid+1,app_id:'fixture'},windowRef:'wrong'}
+ ]}};
+ const result=findExactFixtureWindow(raw,pid);
+ assert.equal(result.state,'inconclusive');
+ assert.equal(result.reason,'fixture_window_not_found');
+ assert.equal(result.windowRef,undefined);
+ const e=fixtureWindowEvidence(raw,pid);
+ assert.equal(e.fixtureTitleHasNestedAppPid,true);
+ assert.equal(e.fixtureTitleNestedPidMatched,false);
+ assert.equal(e.fixtureWindowRefSeen,false);
+});
+test('inconsistent nested and direct PID on one titled record fails closed',()=>{
+ const raw={result:{windows:[
+  {pid,title:name,app:{pid:pid+1},windowRef:'should-never-match'}
+ ]}};
+ const r=findExactFixtureWindow(raw,pid);
+ assert.equal(r.state,'inconclusive');
+ assert.equal(r.reason,'fixture_window_not_found');
+ const e=fixtureWindowEvidence(raw,pid);
+ assert.equal(e.fixtureTitleHasConflictingPid,true);
+ assert.equal(e.fixtureTitleAndPidSameRecord,false);
+ assert.equal(e.fixtureWindowRefSeen,false);
+});
+test('consistent flat + SDK nested PID is permitted with exact windowRef',()=>{
+ const raw={result:{windows:[
+  {pid:String(pid),title:name,app:{pid},windowRef:'fixture-consistent'}
+ ]}};
+ assert.equal(findExactFixtureWindow(raw,pid).windowRef,'fixture-consistent');
+ const e=fixtureWindowEvidence(raw,pid);
+ assert.equal(e.fixtureTitleHasConflictingPid,false);
+ assert.equal(e.fixtureTitleHasDirectPid,true);
+ assert.equal(e.fixtureTitleHasNestedAppPid,true);
+});
+test('title in one row and app PID in another never become an identity',()=>{
+ const raw={result:{windows:[
+  {title:name,windowRef:'guessed-from-title'},
+  {title:'Someone else',app:{pid},windowRef:'guessed-from-pid'}
+ ]}};
+ const r=findExactFixtureWindow(raw,pid);
+ assert.equal(r.state,'inconclusive');
+ assert.equal(r.windowRef,undefined);
+ const e=fixtureWindowEvidence(raw,pid);
+ assert.equal(e.fixtureExactTitleSeen,true);
+ assert.equal(e.fixtureProcessIdSeen,true);
+ assert.equal(e.fixtureTitleAndPidSameRecord,false);
+});
