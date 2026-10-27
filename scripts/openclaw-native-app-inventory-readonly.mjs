@@ -17,7 +17,7 @@ const CLI=join(homedir(),'.openclaw','bin','openclaw');
 const exec=promisify(execFile);
 const AUDIT='IOANT_MAC_NATIVE_APP_INVENTORY_SMOKE';
 const EXACT_CODES=new Set([
- 'COMPUTER_UNSUPPORTED_ACTION','COMPUTER_CONTRACT_MISMATCH',
+ 'COMPUTER_HOST_BUSY','COMPUTER_UNSUPPORTED_ACTION','COMPUTER_CONTRACT_MISMATCH',
  'COMPUTER_DRIVER_UNAVAILABLE','COMPUTER_DISABLED',
  'ACCESSIBILITY_REQUIRED','COMPUTER_STALE_OBSERVATION',
  'COMPUTER_DRIVER_PACKAGE_MISSING','COMPUTER_DRIVER_VERSION_MISMATCH',
@@ -42,7 +42,8 @@ export function classifyNativeFailure(error){
  }
  const codeMatches=message.match(/\b(?:COMPUTER|NODE|ACCESSIBILITY)_[A-Z_]{3,72}\b/g)??[];
  const code=codeMatches.find(x=>EXACT_CODES.has(x))??null;
- const reason=code?.includes('UNSUPPORTED_ACTION')?'unsupported_action':
+ const reason=code==='COMPUTER_HOST_BUSY'?'computer_execution_occupied':
+  code?.includes('UNSUPPORTED_ACTION')?'unsupported_action':
   code?.includes('CONTRACT_MISMATCH')?'contract_mismatch':
   code?.includes('DRIVER_')?'driver_unavailable':
   code==='COMPUTER_DISABLED'?'control_disabled':
