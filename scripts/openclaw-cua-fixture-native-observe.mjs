@@ -61,14 +61,27 @@ export function walkNativePayload(raw,{maxDepth=12,maxNodes=1800}={}){
  return found;
 }
 const pick=x=>typeof x==='string'?x:'';
-const processId=x=>{
+// CUA SDK's WindowInfo models process identity as window.app.pid.
+// Keep legacy flat aliases, but never accept a record whose own fields
+// disagree: an app PID cannot silently override a conflicting owner PID.
+const parsePid=v=>{
+ if(Number.isSafeInteger(v)&&v>0&&v<=999999999)return v;
+ if(typeof v==='string'&&/^[1-9][0-9]{0,8}$/.test(v))return Number(v);
+ return null;
+};
+const directProcessId=x=>{
  for(const v of [x.pid,x.processId,x.processID,x.process_id,
    x.ownerPid,x.ownerPID,x.kCGWindowOwnerPID]){
-  if(Number.isSafeInteger(v)&&v>0)return v;
-  if(typeof v==='string'&&/^[1-9][0-9]{0,9}$/.test(v))
-   return Number(v);
+  const p=parsePid(v);
+  if(p!==null)return p;
  }
  return null;
+};
+const nestedAppPid=x=>plainObj(x.app)?parsePid(x.app.pid):null;
+const processId=x=>{
+ const direct=directProcessId(x),nested=nestedAppPid(x);
+ if(direct!==null&&nested!==null&&direct!==nested)return null;
+ return direct??nested;
 };
 const windowTitle=x=>[x.title,x.windowTitle,x.windowName,x.window_name,
  x.name,x.kCGWindowName].some(t=>t===TITLE);
@@ -89,6 +102,15 @@ export function fixtureWindowEvidence(raw,pid){
   fixtureExactTitleSeen:titled.length>0,
   fixtureProcessIdSeen:owned.length>0,
   fixtureTitleAndPidSameRecord:joint.length>0,
+  // Only the known synthetic fixture's records are classified.
+  // Never reveal PID values, window references, other app metadata.
+  fixtureTitleHasNestedAppPid:titled.some(x=>nestedAppPid(x)!==null),
+  fixtureTitleHasDirectPid:titled.some(x=>directProcessId(x)!==null),
+  fixtureTitleNestedPidMatched:titled.some(x=>nestedAppPid(x)===pid),
+  fixtureTitleHasConflictingPid:titled.some(x=>{
+   const direct=directProcessId(x),nested=nestedAppPid(x);
+   return direct!==null&&nested!==null&&direct!==nested;
+  }),
   fixtureWindowRefSeen:joint.some(x=>safeRef(windowRef(x))),
   fixtureMentionedInTransportText:nodeTexts.some(x=>x.includes(TITLE)),
   textContentEnvelopePresent:nodeTexts.length>0,
