@@ -762,3 +762,45 @@ Watcher, other Agent tasks and the user's active desktop.
 Source context:
 https://github.com/openclaw/openclaw/blob/v2026.10.7/src/plugins/computer-use-registration.ts
 https://docs.openclaw.ai/nodes/computer-use
+
+## 2026-10-28 — 174B recovery confirmed; fixture own-execution cleanup hardened
+
+Live 174A and 174B native reads were successful without any
+`COMPUTER_HOST_BUSY` response:
+- 174A: one `get_cursor_position` observed; self-owned
+  `__close_execution` acknowledged.
+- 174B: the same freshly generated execution UUID was accepted for
+  `get_cursor_position` **and** `list_windows`; both returned
+  provider-effect envelopes, with no window list or cursor coordinates
+  emitted to ChatGPT. The self-owned close was acknowledged.
+- Neither result independently verifies physical release of the
+  earlier owner or proves safe background input, but both prove a
+  new CUA read-only execution was admitted and serviced.
+- No UI input, screen capture, browser interaction, service restart,
+  Driver kill or speculative old-owner release occurred.
+- **Do not restart OpenClaw.app, Gateway, Watcher or CUA Driver to
+  resolve a historical Busy error that current reads no longer show.**
+
+Next acceptance stage is the dedicated temporary native AppKit
+`IOANT-CUA-Noninterference-Fixture.app`, with exactly matching
+PID + title window matching, then read-only `get_window_state`.
+Fixture launches as an accessory, orders its window back, self-quits
+after 120 seconds and is normally terminated when its own proof ends.
+The observer verifies the frontmost app and mouse coordinates remain
+unchanged. No Chrome window or chat tab may be a target.
+
+Before launching this fixture, fix an additional execution lifecycle
+edge: if its first `list_windows` native call returned successfully
+and a subsequent `get_window_state` call failed with an
+unsupported-action or policy classification, the old blanket
+`preAdmissionRejected` test suppressed even the self-owned close.
+The corrected `shouldCloseOwnFixtureExecution` requires exact-UUID
+closure whenever the first call returned, regardless of subsequent
+refusals. Only a clear initial pre-admission refusal skips closure.
+Three new regression tests protect this invariant; the full Mac
+candidate gate must pass before native fixture execution.
+
+The fixture observation phase remains strictly **read-only**; it does
+not prove background text entry until a separate non-browser
+`set_value` test executes and independently verifies the target value,
+focus and mouse unchanged, with precisely scoped authority.
