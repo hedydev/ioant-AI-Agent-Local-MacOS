@@ -9,7 +9,8 @@ const prep=readFileSync(resolve(root,'scripts/openclaw-cua-fixture-prep.mjs'),'u
 test('dedicated fixture has one exact accessible text field and per-run nonce title',()=>{
  assert.match(swift,/window\.title = self\.title/);
  assert.match(swift,/private let prefix = "IOANT CUA Noninterference Fixture"/);
- assert.match(swift,/fixtureTitle\(args\[1\]\)/);
+ assert.match(swift,/ProofDelegate\(token: args\[1\]\)/);
+ assert.match(swift,/self\.title = fixtureTitle\(token\)/);
  assert.match(swift,/token\.utf8\.count == 24/);
  assert.match(swift,/setAccessibilityLabel\("IOANT CUA Fixture Editable"\)/);
  assert.match(swift,/field\.stringValue = "IOANT-FIXTURE-INITIAL"/);
