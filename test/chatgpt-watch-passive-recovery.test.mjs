@@ -17,7 +17,8 @@ test('persistent watcher waits for temporarily absent conversation without openi
  assert.match(launcher,/if \(\( WATCH_WAIT == 1 \)\); then/);
  assert.match(launcher,/Watch mode waiting for one validated ChatGPT conversation ID/);
  assert.match(launcher,/else\n\s+exit 1\n\s+fi\n\s+fi\n\s+;;/);
- assert.match(worker,/while\(!target\)\{/);
+ assert.match(worker,/while\(!target&&!stopping\)\{/);
+ assert.match(worker,/waitBrowserCircuit\(browserCircuit,\(\)=>stopping\)/);
  assert.match(worker,/target=await exactTab\(opts\.url\)/);
  assert.match(worker,/await readPage\(target,opts\.url\)/);
  assert.match(worker,/await new Promise\(r=>setTimeout\(r,opts\.interval\*1000\)\)/);
