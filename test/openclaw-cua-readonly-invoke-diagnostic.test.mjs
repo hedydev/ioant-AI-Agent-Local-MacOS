@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {makeSafeReadArgs,classifyInvokeFailure,safeInvokeFailureShape,
- classifyInvokeResult,inspectCUAInvokeReads}
+ safeCliErrorSignals,classifyInvokeResult,inspectCUAInvokeReads}
  from '../scripts/openclaw-cua-readonly-invoke-diagnostic.mjs';
 const source=readFileSync(resolve(import.meta.dirname,
  '../scripts/openclaw-cua-readonly-invoke-diagnostic.mjs'),'utf8');
@@ -289,4 +289,44 @@ test('node pairing and a specific unapproved computer.act remain distinct',()=>{
   'computer.act command not approved on paired node'});
  assert.equal(approval.category,'computer_act_approval_or_policy');
  assert.equal(approval.safeErrorShape.computerCommandDeniedMentioned,true);
+});
+
+test('standard CLI error type is generic but a fixed word signal shows call layer',()=>{
+ const raw={code:1,stdout:JSON.stringify({ok:false,error:{
+  type:'cli_error',message:'Node invoke failed: invalid params for computer.act /Users/private-AliceAI and secret token ABC876543'
+ }})};
+ const r=classifyInvokeFailure(raw);
+ assert.equal(r.safeErrorShape.cliErrorSignals.cliErrorType,'cli_error');
+ assert.equal(r.safeErrorShape.cliErrorSignals.messagePresent,true);
+ assert.deepEqual(r.safeErrorShape.cliErrorSignals.safeSignalWords,
+  ['node','invoke','failed','invalid','params','computer','token']);
+ for(const secret of ['/Users/private-AliceAI','ABC876543','AliceAI',
+  'private','876543']){
+  assert.equal(JSON.stringify(r).includes(secret),false);
+ }
+});
+test('arbitrary CLI error.type and error.message never leave the allowlist',()=>{
+ const r=safeCliErrorSignals({type:'Secret-App-HomeAccount',
+  message:'WalletPassword alice_dev_desk Confidential2026 §345 /Users/me'});
+ assert.equal(r.cliErrorType,'unknown_or_absent');
+ assert.deepEqual(r.safeSignalWords,[]);
+ assert.equal(r.messageLengthBucket,'medium');
+ assert.equal(JSON.stringify(r).includes('Wallet'),false);
+ assert.equal(JSON.stringify(r).includes('HomeAccount'),false);
+});
+test('word scanner caps output to 24 unique known words and excludes untrusted words',()=>{
+ const msg=Array.from({length:1500},(_,i)=>i%3?'missing':'background')
+  .join(' ')+' PRIVATE_PERSON_IDENTIFIER';
+ const r=safeCliErrorSignals({type:'cli_error',message:msg});
+ assert.ok(r.safeSignalWords.length<=24);
+ assert.deepEqual(r.safeSignalWords,['background','missing']);
+ assert.equal(r.messageLengthBucket,'long');
+ assert.equal(JSON.stringify(r).includes('PRIVATE_PERSON'),false);
+});
+test('missing or malformed CLI message provides only empty safe metadata',()=>{
+ const r=safeCliErrorSignals({type:42,message:{token:'private'}});
+ assert.equal(r.cliErrorType,'unknown_or_absent');
+ assert.equal(r.messagePresent,false);
+ assert.deepEqual(r.safeSignalWords,[]);
+ assert.equal(r.messageLengthBucket,'empty');
 });
