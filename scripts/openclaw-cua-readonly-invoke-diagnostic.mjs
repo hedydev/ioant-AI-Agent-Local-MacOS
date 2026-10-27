@@ -11,6 +11,7 @@ import {realpath} from 'node:fs/promises';
 import {randomUUID,createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {chooseConnectedMacNode} from './openclaw-mac-visual.mjs';
+import {scopedCloseRequest} from './openclaw-cua-owned-session-guard.mjs';
 const exec=promisify(execFile);
 const ROOT=resolve(fileURLToPath(new URL('..',import.meta.url)));
 const RUNTIME=join(homedir(),'Library','Application Support','ioant-openclaw-ops','runtime');
@@ -280,20 +281,41 @@ export async function inspectCUAInvokeReads({
    return {...base,state:'blocked',reason:'native_cua_reads_not_advertised'};
   const executionId=uuid();
   const results={};
+  let invoked=false;
+  let deniedBeforeAdmission=false;
+  let scopedClose={attempted:false,acknowledged:false,
+   ownerReleaseVerified:false};
   for(const action of (cursorOnly?
     ['get_cursor_position']:['get_cursor_position','list_windows'])){
+   invoked=true;
    try{results[action]=classifyInvokeResult(await call(
     makeSafeReadArgs(chosen.id,executionId,action),25000))}
    catch(err){results[action]=classifyInvokeFailure(err);}
    // Do not proceed to a second native call when a permission or policy
    // denial has already been identified. Inconclusive is not a permit.
    if(action==='get_cursor_position'&&
-    ['macos_permission','pending_node_approval','gateway_command_policy',
+    ['computer_execution_occupied','macos_permission',
+     'pending_node_approval','gateway_command_policy',
      'gateway_unauthorized','gateway_forbidden','gateway_permission_denied',
      'operator_scope_missing','operator_write_scope_diagnostic',
      'node_pairing_required','node_command_approval_required',
      'node_command_policy_denied','computer_act_approval_or_policy'].includes(
-      results[action].category))break;
+      results[action].category)){
+     deniedBeforeAdmission=true;
+     break;
+   }
+  }
+  // Even a read-only computer.act can leave this exact execution ID
+  // installed as the host owner. Close only our freshly generated ID.
+  // Never close an existing unknown owner or infer release from ok:true.
+  if(invoked&&!deniedBeforeAdmission){
+   scopedClose={attempted:true,acknowledged:false,
+    ownerReleaseVerified:false};
+   try{
+    const receipt=await call(scopedCloseRequest(chosen.id,executionId),15000);
+    scopedClose.acknowledged=receipt?.ok===true||
+     receipt?.result?.ok===true;
+   }catch{}
   }
   const cursor=results.get_cursor_position;
   const windows=results.list_windows??{state:'skipped',
@@ -303,7 +325,9 @@ export async function inspectCUAInvokeReads({
    cursorRead:cursor,
    windowListRead:windows,
    nativeInputAttempted:false,
-   nativeWindowDetailsDiscarded:true};
+   nativeWindowDetailsDiscarded:true,
+   ownExecutionClosure:scopedClose,
+   existingComputerOwnerReleased:false};
  }catch{return {...base,state:'inconclusive',
   reason:'node_status_or_diagnostic_preflight_failed'};}
 }
