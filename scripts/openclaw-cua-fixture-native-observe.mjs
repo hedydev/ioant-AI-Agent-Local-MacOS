@@ -366,7 +366,7 @@ export function safeGatewayNativeError(error){
    return rules.filter(([,pattern])=>pattern.test(v))
     .map(([label])=>label).slice(0,6);
   })();
-  const codeValue=obj?obj.code??obj.gatewayCode:null;
+  const codeValue=obj?(obj.code??obj.gatewayCode??null):null;
   const codeKind=codeValue===null?'absent':
    typeof codeValue==='string'?'string':
    typeof codeValue==='number'?'number':'other';
