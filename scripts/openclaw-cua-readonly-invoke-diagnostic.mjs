@@ -34,6 +34,7 @@ const categories=[
  ['macos_permission',/\b(?:accessibility|required permission|screen recording|tcc|permission denied)\b/i],
  ['cua_driver_transport',/\b(?:driver.*(?:socket|connection|unavailable|timeout|failed)|socket.*(?:closed|refused|unavailable)|ECONNREFUSED|EPIPE|ENOENT.*cua)\b/i],
  ['native_action_unsupported',/\b(?:unsupported action|invalid action|unknown action|not implemented)\b/i],
+ ['computer_execution_occupied',/\b(?:another provider execution owns this computer|computer host busy)\b/i],
  ['execution_session_conflict',/\b(?:execution.*(?:busy|conflict|expired|invalid)|stale.*(?:observation|generation)|active.*session)\b/i],
  ['invalid_native_params',/\b(?:invalid params|invalid parameters|schema validation|contract mismatch)\b/i],
  ['node_unreachable',/\b(?:node disconnected|node not found|node offline|gateway unreachable)\b/i],
@@ -41,6 +42,7 @@ const categories=[
  ['unsupported_cli_command',/\b(?:unknown command|unknown option|unrecognized option|too many arguments)\b/i]
 ];
 const severityMap=new Map([
+ ['COMPUTER_HOST_BUSY','computer_execution_occupied'],
  ['COMPUTER_DISABLED','macos_permission'],
  ['ACCESSIBILITY_REQUIRED','macos_permission'],
  ['COMPUTER_DRIVER_UNAVAILABLE','cua_driver_transport'],
