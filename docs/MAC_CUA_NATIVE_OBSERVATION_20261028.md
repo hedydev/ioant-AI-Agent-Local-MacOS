@@ -318,3 +318,58 @@ command path can return meaningful classified evidence. Even a
 successful cursor read is not proof of safe background text input.
 
 Source: https://docs.openclaw.ai/cli/index
+
+## 2026-10-28 — 165B host-busy lead, upstream execution ownership lifecycle
+
+The one-shot `--cursor-only` native diagnosis from deployed HEAD
+`9e1c76c6ce52cdf598ad35143f438c351f273a65` failed with
+`error.type=cli_error`, `exitCode=1`, with safe allowlisted words:
+`error`, `computer`, `host`, `busy`, `provider`, `execution`.
+There was no window enumeration, GUI interaction, browser access, or input.
+
+The words strongly resemble
+`COMPUTER_HOST_BUSY: another provider execution owns this computer`,
+which is documented in upstream OpenClaw issues
+[#126373](https://github.com/openclaw/openclaw/issues/126373)
+and [#147420](https://github.com/openclaw/openclaw/issues/147420).
+Upstream PR [#151127](https://github.com/openclaw/openclaw/pull/151127)
+merged on 2026-10-11 to release run-owned computer executions in one
+MCP control path. The user's prior installed OpenClaw version was
+2026.10.7, which predates that merge; current installed version must
+be read on the Mac before treating that assumption as fact. These
+issues span Codex and MCP on Windows/Linux and Gateway-host desktops.
+They show a relevant class of bug, NOT proof that the same lifecycle
+bug is active in this paired macOS node.
+
+Updated the native failure classifier to recognize exact
+`COMPUTER_HOST_BUSY` as `computer_execution_occupied`.
+Added `scripts/openclaw-cua-host-ownership-passive.mjs` to read the
+official **bounded, already-redacted Gateway log tail** and
+`openclaw --version`; it emits only a sanitized version,
+occurrences/booleans for the exact known host-busy code and fixed
+ownership wording, and explicit uncertainty flags. It never emits
+raw logs, node/owner/execution IDs, app/window content or credentials.
+It never invokes `computer.act` or starts/stops a GUI, Gateway,
+node, driver, or computer execution.
+
+**Do not send random `__close_execution` calls.** The upstream issue
+documents that after 2026.9.6 mismatched execution IDs cause a silent
+no-op even when `ok:true` is returned. Likewise do not restart the
+Mac Node/Gateway, switch providers, or manually clear locks while
+an authorized execution might genuinely be active.
+
+Next operator gate:
+1. Candidate `project-update-verify` must pass all tests.
+2. Run the passive script with exact HEAD guard. A missing log match
+   remains inconclusive (bounded retention); a match establishes only
+   that the code occurred in the log, not current owner identity or
+   whether it is stale.
+3. If confirmed and no legitimate active owner exists, plan a separate
+   explicit, owner-aware cleanup or controlled maintenance window
+   using upstream lifecycle fix, preserving other active work.
+
+References:
+https://docs.openclaw.ai/cli/logs
+https://docs.openclaw.ai/nodes/computer-use
+https://github.com/openclaw/openclaw/issues/147420
+https://github.com/openclaw/openclaw/pull/151127
