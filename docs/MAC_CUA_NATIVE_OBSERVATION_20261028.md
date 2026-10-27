@@ -64,3 +64,40 @@ confirm exact HEAD. Next run only this one-shot script as a scoped
 `mac-terminal` action. If the native reply schema is unexpected, revise
 only the parser based on bounded, non-sensitive metadata. Never broaden
 to browser contents or arbitrary GUI automation to force the test to pass.
+
+## 2026-10-28 — 158B Mac evidence and safer parser recovery
+
+The 158B one-shot fixture observation returned
+`launchedFixture=true`, `phase=window_list`,
+`reason=fixture_window_not_found`, `matchedWindowCount=0`;
+there were zero pointer/keyboard input actions and zero screenshots.
+The CUA `list_windows` invocation returned to the script without a CLI
+exception, but the original strict parser matched no synthetic window.
+This does **not** prove whether WindowServer omitted the window or an
+OpenClaw transport wrapper obscured its structured result.
+
+The first parser omitted common OpenClaw `content[].text` and
+`structuredContent` JSON wrappers, and recognized only `pid` and
+`processId` as PID fields. The updated strict observer traverses those
+wrappers and known PID/title aliases, without changing the native CUA
+action surface.
+
+On a missing window it now emits only bounded **synthetic fixture**
+evidence booleans (exact fixture title seen, exact newly spawned PID seen,
+joint PID + title record seen, valid opaque ref present, text-wrapper
+presence, synthetically named fixture found in text). It never emits
+unrelated window names, IDs, native text, screenshots, browser data,
+errors, opaque tokens or other application inventory. It never authorizes
+`get_window_state` without the title, same PID and exact windowRef in
+one native record; it never fabricates a ref from freeform text or merges
+the title of one window with the PID of another.
+
+Acceptance for this repair is a full clean `project-update-verify`
+followed by exactly one scoped one-shot read-only observer. Do **not**
+run background `set_value` unless a verified window reference and
+a fresh observation have first been established.
+
+If the next live CUA list reports no record matching even the exact
+fixture title/PID, inspect the test-app's own WindowServer exposure and
+startup ordering without forcing foreground activation; do not weaken
+the window identity constraint.
