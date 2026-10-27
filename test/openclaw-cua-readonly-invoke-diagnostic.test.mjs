@@ -90,7 +90,11 @@ test('single selected node and same UUID, no native input or window data leak',a
  const r=await inspectCUAInvokeReads({
   allowedRuntime:async()=>true,uuid:()=>UUID,call:run
  });
- assert.equal(calls.length,3);
+ assert.equal(calls.length,4);
+ assert.equal(JSON.parse(calls[3][7]).action,'__close_execution');
+ assert.equal(JSON.parse(calls[3][7]).executionId,UUID);
+ assert.equal(r.ownExecutionClosure.attempted,true);
+ assert.equal(r.ownExecutionClosure.ownerReleaseVerified,false);
  assert.equal(r.state,'observed');
  assert.equal(r.cursorRead.state,'observed');
  assert.equal(r.windowListRead.state,'failed');
@@ -235,7 +239,7 @@ test('cursor-only mode issues exactly one native call and returns no window list
  assert.equal(r.appsOrWindowsReturned,false);
  assert.equal(JSON.stringify(r).includes('secret path'),false);
 });
-test('cursor-only success remains observation-only, not background execution proof',async()=>{
+test('cursor-only success closes its own read execution without proving release',async()=>{
  let invokes=0;
  const run=async args=>{
   if(args[1]==='status')return status();
@@ -245,8 +249,10 @@ test('cursor-only success remains observation-only, not background execution pro
  const r=await inspectCUAInvokeReads({
   allowedRuntime:async()=>true,uuid:()=>UUID,call:run,cursorOnly:true
  });
- assert.equal(invokes,1);
+ assert.equal(invokes,2);
  assert.equal(r.cursorRead.state,'observed');
+ assert.equal(r.ownExecutionClosure.attempted,true);
+ assert.equal(r.ownExecutionClosure.ownerReleaseVerified,false);
  assert.equal(r.windowListRead.state,'skipped');
  assert.equal(r.nativeInputAttempted,false);
 });
@@ -329,4 +335,24 @@ test('missing or malformed CLI message provides only empty safe metadata',()=>{
  assert.equal(r.messagePresent,false);
  assert.deepEqual(r.safeSignalWords,[]);
  assert.equal(r.messageLengthBucket,'empty');
+});
+
+test('host-busy error stops additional reads and never releases unknown owner',async()=>{
+ const calls=[];
+ const r=await inspectCUAInvokeReads({
+  allowedRuntime:async()=>true,uuid:()=>UUID,
+  call:async args=>{
+   if(args[1]==='status')return status();
+   calls.push(JSON.parse(args[7]).action);
+   throw Object.assign(Error('private owner information'),{code:1,
+    stdout:JSON.stringify({error:{
+     message:'COMPUTER_HOST_BUSY: another provider execution owns this computer'
+    }})});
+  }
+ });
+ assert.deepEqual(calls,['get_cursor_position']);
+ assert.equal(r.cursorRead.category,'computer_execution_occupied');
+ assert.equal(r.windowListRead.state,'skipped');
+ assert.equal(r.ownExecutionClosure.attempted,false);
+ assert.equal(r.existingComputerOwnerReleased,false);
 });
