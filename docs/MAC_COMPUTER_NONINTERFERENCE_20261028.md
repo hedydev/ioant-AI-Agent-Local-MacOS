@@ -74,3 +74,34 @@ Do not use Computer Use, shell, AppleScript, CDP or another browser channel
 to bypass this denial. Distinguish browser-control privileges from native
 computer ability. The AliceAI Project Chat remains the owner of its own
 project development and approvals.
+
+## 2026-10-28 / Task 150B diagnosis correction
+
+150B returned provider=unknown and list_apps exitCode=1, while a prior
+native get_cursor_position request succeeded. The former inspector checked
+legacy guessed paths (computer/computerControl) and did not parse the
+official v2 node status field named computerUse.
+
+Official descriptor structure: computerUse.contractVersion=2,
+computerUse.provider.{id,label,generation}, computerUse.actions,
+computerUse.deliveryModes, computerUse.features.agentCursor.
+
+The updated inspector reads this explicit structure, checks generation and
+contractVersion, normalizes only recognized provider identifiers and
+exposes only bounded capability flags. It does not echo provider labels,
+node identities, window titles, executable names, observation tokens or
+browser/chat contents. The combined readiness tool now **skips list_apps**
+unless the provider descriptor is valid, the provider family recognized,
+and list_apps explicitly advertised. A missing capability is never
+interpreted as permission to retry.
+
+An advertised agentCursor is a software indicator, not a physical second
+macOS mouse pointer or its own focus context. A truly independent pointer
+and keyboard requires a separate desktop session/environment.
+
+Sources:
+- https://docs.openclaw.ai/nodes/computer-use
+- https://app.unpkg.com/openclaw@2026.10.4/files/dist/computer-use-contract-g23cJXOi.mjs
+
+No user-facing system configuration was modified; CUA was not selected,
+Chrome was not opened or read, and no input was performed.
