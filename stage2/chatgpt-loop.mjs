@@ -137,8 +137,7 @@ async function exactTab(url){
   if(!Array.isArray(tabs))throw Error('OpenClaw tab list not available');
   if(!url)return tabs;
   const details=tabVisibility(tabs,url,profile);
-  const matches=tabs.filter(t=>sameChatConversationUrl(t?.url,url)&&
-    (!isolatedProjectScope||sameIsolatedProjectChat(isolatedProjectScope,t?.url)));
+  const matches=tabs.filter(t=>sameChatConversationUrl(t?.url,url));
   if(matches.length!==1){
     const failure=Error('Authorized ChatGPT tab unavailable: '+details.code+
      ' (profile='+details.profile+', visible='+details.visibleTabs+
@@ -148,6 +147,8 @@ async function exactTab(url){
       failure.code='CHROME_RELAY_ZERO_TABS';
     throw failure;
   }
+  if(isolatedProjectScope&&!sameIsolatedProjectChat(isolatedProjectScope,matches[0]?.url))
+    throw Error('Isolated Project identity mismatch');
   const id=matches[0].suggestedTargetId??matches[0].tabId??matches[0].targetId;
   if(typeof id!=='string'||!/^[a-zA-Z0-9_:-]{1,128}$/.test(id))throw Error('Browser has no safe exact target handle');
   return id;
@@ -622,8 +623,7 @@ async function main(){
           const task=a.task;
           const isDevDiscussion=['openclaw-alice-dev-discuss','openclaw-agent-dev-discuss'].includes(task.action);
            const devBindingOk=isBoundDevDiscussion(task.action,opts.devAgent);
-           const authorized=(!isolatedProjectScope||isolatedProjectAllowsAction(isolatedProjectScope,task,opts)) &&
-           ((task.authorized&&(!isDevDiscussion||devBindingOk)) ||
+           const authorized=(task.authorized&&(!isDevDiscussion||devBindingOk)) ||
              (task.action==='alice-witness-preflight' && opts.enableAlicePreflight)
             || (task.action==='alice-lab-startup-probe' && opts.enableAliceLabStartupProbe)
             || ((task.action==='mint-bds-process-identity'||task.action==='mint-bds-process-lineage') && opts.enableMintDiagnostics)
@@ -634,11 +634,13 @@ async function main(){
              || (task.action==='openclaw-dev-prewrite-reconcile' && opts.enableOpenClawDevCreate)
              || (task.action==='openclaw-gui-readonly-probe' && opts.enableGuiReadonly)
              || task.action==='mac-terminal'
-             || task.action==='mac-window-text');
+             || task.action==='mac-window-text';
+          const scopedAuthorized=authorized&&
+            (!isolatedProjectScope||isolatedProjectAllowsAction(isolatedProjectScope,task,opts));
           recordDiagnosticEvent('task_seen',{taskId:task.id,action:task.known?task.action:'unknown'});
           recordDiagnosticEvent('action_started',{taskId:task.id,action:task.known?task.action:'unknown'});
           let result;
-          if(!authorized) {
+          if(!scopedAuthorized) {
             result={status:'approval_required',reason:task.known?'This operation needs separate authorization.':'Action is not recognized or authorized.'};
           }else if(task.action==='alice-lab-startup-probe'){
             // Persist a permanent per-conversation one-shot barrier BEFORE ANY

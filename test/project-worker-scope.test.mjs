@@ -58,8 +58,21 @@ test('only bounded GUI observation is allowed from AliceAI assistant, never ops 
 });
 test('runner dispatch preserves scope restriction before any implementation branch',()=>{
  const src=readFileSync(resolve(root,'stage2/chatgpt-loop.mjs'),'utf8');
- assert.match(src,/const authorized=\(!isolatedProjectScope\|\|isolatedProjectAllowsAction/);
- assert.match(src,/sameIsolatedProjectChat\(isolatedProjectScope,t\?\.url\)/);
+ assert.match(src,/const scopedAuthorized=authorized&&/);
+ assert.match(src,/!isolatedProjectScope\|\|isolatedProjectAllowsAction\(isolatedProjectScope,task,opts\)/);
+ assert.match(src,/if\(!scopedAuthorized\) \{/);
+ assert.match(src,/sameIsolatedProjectChat\(isolatedProjectScope,matches\[0\]\?\.url\)/);
  assert.match(src,/sameIsolatedProjectChat\(isolatedProjectScope,parsed.url\)/);
  assert.match(src,/!isolatedProjectScope\)\{/);
+});
+
+test('new Project validation cannot execute before the existing unique-tab guard',()=>{
+ const src=readFileSync(resolve(root,'stage2/chatgpt-loop.mjs'),'utf8');
+ const count=src.indexOf('if(matches.length!==1)');
+ const project=src.indexOf('if(isolatedProjectScope&&!sameIsolatedProjectChat');
+ const target=src.indexOf('const id=matches[0].suggestedTargetId');
+ assert.ok(count>0&&project>count&&target>project);
+ const deny=src.indexOf('if(!scopedAuthorized) {');
+ const action=src.indexOf("}else if(task.action==='alice-lab-startup-probe')",deny);
+ assert.ok(deny>0&&action>deny);
 });
