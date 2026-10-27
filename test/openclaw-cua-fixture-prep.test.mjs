@@ -85,3 +85,28 @@ test('diagnostic reads only WindowServer metadata of synthetic PID and nonce',()
  assert.match(swift,/func safeJSON\(\)/);
  assert.doesNotMatch(swift,/CGRequestScreenCaptureAccess|print\(rows\)|print\(row\)|CGDisplayCreateImage|CGWindowListCreateImage/);
 });
+
+test('owned AppKit window self-proof needs exact nonce title, ID, PID, normal layer',()=>{
+ assert.match(swift,/private func ownWindowReady\(/);
+ assert.match(swift,/window\.title == fixtureTitle\(token\)/);
+ assert.match(swift,/window\.windowNumber > 0/);
+ assert.match(swift,/window\.isVisible/);
+ assert.match(swift,/window\.level == \.normal/);
+ assert.match(swift,/!window\.isKeyWindow/);
+ assert.match(swift,/!NSApplication\.shared\.isActive/);
+ assert.match(swift,/optionIncludingWindow/);
+ assert.match(swift,/kCGWindowNumber/);
+ assert.match(swift,/owner == getpid\(\) && layer == 0/);
+ assert.match(swift,/verifiedRows\.count == 1/);
+});
+test('own stdout handshake and PID-only independent metadata prove without title TCC',()=>{
+ assert.match(swift,/IOANT_FIXTURE_READY_V1/);
+ assert.match(swift,/fflush\(stdout\)/);
+ assert.match(swift,/publishReady\(window: window\)/);
+ assert.match(swift,/getpid\(\)/);
+ assert.match(swift,/--prove-owned-window/);
+ assert.match(swift,/private func ownedNormalWindowPresent\(/);
+ assert.match(swift,/return owner == pid && layer == 0/);
+ assert.match(swift,/\.seconds\(120\)/);
+ assert.doesNotMatch(swift,/CGRequestScreenCaptureAccess|makeKeyAndOrderFront|orderFrontRegardless|activate\(/);
+});
