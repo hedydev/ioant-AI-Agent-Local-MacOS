@@ -29,12 +29,13 @@ async function call(args,timeout){
  if(stdout.length>1024*1024)throw Error('oversized');
  return JSON.parse(stdout);
 }
-export async function inspectNativeAppInventory({request=call,uuid=randomUUID}={}){
+export async function inspectNativeAppInventory({request=call,uuid=randomUUID,
+ runtimeAllowed=async()=>ROOT===RUNTIME&&await realpath(RUNTIME)===RUNTIME}={}){
  const base={audit:AUDIT,schemaVersion:1,readOnly:true,
   requestedAction:'list_apps',changedDesktop:false,changedBrowser:false,
   browserTabsQueried:false,rawAppNamesReturned:false,chatContentRead:false};
  try{
-  if(ROOT!==RUNTIME||await realpath(RUNTIME)!==RUNTIME)
+  if(!await runtimeAllowed())
    return {...base,state:'blocked',reason:'private_runtime_required'};
   let chosen;
   try{chosen=chooseConnectedMacNode(await request(['nodes','status','--json'],18000))}
