@@ -252,3 +252,34 @@ Sources:
 https://docs.openclaw.ai/gateway/operator-scopes
 https://docs.openclaw.ai/nodes/computer-use
 https://docs.openclaw.ai/cli/nodes
+
+## 2026-10-28 — 163A safe-update rejection and classifier compatibility fix
+
+The 163A update candidate was rejected by the Mac worker's safe-update
+gate: `candidate_tests_failed`, 737 total, 735 passed, 2 failed,
+no failing locations exposed. The previously deployed runtime remains
+`12ca30aafcea489a2318c632fabe184fa04c5442`. No new native
+Computer Use action was performed during this rejection.
+
+Review of the new error classifier revealed two reproducible
+classification inconsistencies:
+
+1. Explicit `command denied by policy: computer.act` was classified
+   as generic `computer_act_approval_or_policy` before reaching the
+   more specific existing `gateway_command_policy` rule.
+2. The harmless diagnostic `node pairing not approved` did not set
+   `nodePairingMentioned` because the original pattern only recognized
+   `pair` with a word boundary, not `pairing`.
+
+The updated classifier gives explicit Gateway-policy denials precedence
+over generic computer.act mentions, and accepts `pair`, `paired`,
+and `pairing` as bounded node-pairing metadata. Two targeted tests
+protect both boundaries; sanitized error codes and `--cursor-only`
+fail-closed read limits are unchanged. The rejected candidate's exact
+two failing assertions were not exposed by the worker, so these are
+code-review findings, not a claim of verified failing test names.
+
+Next action: deploy only the new GitHub main through the standard
+`project-update-verify` gate and require all tests passing. If any
+candidate tests still fail, do not invoke real CUA diagnostics until
+the test failure is fixed.
