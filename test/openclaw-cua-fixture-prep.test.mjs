@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
-import {prepareFixture} from '../scripts/openclaw-cua-fixture-prep.mjs';
+import {prepareFixture,makeFixtureCompileInvocation} from '../scripts/openclaw-cua-fixture-prep.mjs';
 const root=resolve(import.meta.dirname,'..');
 const swift=readFileSync(resolve(root,'fixtures/cua-noninterference/Fixture.swift'),'utf8');
 const prep=readFileSync(resolve(root,'scripts/openclaw-cua-fixture-prep.mjs'),'utf8');
@@ -39,4 +39,24 @@ test('unsupported platform cannot invoke a compiler or touch the GUI',async()=>{
  assert.equal(result.desktopInput,false);
  assert.equal(result.launchedFixture,false);
  assert.equal(calls,0);
+});
+
+test('fixture compile uses exact xcrun driver that passed live 156B',()=>{
+ const source='/private/runtime/fixtures/cua-noninterference/Fixture.swift';
+ const binary='/private/tmp/safe/IOANT-CUA-Noninterference-Fixture.app/Contents/MacOS/ioant-cua-fixture';
+ const cmd=makeFixtureCompileInvocation(source,binary);
+ assert.equal(cmd.bin,'/usr/bin/xcrun');
+ assert.deepEqual([...cmd.args],['swiftc',source,'-o',binary]);
+ assert.ok(Object.isFrozen(cmd));
+ assert.ok(Object.isFrozen(cmd.args));
+ assert.match(prep,/await run\(invocation\.bin,\[\.\.\.invocation\.args\]/);
+ assert.doesNotMatch(prep,/await run\(compiler,\[source,'-o',binary\]/);
+});
+test('fixed compile command never accepts arbitrary source or target paths',()=>{
+ assert.throws(()=>makeFixtureCompileInvocation('/other/Private.swift',
+  '/tmp/IOANT-CUA-Noninterference-Fixture.app/Contents/MacOS/ioant-cua-fixture'),
+  /invalid_fixture_build_target/);
+ assert.throws(()=>makeFixtureCompileInvocation(
+  '/private/runtime/fixtures/cua-noninterference/Fixture.swift',
+  '/tmp/unsafe-or-user-visible-file'),/invalid_fixture_build_target/);
 });
