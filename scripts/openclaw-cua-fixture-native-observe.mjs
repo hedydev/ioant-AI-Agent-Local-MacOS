@@ -142,13 +142,17 @@ export function findExactFixtureWindow(raw,pid){
 export function findOSAttestedFixtureWindow(raw,pid,title,osVerified){
  if(osVerified!==true||!Number.isSafeInteger(pid)||pid<=1||
     typeof title!=='string'||!title.startsWith(TITLE+' [')||
-    !/^[a-f0-9]{24}\\]$/.test(title.slice(TITLE.length+2)))
+    !safeNonce(title.slice(TITLE.length+2,-1))||
+    title!==nonceTitle(title.slice(TITLE.length+2,-1)))
   return {state:'inconclusive',reason:'independent_window_ownership_required'};
  const candidates=fixtureWindowRows(raw).filter(x=>windowTitle(x,title));
  if(candidates.length!==1)return {state:'inconclusive',
   reason:candidates.length===0?'fixture_window_not_found':'ambiguous_fixture_window',
   matchedWindowCount:candidates.length};
  const chosen=candidates[0],listedPid=processId(chosen);
+ const direct=directProcessId(chosen),nested=nestedAppPid(chosen);
+ if(direct!==null&&nested!==null&&direct!==nested)
+  return {state:'inconclusive',reason:'conflicting_native_pid_fields'};
  if(listedPid!==null&&listedPid!==pid)return {state:'inconclusive',
   reason:'provider_owner_conflicts_with_window_server'};
  if(!safeRef(windowRef(chosen)))return {state:'inconclusive',
