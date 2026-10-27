@@ -1088,3 +1088,60 @@ the same single read-only fixture observer; diagnose from the returned
 shape and existing errorClass without speculation. A later
 background `set_value` trial is still blocked by the unfinished
 read-only acceptance.
+
+## 2026-10-28 — 180B OpenClaw CLI JSON failure; 181A Gateway refusal layer diagnosis
+
+180A deployed successfully at `03b2c57b27e2929808783a87e08319ed63b056d3`
+with 854/854 tests. Mac 180B retried only the isolated, precompiled
+hash-pinned AppKit fixture: `sourceDigestPrefix=9d297fd10418fcf9`
+and `reused=true`.
+
+As in 179B, the nonce+PID self-window and independent WindowServer
+normal-layer ownership checks passed; otherwise the script could not
+have reached `phase=window_list`. The **first** CUA `list_windows`
+native invocation failed before returning any window refs:
+`errorClass=unclassified`, `cliExitCode=1`.
+Safe error-shape evidence:
+`stdoutKind=json`, `stderrKind=text`,
+`stdoutErrorEnvelope=true`, `stderrErrorEnvelope=false`,
+`hint=none_recognized`, `localProcessFault=none`,
+`stderrErrorPrefix=false`. This is **not** evidence for a
+specific driver crash, CUA ownership collision, privilege issue,
+Gateway policy denial or terminal command syntax error.
+`ownExecutionClosure.attempted=true`,
+`acknowledged=true`, `ownerReleaseVerified=false`.
+No screenshots, pointer, keyboard, browser action or native GUI input
+were performed.
+
+OpenClaw v2026.10.7 `nodes invoke` runs through the Gateway
+`node.invoke` handler and `cua-computer` plugin risk policy *before*
+the native node transport. Its errors can be structured Gateway
+envelopes with `error.code`, `error.message`, and a
+`details.nodeCommandDispatched` boolean, not necessarily a native
+`COMPUTER_*` error token. Source references:
+
+- https://github.com/openclaw/openclaw/blob/v2026.10.7/src/cli/nodes-cli/register.invoke.ts
+- https://github.com/openclaw/openclaw/blob/v2026.10.7/extensions/cua-computer/src/node-invoke-policy.ts
+- https://github.com/openclaw/openclaw/blob/v2026.10.7/src/gateway/node-invoke-plugin-policy.ts
+
+181A adds `gatewayErrorEvidence` to the **same already-gated
+read-only native failure path**. Its parser reads only bounded
+`stdout` JSON, recognizes a fixed set of top/result/payload/data
+error envelopes, and returns only `available`,
+`origin` (finite known path), `errorForm` (string/object/other),
+`codePresent`, `codeFamily` (allowlisted semantic group),
+`messageFamily` (allowlisted phrase group), and optionally
+`nodeCommandDispatched` if an explicit boolean was delivered.
+No raw code, error message, arbitrary object key, stdout/stderr,
+app/window title, URL, token, PID or CUA reference is returned.
+A reported `nodeCommandDispatched:false` is evidence of
+**pre-admission refusal**, so no new CUA lease should have been
+acquired, and the script must not close another owner's execution.
+Ambiguous dispatch still attempts to close only its own UUID,
+without claiming verified release.
+
+The next step remains full candidate tests via
+`project-update-verify` and, only after success, one read-only
+`openclaw-cua-fixture-native-observe.mjs` execution. There is no
+permission escalation, force-owner release, driver restart,
+screenshot, GUI input, browser access or automatic retry.
