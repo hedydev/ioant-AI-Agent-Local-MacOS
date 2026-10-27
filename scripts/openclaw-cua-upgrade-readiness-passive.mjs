@@ -126,7 +126,7 @@ export async function passiveUpgradeReadiness({
   update,
   gateway,
   system,
-  computerHostBusyConfirmedFromPriorAudit:true,
+  hostBusyCodeNotRecheckedInThisRun:true,
   upgradeCompatibilityVerified:false,
   maintenanceWindowVerified:false,
   rollbackBackupVerified:false,
