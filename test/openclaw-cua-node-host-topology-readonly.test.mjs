@@ -104,7 +104,11 @@ test('private runtime failure blocks all passive queries',async()=>{
  assert.equal(n,0);
 });
 test('no native invocation, UI, CLI restart, launchctl or raw process reporting',()=>{
- assert.doesNotMatch(source,/nodes','invoke|__close_execution|launchctl|computer\.act'|--params|osascript|CGEventPost|exec\(CLI,\['node','restart'/);
+ // Test executable statements, not comments documenting prohibited actions.
+ // A documented "no launchctl" must not be mistaken for a real invocation.
+ const executableSource=source.split('\n').filter(line=>
+  !/^\s*\/\//.test(line)).join('\n');
+ assert.doesNotMatch(executableSource,/nodes','invoke|__close_execution|launchctl|computer\.act'|--params|osascript|CGEventPost|exec\(CLI,\['node','restart'/);
  assert.match(source,/restartedNode:false/);
  assert.match(source,/ownerReleased:false/);
  assert.match(source,/safeToRestartNode:false/);
