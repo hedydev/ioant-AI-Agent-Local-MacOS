@@ -1036,3 +1036,55 @@ A full 179A Mac test gate and Swift compile are required before the
 next read-only live observation. Only after a successful read-only
 fixture proof may a separately implemented, scoped, verifiable
 background `set_value` test be considered.
+
+## 2026-10-28 — 179B fixture identity passed; native CUA list_windows CLI exited 1
+
+179A-R1 passed full Mac update at
+`0d0009e0e154794aee1acf36878b784ee3fc4ebe`:
+849/849 tests, 0 failures.
+
+179B real Mac:
+- The updated Swift fixture compiled successfully
+  (`sourceDigestPrefix=9d297fd10418fcf9`,
+  `compilerFound=true`, `readOnlyStateProbePassed=true`).
+- The fixture launched. Its own nonce+PID+window attestation and
+  separate external PID/normal-layer attestation **both passed the
+  mandatory guards**; otherwise the observer would have stopped
+  earlier. Their individual final booleans were not emitted because
+  the later native invocation failed.
+- Native `computer.act` first `list_windows` invocation failed:
+  `state=inconclusive`, `phase=window_list`,
+  `reason=native_read_refused_or_unavailable`,
+  `nativeFailure.errorClass=unclassified`,
+  `nativeFailure.cliExitCode=1`.
+  This does not prove a specific transport, policy, CUA ownership,
+  driver or OS permission cause.
+- Scoped close request on **this invocation's UUID only**:
+  `attempted=true`, `acknowledged=true`,
+  `ownerReleaseVerified=false`. Never infer all computer
+  owners are released; never restart drivers, kill an unknown process,
+  close another execution ID or modify browser state to recover.
+- `browserAccess=false`, `screenshotTaken=false`,
+  `performedComputerInput=false`.
+
+180A only augments **native read failure** reports with
+`nativeCliEvidence`, a fixed-key JSON shape classifier:
+`stdoutKind`/`stderrKind` are one of empty/text/large_text/json;
+`stdoutErrorEnvelope`/`stderrErrorEnvelope` are booleans;
+`hint` is a coarse allowlisted category such as owner_busy,
+policy_denied, invalid_native_action, invalid_request,
+driver_unavailable, node_unavailable, transport_error, timeout,
+cli_usage, or none_recognized; `localProcessFault` is a
+coarse subprocess category, and `stderrErrorPrefix` a boolean.
+The raw stdout/stderr, error.message, JSON values, private application
+or window data, title, URL, execution ID, and nonce must **never**
+appear in the returned report. There is no extra CUA call, repeated
+session attempt, browser action, screenshot, UI input or permission
+change. The same strict self-window/independent PID checks and
+execution-scoped close apply.
+
+The next full Mac candidate test gate must pass before rerunning
+the same single read-only fixture observer; diagnose from the returned
+shape and existing errorClass without speculation. A later
+background `set_value` trial is still blocked by the unfinished
+read-only acceptance.
