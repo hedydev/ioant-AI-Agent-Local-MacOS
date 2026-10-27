@@ -79,3 +79,24 @@ test('missing Computer Control capability skips app inspection',async()=>{
  assert.equal(result.reason,'computer_not_advertised');
  assert.equal(result.state,'blocked');
 });
+
+test('throwing provider probe safely skips all app reads',async()=>{
+ let calls=0;
+ const result=await auditNonInterferingComputer({
+  providerScan:async()=>{throw Error('private gateway token');},
+  appsScan:async()=>{calls++;return {state:'observed'};}
+ });
+ assert.equal(result.state,'inconclusive');
+ assert.equal(result.reason,'provider_scan_failed');
+ assert.equal(calls,0);
+ assert.equal(JSON.stringify(result).includes('gateway token'),false);
+});
+test('throwing app probe returns safe diagnosis without raw exception',async()=>{
+ const result=await auditNonInterferingComputer({
+  providerScan:async()=>provider(),
+  appsScan:async()=>{throw Error('private password in log');}
+ });
+ assert.equal(result.listApps.state,'inconclusive');
+ assert.equal(result.listApps.reason,'app_inventory_probe_failed');
+ assert.equal(JSON.stringify(result).includes('password'),false);
+});
