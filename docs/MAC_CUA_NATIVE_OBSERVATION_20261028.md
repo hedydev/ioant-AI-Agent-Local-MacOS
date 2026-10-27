@@ -967,3 +967,72 @@ test gate passes.
 first examining the safe diagnostic; if the title cannot be read
 from outside the target process, consider a non-screen-capture OS
 attestation path rather than bypassing identity checks.
+
+## 2026-10-28 — 178B definitive TCC window-title redaction; 179A nonce self-attestation
+
+178A-R1 was deployed at `ba2c0f9a5c69f4706421ae5a2d0a7cbe328841c3`
+with 843/843 tests. In real Mac execution 178B:
+- AppKit fixture preparation compiled successfully with new digest
+  `33433dee9ba6473e`, `readOnlyStateProbePassed=true`.
+- It launched without CUA invocation or input, but the independent
+  WindowServer exact-title proof failed:
+  `phase=independent_ownership_proof`,
+  `nativeReadAttempted=false`.
+- Redacted `fixtureOSDiagnosis` was available:
+  `metadataAvailable=true`,
+  `screenRecordingGranted=false`,
+  `targetPidWindowCount=multiple`,
+  `targetPidNormalWindowSeen=true`,
+  `targetPidWindowNameVisible=false`,
+  `exactTitleWindowCount=none`,
+  `exactTitleOwnerMatched=false`.
+  Thus the target process is visible to WindowServer and has normal
+  windows, but its title is privacy-redacted in the independent helper.
+  It is **not** evidence that CUA failed, nor that the fixture
+  failed to create a window.
+- No CUA lease was acquired, no driver restart or process reset needed.
+- Do not grant Screen Recording permission to the Worker merely to
+  validate this disposable fixture, do not remove window ownership
+  checks, and do not fall back to an unqualified static window title.
+
+179A replaces the TCC-dependent title check for this **synthetic,
+hash-pinned, disposable fixture only**:
+1. Launch exactly the private, hash-pinned AppKit binary as one owned
+   subprocess with a fresh 96-bit nonce title. Capture *only its own*
+   stdout via a private parent-owned pipe.
+2. In the fixture process, inspect **its own** `NSWindow`: title exactly
+   equals the per-run nonce title, window is visible, not key,
+   nonfrontmost; its actual `windowNumber` appears in
+   `CGWindowListCopyWindowInfo(.optionIncludingWindow, windowNumber)`
+   with owner PID equal to `getpid()` and layer 0. This uses
+   WindowServer ID/PID/layer metadata **without accessing window
+   title through WindowServer**.
+3. The child emits exactly one bounded
+   `IOANT_FIXTURE_READY_V1 <nonce> <own-pid> 1|0` line on its
+   parent-owned stdout pipe. The observer validates the exact token,
+   exact `spawn.pid`, success marker, length and grammar and does
+   not log the line, token or PID. The child self-quits within 120 s;
+   the parent cleans up only that child.
+4. Independent external WindowServer verification uses the binary's
+   `--prove-owned-window <pid>` mode: only asserts that the same PID
+   currently owns a normal-layer window. This is possible under the
+   observed restricted TCC environment and does not read title or
+   request Screen Recording permission. It is repeated after CUA
+   `list_windows` and `get_window_state` to guard lifetime.
+5. Native CUA still must return **exactly one** window with the same
+   unpredictable nonce title and a valid `windowRef`, and must
+   not report a contradictory PID. Next CUA call targets only this
+   ref; no screenshots, browser actions, keyboard or pointer input
+   allowed. An uncertain result or any changed foreground/pointer/
+   provider generation fails closed.
+6. Only a newly acquired execution UUID belonging to this invocation
+   is closed. Return acknowledgement is not misrepresented as proof
+   that all existing sessions were released.
+
+This proof is explicitly **not** an authorization pattern for any
+existing user application or unknown window. Those require
+independent, authorized target identity and input scope.
+A full 179A Mac test gate and Swift compile are required before the
+next read-only live observation. Only after a successful read-only
+fixture proof may a separately implemented, scoped, verifiable
+background `set_value` test be considered.
