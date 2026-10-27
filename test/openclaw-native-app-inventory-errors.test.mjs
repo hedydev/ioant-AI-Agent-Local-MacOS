@@ -65,3 +65,13 @@ test('successful native result classification remains unchanged',async()=>{
  assert.equal(r.invokedComputerAct,true);
  assert.equal(JSON.stringify(r).includes('private app'),false);
 });
+
+test('COMPUTER_HOST_BUSY is recognized without reporting owner identity',()=>{
+ const error={code:1,stdout:JSON.stringify({ok:false,error:{
+  message:'COMPUTER_HOST_BUSY: another provider execution owns this computer /Users/private'
+ }})};
+ const r=classifyNativeFailure(error);
+ assert.equal(r.errorClass,'computer_execution_occupied');
+ assert.equal(r.nativeCode,'COMPUTER_HOST_BUSY');
+ assert.equal(JSON.stringify(r).includes('/Users/private'),false);
+});
