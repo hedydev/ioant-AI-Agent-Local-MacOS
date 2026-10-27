@@ -20,7 +20,9 @@ test('watch visibly distinguishes idle prose, generating reply and previously ha
 });
 
 test('existing allowlisted execution remains gated by a structured task and two stable reads',()=>{
- assert.match(source,/const a=extractAction\(page\)/);
+ assert.match(source,/const a=extractWatchedAction\(page\)/);
+  assert.match(source,/a\.status==='rejected_invalid_task'\?'invalid_task'/);
+  assert.match(source,/Rejected malformed structured task; no action executed/);
  assert.match(source,/if\(a\.status==='task'&&a\.task\.id!==state\.lastTaskId\)/);
  assert.match(source,/if\(stable>=2\)/);
  // AI advice is gated by the operator-selected Agent, not arbitrary ChatGPT text.
