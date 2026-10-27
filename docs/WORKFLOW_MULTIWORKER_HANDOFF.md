@@ -52,3 +52,12 @@ On the Mac, in the validated repository checkout:
   git pull --ff-only origin main
   bash scripts/dev-env.sh exec node --test
 Do not manually restart the running worker or copy code into its private runtime until its self-update state and exact launchd target are inspected. The fixed project-update-verify action is the preferred update path.
+## 第二阶段：私有持久化账本（当前候选实现）
+
+- `stage2/workflow-store.mjs` 固定 LunaDrive 私有位置 `PROJECT_DEV_CACHE/chat-projects/workflows`；仅本机已授权协调器可写，绝不读取 Google Sheet 作为可执行命令。
+- 不允许任意路径注入：测试自定义 root 仅在 `IOANT_WORKFLOW_TEST_ROOT=1` 的隔离测试进程中生效。
+- `initializeWorkflow` 和 `transactWorkflow` 使用所有者私有文件/目录、进程间 mkdir 排它锁、唯一事件 ID、期望 revision、临时文件写入、fsync 和原子 rename；读回校验 revision。
+- 进程崩溃留下的锁不会被自动盗取或删除；需要本地核实原所有者和副作用后单独恢复。不可因超时重复执行任务。
+- `inspectWorkflow` 返回本地快照和只读摘要；当前没有自动 Sheets 双向同步、远端 Worker 进程管理或实际 Agent 行为采集。
+- `test/workflow-store.test.mjs` 覆盖耐久写入、旧版本阻断、两个并发写竞争、不可识别锁保留、不安全权限拒绝。
+- **候选代码未验收前，不得将 P2 持久化层在台账中标为已部署。**
