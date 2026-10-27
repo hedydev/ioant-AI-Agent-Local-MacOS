@@ -4,6 +4,7 @@
 // relationship; it never prints PIDs, titles, bounds or other window data.
 import AppKit
 import CoreGraphics
+import Darwin
 
 private let prefix = "IOANT CUA Noninterference Fixture"
 
@@ -77,10 +78,64 @@ private func windowOwnershipEvidence(pid: Int32, token: String) -> WindowProofEv
   return evidence
 }
 
+// The fixture can inspect its *own* NSWindow title without Screen
+// Recording authorization. WindowServer metadata verifies the exact
+// NSWindow.windowNumber belongs to this process and is a normal window,
+// without needing the privacy-protected kCGWindowName property.
+// The nonce/PID/verified result is sent only through its own child stdout
+// pipe. The parent validates it against spawn.pid and never logs it.
+private func ownWindowReady(_ window: NSWindow, token: String) -> Bool {
+  guard window.title == fixtureTitle(token),
+        window.windowNumber > 0,
+        window.isVisible,
+        window.level == .normal,
+        !window.isKeyWindow,
+        !NSApplication.shared.isActive else { return false }
+  let ownWindowId = CGWindowID(window.windowNumber)
+  guard let rows = CGWindowListCopyWindowInfo(
+    [.optionIncludingWindow, .excludeDesktopElements],
+    ownWindowId) as? [[String: Any]] else { return false }
+  let verifiedRows = rows.filter { row in
+    let windowID = (row[kCGWindowNumber as String] as? NSNumber)?.uint32Value
+    let owner = (row[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value
+    let layer = (row[kCGWindowLayer as String] as? NSNumber)?.intValue
+    return windowID == ownWindowId && owner == getpid() && layer == 0
+  }
+  return verifiedRows.count == 1
+}
+private func ownedNormalWindowPresent(pid: Int32) -> Bool {
+  guard pid > 1,
+        let rows = CGWindowListCopyWindowInfo(
+          [.optionAll, .excludeDesktopElements],
+          kCGNullWindowID) as? [[String: Any]] else { return false }
+  return rows.contains { row in
+    let owner = (row[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value
+    let layer = (row[kCGWindowLayer as String] as? NSNumber)?.intValue
+    return owner == pid && layer == 0
+  }
+}
+
 final class ProofDelegate: NSObject, NSApplicationDelegate {
   private var proofWindow: NSWindow?
   private let title: String
-  init(title: String) { self.title = title; super.init() }
+  private let token: String
+  init(token: String) {
+    self.token = token
+    self.title = fixtureTitle(token)
+    super.init()
+  }
+  private func publishReady(window: NSWindow, attempt: Int = 0) {
+    let ready = ownWindowReady(window, token: token)
+    if !ready && attempt < 15 {
+      DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(100)) {
+        self.publishReady(window: window, attempt: attempt + 1)
+      }
+      return
+    }
+    // Not a public log: the observer owns this exact child stdout pipe.
+    print("IOANT_FIXTURE_READY_V1 \(token) \(getpid()) \(ready ? "1" : "0")")
+    fflush(stdout)
+  }
   func applicationDidFinishLaunching(_ notification: Notification) {
     let window = NSWindow(
       contentRect: NSRect(x: 300, y: 250, width: 440, height: 180),
@@ -97,6 +152,7 @@ final class ProofDelegate: NSObject, NSApplicationDelegate {
     // Order behind existing windows. Never activate or take foreground focus.
     window.orderBack(nil)
     proofWindow = window
+    publishReady(window: window)
     DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(120)) {
       NSApplication.shared.terminate(nil)
     }
@@ -114,13 +170,18 @@ if args == ["--state"] {
   let evidence = windowOwnershipEvidence(pid: pid, token: args[2])
   print("{\"verified\":\(evidence.verified ? "true" : "false")}")
   if !evidence.verified { exit(1) }
+} else if args.count == 2 && args[0] == "--prove-owned-window" {
+  let pid = Int32(args[1]) ?? 0
+  let verified = ownedNormalWindowPresent(pid: pid)
+  print("{\"verified\":\(verified ? "true" : "false")}")
+  if !verified { exit(1) }
 } else if args.count == 3 && args[0] == "--diagnose-window" {
   let pid = Int32(args[1]) ?? 0
   let evidence = windowOwnershipEvidence(pid: pid, token: args[2])
   print(evidence.safeJSON())
 } else if args.count == 2 && args[0] == "--run" && validToken(args[1]) {
   let app = NSApplication.shared
-  let delegate = ProofDelegate(title: fixtureTitle(args[1]))
+  let delegate = ProofDelegate(token: args[1])
   app.delegate = delegate
   app.setActivationPolicy(.accessory)
   app.run()
