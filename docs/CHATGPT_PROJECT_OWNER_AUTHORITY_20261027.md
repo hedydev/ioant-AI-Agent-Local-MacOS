@@ -34,3 +34,19 @@
 - Local Agent assistance is opt-in and always attributed, bounded, inspectable, and subordinate to the owning Chat's decisions.
 - When implementing code generation, the owning Chat provides the plan and reviews patches; Workers can apply patches as technical execution but cannot independently approve code or tests.
 - Keep private Mac workflow journals on LunaDrive, operator reports on Desktop; Google Drive sheets are separate project planning artifacts, not authoritative replicas of the workflow journal unless explicit synchronization is implemented and verified.
+
+## 2026-10-27 — Alice owner-only evidence preview transport (source candidate)
+
+After task 126 verified a SHA-256-backed local `alice-ai` advisor reply at workflow revision 24, the user reiterated that **ChatGPT AliceAI Chat**, not this OpenClaw-workflow Chat or any local Agent, owns AliceAI code analysis and acceptance.
+
+A new narrowly scoped **read-only** action, `alice-owner-review-preview`, is recognized by the structured task parser and permitted only in the existing `alice-ai` isolated coordinator route. It requires exact pinned Alice Project + conversation identity already verified by the watcher; rejects prompt, command, path, model, verdict, verifier or arbitrary task fields; does not use `runner.runAction` or grant tools. The handler reads the owner-private existing workflow/evidence, verifies revision 24, receipt, SHA-256, role and `verification_pending`, and returns a bounded packet consisting of provenance and the **untrusted, truncated local advisor suggestion** for Alice ChatGPT to evaluate. No new browser writer, direct message sender, config update, task claim, task acceptance or rerun is introduced.
+
+**Delivery limitation:** This command can be initiated only by an assistant response in the **exact** AliceAI Project Chat, and feedback can be returned only when the authorized Chrome Relay exact Chat tab and composer are available. Historical live checks showed the Alice tab missing in that Relay and handshake state `requested`. Thus a committed/deployed handler does **not** prove that ChatGPT AliceAI has received its contents. Do not use an alternative browser automation channel to evade previous host restrictions. Keep the live workflow at revision 24; do not accept, reject or restart the task from an ops-side result.
+
+Suggested owner-chat request once the authorized Alice Chat is independently reachable:
+
+```json
+{"protocol":"ioant-mac-ops-v1","id":"alice-owner-review-preview-001","action":"alice-owner-review-preview"}
+```
+
+When a matching same-Alice-chat `[IOANT-MAC-OPS RESULT ...]` arrives, the Alice ChatGPT Project Chat should reason over the advice with its AliceAI repository context and either request a revised plan or explicitly approve an actionable requirement spec. An authenticated, owner-bound durable decision/acceptance adapter is **not yet implemented**. Merely asking for a preview must never update the ledger.

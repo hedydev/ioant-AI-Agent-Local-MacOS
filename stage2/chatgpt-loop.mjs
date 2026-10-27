@@ -19,6 +19,7 @@ import { observeGuiReadOnly } from './gui-readonly-observation.mjs';
 import { tabVisibility } from './tab-visibility.mjs';
 import {resolveProjectRoute} from './project-chat-routing.mjs';
 import {readHandshake,transitionHandshake,HANDSHAKE_RECEIPT,HANDSHAKE_MESSAGE} from './alice-coordinator-handshake.mjs';
+import {inspectAliceOwnerReviewPacket} from './alice-owner-review-packet.mjs';
 import {validateIsolatedProjectScope,sameIsolatedProjectChat,isolatedProjectAllowsAction} from './project-worker-scope.mjs';
 import {enqueueZeroTabNotice,maintainerReceipt,maintainerNoticeMessage,markMaintainerPressIntent,completeMaintainerNotice,pendingMaintainerPhase} from './maintainer-outbox.mjs';
 import { isBoundDevDiscussion } from './development-agent-route.mjs';
@@ -674,7 +675,8 @@ async function main(){
              || (task.action==='openclaw-dev-prewrite-reconcile' && opts.enableOpenClawDevCreate)
              || (task.action==='openclaw-gui-readonly-probe' && opts.enableGuiReadonly)
              || task.action==='mac-terminal'
-             || task.action==='mac-window-text';
+             || task.action==='mac-window-text'
+             || task.action==='alice-owner-review-preview';
           const scopedAuthorized=authorized&&
             (!isolatedProjectScope||isolatedProjectAllowsAction(isolatedProjectScope,task,opts));
           recordDiagnosticEvent('task_seen',{taskId:task.id,action:task.known?task.action:'unknown'});
@@ -682,6 +684,10 @@ async function main(){
           let result;
           if(!scopedAuthorized) {
             result={status:'approval_required',reason:task.known?'This operation needs separate authorization.':'Action is not recognized or authorized.'};
+          }else if(task.action==='alice-owner-review-preview'){
+            // Only the existing exact-Project Alice coordinator can retrieve
+            // a private advisory packet. No workflow mutation or acceptance.
+            result=await inspectAliceOwnerReviewPacket(isolatedProjectScope);
           }else if(task.action==='alice-lab-startup-probe'){
             // Persist a permanent per-conversation one-shot barrier BEFORE ANY
             // Git/SSH/lab operation. A crash, failed report or a new task ID

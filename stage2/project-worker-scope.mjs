@@ -30,5 +30,6 @@ export function sameIsolatedProjectChat(scope,candidate){
 }
 export function isolatedProjectAllowsAction(scope,task,opts){
  return scope?.key===FIXED.key&&task?.known===true&&
-   task.action==='openclaw-gui-readonly-probe'&&opts?.enableGuiReadonly===true;
+   (task.action==='openclaw-gui-readonly-probe'||
+    task.action==='alice-owner-review-preview')&&opts?.enableGuiReadonly===true;
 }
