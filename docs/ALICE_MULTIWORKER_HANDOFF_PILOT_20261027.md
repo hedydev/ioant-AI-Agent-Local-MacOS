@@ -55,3 +55,13 @@ The read-only-on-host AliceAI coordinator has passed one-shot live Mac acceptanc
 ### Evidence boundary
 
 This code is an unverified candidate until Mac reports a full green test suite and live \`install\` + \`status\`. \`--once\` passing does not establish concurrent-watch success; a PID does not prove successful ChatGPT feedback. The next stage is role-scoped multi-executor orchestration and same-Project handoff, still pending.
+
+## 2026-10-27 — Exact-Chat handshake mailbox (candidate; Mac validation pending)
+
+The user verified simultaneous registered LaunchAgents: ops PID 99222, Alice PID 78658; Alice logs reported an idle heartbeat and no stderr. These facts prove live dual watchers but not Alice chat receipt delivery.
+
+A single-writer test avoids using the **ops** conversation's window-text authorization to type into the **Alice** chat. A trusted, exact-once operator task calls `node stage2/alice-coordinator-handshake.mjs request` **inside the existing private runtime** after candidate tests and protected self-update. The request creates one owner-private `alice-coordinator-handshake.json` with `wx` in the *existing Alice-specific* chat state directory. No caller-supplied text, target URL, command or flags are accepted.
+
+Only the already-running Alice watcher sees this request. Only when the latest assistant turn is idle, it sends a fixed user-role handshake to its own strictly validated AliceAI Project Chat, recording `press_intent` before entering the send path. If the user-role receipt is uncertain, the watcher never retries sending and only checks whether the exact receipt is present; on verified receipt the request becomes `confirmed`. The fixed text asks AliceAI ChatGPT to emit exactly one `openclaw-gui-readonly-probe` structured task. The coordinator then processes and reports that task, using its existing per-conversation feedback journal; no additional browser writer is created.
+
+Run a separate read-only status, Alice LaunchAgent log inspection, and DOM observer after the task request. Do not claim handshake success merely from a `confirmed` user-role message; require the exact `[IOANT-MAC-OPS RESULT alice-coordinator-verify-20261027-103]` *in Alice Chat* and verify action/status. This candidate adds no launchctl installation, PID manipulation, SSH, BDS or world operation.

@@ -18,6 +18,7 @@ import { reconcilePrewrite } from './openclaw-dev-prewrite-reconcile.mjs';
 import { observeGuiReadOnly } from './gui-readonly-observation.mjs';
 import { tabVisibility } from './tab-visibility.mjs';
 import {resolveProjectRoute} from './project-chat-routing.mjs';
+import {readHandshake,transitionHandshake,HANDSHAKE_RECEIPT,HANDSHAKE_MESSAGE} from './alice-coordinator-handshake.mjs';
 import {validateIsolatedProjectScope,sameIsolatedProjectChat,isolatedProjectAllowsAction} from './project-worker-scope.mjs';
 import {enqueueZeroTabNotice,maintainerReceipt,maintainerNoticeMessage,markMaintainerPressIntent,completeMaintainerNotice,pendingMaintainerPhase} from './maintainer-outbox.mjs';
 import { isBoundDevDiscussion } from './development-agent-route.mjs';
@@ -582,6 +583,45 @@ async function main(){
         continue;
       }
       const a=extractWatchedAction(page);
+      // A fixed, operator-requested single-writer handshake. It is produced
+      // only by this already-running Alice watcher, never by another Chat writer.
+      // An assistant task in progress has priority; there is no unsolicited
+      // message on normal idle runs without an explicit local mailbox request.
+      if(isolatedProjectScope&&a.status==='idle'){
+        const handshake=await readHandshake();
+        if(handshake&&handshake.phase!=='confirmed'){
+          const receipt=HANDSHAKE_RECEIPT;
+          if(handshake.phase==='press_intent'){
+            if(page.users.some(msg=>msg.startsWith(receipt))||
+               await confirmUserReceipt(opts.url,receipt)){
+              await transitionHandshake('press_intent','confirmed');
+              console.log('[loop] Alice coordinator handshake user message confirmed without replay.');
+            }else{
+              console.log('[loop] Alice coordinator handshake uncertain; no second send.');
+            }
+          }else if(handshake.phase==='requested'){
+            // If an operator has already supplied the exact handshake text,
+            // reconcile it instead of sending a duplicate.
+            if(page.users.some(msg=>msg.startsWith(receipt))){
+              await transitionHandshake('requested','press_intent');
+              await transitionHandshake('press_intent','confirmed');
+              console.log('[loop] Existing Alice handshake confirmed without a second send.');
+            }else{
+              try{
+                await sendToChat(nowTarget,opts.url,HANDSHAKE_MESSAGE,receipt,{
+                  beforePress:async()=>{await transitionHandshake('requested','press_intent')}
+                });
+                await transitionHandshake('press_intent','confirmed');
+                console.log('[loop] Alice coordinator handshake confirmed in exact Project Chat.');
+              }catch{
+                console.log('[loop] Alice coordinator handshake send uncertain; no blind resend.');
+              }
+            }
+          }
+          await new Promise(r=>setTimeout(r,opts.interval*1000));
+          continue;
+        }
+      }
       // A malformed task with a valid protocol, known action and safe task ID
       // gets at most one correction receipt. Nothing from its command is run or echoed.
       if(a.status==='rejected_invalid_task'&&a.report&&a.report.id!==state.lastTaskId){
