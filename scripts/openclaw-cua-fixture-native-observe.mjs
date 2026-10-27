@@ -334,6 +334,48 @@ export function safeGatewayNativeError(error){
    typeof obj?.gatewayCode==='string'?obj.gatewayCode:null;
   const message=typeof value==='string'?value:
    typeof obj?.message==='string'?obj.message:null;
+  // v2026.10.7 root CLI failure-output.ts wraps thrown failures as
+  // error.type='cli_error' with no error.code. Recognize canonical
+  // error types without echoing any unknown type or raw message.
+  const type=typeof obj?.type==='string'?obj.type:'';
+  const typeFamily=[
+   'cli_error','gateway_request_error','gateway_transport_error',
+   'gateway_credentials_required'
+  ].includes(type)?type:'unknown';
+  const knownTransportKinds=[
+   'timeout','closed','connect','connection','authentication','protocol',
+   'disconnected','unavailable'
+  ];
+  const kind=typeof obj?.kind==='string'?obj.kind:'';
+  const transportKind=knownTransportKinds.includes(kind)?kind:'unknown';
+  const messageIndicators=(()=>{
+   const v=typeof message==='string'?message.slice(0,6000):'';
+   const rules=[
+    ['cli_invoke',/\\b(?:nodes? invoke|node\\.invoke|node invocation)\\b/i],
+    ['gateway',/\\bgateway\\b/i],
+    ['policy',/\\b(?:policy|scope|approval|authorized|authorization|permission)\\b/i],
+    ['plugin',/\\bplugin\\b/i],
+    ['computer',/\\b(?:computer|cua|desktop)\\b/i],
+    ['driver',/\\b(?:driver|provider)\\b/i],
+    ['node',/\\bnode\\b/i],
+    ['contract',/\\b(?:schema|contract|parameters|argument|validation)\\b/i],
+    ['transport',/\\b(?:transport|connection|socket|websocket|connect)\\b/i],
+    ['runtime',/\\b(?:typeerror|syntaxerror|referenceerror|cannot read properties|undefined is not|is not a function)\\b/i],
+    ['execution',/\\b(?:execution|session|owner|lease)\\b/i]
+   ];
+   return rules.filter(([,pattern])=>pattern.test(v))
+    .map(([label])=>label).slice(0,6);
+  })();
+  const codeValue=obj?obj.code??obj.gatewayCode:null;
+  const codeKind=codeValue===null?'absent':
+   typeof codeValue==='string'?'string':
+   typeof codeValue==='number'?'number':'other';
+  const detailForm=plainObj(obj?.details)?'object':
+   Array.isArray(obj?.details)?'array':
+   typeof obj?.details==='string'?'string':'absent';
+  const retryable=typeof obj?.retryable==='boolean'?obj.retryable:null;
+  const rootOriginMarker=doc.origin==='gateway'?'gateway':
+   typeof doc.origin==='string'?'other':'absent';
   const dispatch=(plainObj(item.details)&&
    typeof item.details.nodeCommandDispatched==='boolean')
    ?item.details.nodeCommandDispatched:
@@ -346,6 +388,10 @@ export function safeGatewayNativeError(error){
    codePresent:code!==null,
    codeFamily:codeCategory(code),
    messageFamily:hintText(message),
+   typeFamily,transportKind,codeKind,detailForm,messageIndicators,
+   retryableKnown:retryable!==null,
+   ...(retryable!==null?{retryable}:{}),
+   rootOriginMarker,
    dispatchKnown:dispatch!==null,
    ...(dispatch!==null?{nodeCommandDispatched:dispatch}:{})
   });
