@@ -26,6 +26,9 @@ export async function auditNonInterferingComputer({
   changedDesktop:false,performedPointerOrKeyboardInput:false,
   backgroundControlProven:false,
   provider:provider.provider??'unknown',
+  canonicalProviderId:typeof provider.canonicalProviderId==='string'&&
+   /^(?:cua|cua-computer|macos-cua|cua-macos|cua-driver|peekaboo|peekaboo-computer|macos-peekaboo|peekaboo-macos)$/.test(provider.canonicalProviderId)?
+    provider.canonicalProviderId:null,
   computerAdvertised:provider.computerAdvertised===true,
   providerIndependentlyConfirmed:provider.providerIndependentlyConfirmed===true,
   backgroundDeliveryAdvertised:provider.backgroundDeliveryAdvertised===true,
