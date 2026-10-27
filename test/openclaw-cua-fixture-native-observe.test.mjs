@@ -5,7 +5,7 @@ import {resolve} from 'node:path';
 import {makeReadOnlyNativeArgs,findExactFixtureWindow,findFixtureElement,
  walkNativePayload,nativeCUAFixtureObserve,fixtureWindowEvidence,
  shouldCloseOwnFixtureExecution,findOSAttestedFixtureWindow,
- safeFixtureOSDiagnosis}
+ safeFixtureOSDiagnosis,parseOwnFixtureReady,awaitOwnFixtureReady}
  from '../scripts/openclaw-cua-fixture-native-observe.mjs';
 
 const root=resolve(import.meta.dirname,'..');
@@ -408,8 +408,62 @@ test('untrusted or incomplete OS diagnosis fails closed',()=>{
 test('first independent WindowServer proof failure never calls CUA or relaxes identity',()=>{
  assert.match(s,/if\(osVerified!==true\)\{/);
  assert.match(s,/ownerDiagnosis\(binary,child\.pid,token\)/);
- assert.match(s,/nativeReadAttempted:false,fixtureOSDiagnosis:diagnosis/);
+ assert.match(s,/nativeReadAttempted:false,fixtureSelfAttested:true,/);
+ assert.match(s,/fixtureOSDiagnosis:diagnosis/);
  assert.match(s,/findOSAttestedFixtureWindow\(windows,child\.pid,title/);
  assert.match(s,/scopedCloseRequest\(leasedNodeId,leasedExecutionId\)/);
  assert.doesNotMatch(s,/CGRequestScreenCaptureAccess|screencapture|--browser-profile/);
+});
+
+test('in-process readiness requires exact own nonce, PID and verified window',()=>{
+ const token='0123456789abcdefabcdefab',p=46124;
+ assert.equal(parseOwnFixtureReady(
+  'IOANT_FIXTURE_READY_V1 '+token+' '+p+' 1',token,p),true);
+ for(const line of [
+  'IOANT_FIXTURE_READY_V1 '+token+' '+p+' 0',
+  'IOANT_FIXTURE_READY_V1 '+token+' '+(p+1)+' 1',
+  'IOANT_FIXTURE_READY_V1 '+'f'.repeat(24)+' '+p+' 1',
+  'IOANT_FIXTURE_READY_V1 '+token+' '+p+' 1 extra',
+  'IOANT_FIXTURE_READY_V1 '+token+' '+p+' 1\nprivate window',
+  'fake/other_window', '',null
+ ]){
+  assert.equal(parseOwnFixtureReady(line,token,p),false);
+ }
+ assert.equal(parseOwnFixtureReady(
+  'IOANT_FIXTURE_READY_V1 '+token+' '+p+' 1','bad-token',p),false);
+});
+test('only the exact spawned child stdout can provide readiness',async()=>{
+ const {EventEmitter}=await import('node:events');
+ const child=new EventEmitter();
+ child.pid=46124;
+ child.stdout=new EventEmitter();
+ const token='0123456789abcdefabcdefab';
+ const ready=awaitOwnFixtureReady(child,token,{timeoutMs:1000});
+ child.stdout.emit('data',Buffer.from(
+  'IOANT_FIXTURE_READY_V1 '+token+' 46124 1\n'));
+ assert.equal(await ready,true);
+ const other=awaitOwnFixtureReady(child,token,{timeoutMs:1000});
+ child.stdout.emit('data',Buffer.from(
+  'IOANT_FIXTURE_READY_V1 '+token+' 46125 1\n'));
+ assert.equal(await other,false);
+});
+test('readiness fails closed for missing child stream and early exit',async()=>{
+ const {EventEmitter}=await import('node:events');
+ assert.equal(await awaitOwnFixtureReady({pid:46124},'f'.repeat(24)),false);
+ const child=new EventEmitter();
+ child.pid=46124;
+ child.stdout=new EventEmitter();
+ const promise=awaitOwnFixtureReady(child,'f'.repeat(24),{timeoutMs:1000});
+ child.emit('exit',1);
+ assert.equal(await promise,false);
+});
+test('fixture requires process self-window proof and non-TCC owner metadata before CUA',()=>{
+ assert.match(s,/await awaitOwnFixtureReady\(child,token\)/);
+ assert.match(s,/if\(!selfAttested\|\|child\.exitCode!==null\)/);
+ assert.match(s,/--prove-owned-window/);
+ assert.match(s,/findOSAttestedFixtureWindow\(windows,child\.pid,title/);
+ assert.match(s,/postListOSVerified===true&&child\.exitCode===null/);
+ assert.match(s,/fixtureSelfAttested:true,independentOSPidVerified:true/);
+ assert.match(s,/scopedCloseRequest\(leasedNodeId,leasedExecutionId\)/);
+ assert.doesNotMatch(s,/CGRequestScreenCaptureAccess|screencapture|osascript|killall/);
 });
