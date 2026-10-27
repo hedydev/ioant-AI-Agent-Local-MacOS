@@ -93,6 +93,57 @@ const GATEWAY_CODES=new Map([
  ['INVALID_ARGUMENT','invalid_native_params'],
  ['METHOD_NOT_FOUND','gateway_method_unavailable']
 ]);
+// The OpenClaw CLI JSON failure envelope normally sets error.type='cli_error';
+// that generic type alone is not a native failure reason. Extract *only*
+// words from a static safe diagnostic vocabulary from error.message.
+// Never emit the message itself or any out-of-vocabulary token.
+const SAFE_CLI_TYPES=new Set(['cli_error','usage_error','validation_error',
+ 'gateway_error','node_invoke_error','config_error','permission_error']);
+const SAFE_MESSAGE_WORDS=new Set([
+ 'abort','aborted','access','action','active','address','allowed','already',
+ 'app','approval','approve','approved','argument','arguments','auth',
+ 'authentication','authorization','available','background','bad','blocked',
+ 'broken','busy','call','cancelled','cannot','capability','client',
+ 'closed','code','command','commands','computer','connect','connected',
+ 'connection','contract','control','cua','daemon','denied','device',
+ 'disabled','disconnected','driver','empty','endpoint','error','execute',
+ 'execution','expired','failed','failure','forbidden','gateway','handshake',
+ 'host','id','identity','inactive','internal','invalid','invoke','invocation',
+ 'json','key','lease','limit','local','mac','macos','message','method',
+ 'mismatch','missing','mode','name','native','network','node','not',
+ 'offline','openclaw','operation','operator','option','options','paired',
+ 'pairing','param','parameter','parameters','params','pending','permission',
+ 'permissions','policy','process','profile','provider','read','ready',
+ 'refused','reject','rejected','required','request','response','result',
+ 'retried','retry','rpc','run','runtime','scope','scopes','sdk','service',
+ 'session','socket','stale','status','surface','supported','system',
+ 'target','timed','timeout','token','transport','unauthorized','unexpected',
+ 'unknown','unrecognized','unreachable','unsupported','version','window',
+ 'windows','write'
+]);
+// Token order is capped and duplicates compressed to avoid reconstituting
+// the CLI text. Static vocabulary rules out arbitrary paths/titles/tokens.
+export function safeCliErrorSignals(error){
+ const message=typeof error?.message==='string'?error.message:'';
+ const type=typeof error?.type==='string'?
+  error.type.toLowerCase().trim():'';
+ const words=message.toLowerCase().match(/[a-z]+/g)??[];
+ const found=[];
+ const seen=new Set();
+ for(const word of words.slice(0,4000)){
+  if(SAFE_MESSAGE_WORDS.has(word)&&!seen.has(word)){
+   seen.add(word);found.push(word);
+   if(found.length>=24)break;
+  }
+ }
+ return Object.freeze({
+  cliErrorType:SAFE_CLI_TYPES.has(type)?type:'unknown_or_absent',
+  messagePresent:message.length>0,
+  messageLengthBucket:message.length===0?'empty':
+   message.length<=60?'short':message.length<=240?'medium':'long',
+  safeSignalWords:found
+ });
+}
 const errorKind=x=>x===null?'null':
  Array.isArray(x)?'array':typeof x;
 export function safeInvokeFailureShape(err){
@@ -130,7 +181,8 @@ export function safeInvokeFailureShape(err){
   nodePairingMentioned:nodePairing,
   computerCommandDeniedMentioned:commandDenied,
   driverOrSocketMentioned:driver,
-  gatewayOrRpcMentioned:gateway
+  gatewayOrRpcMentioned:gateway,
+  cliErrorSignals:safeCliErrorSignals(envelope)
  });
 }
 export function classifyInvokeFailure(err){
