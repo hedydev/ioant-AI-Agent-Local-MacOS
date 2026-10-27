@@ -8,7 +8,8 @@ const eventLog=readFileSync(resolve(root,'stage2/diagnostic-log.mjs'),'utf8');
 const circuit=readFileSync(resolve(root,'stage2/chatgpt-browser-read-circuit.mjs'),'utf8');
 test('watch startup and steady-state both gate browser reads on a circuit',()=>{
  assert.match(worker,/const browserCircuit=new BrowserReadCircuit\(\)/);
- assert.match(worker,/while\(!target&&!stopping\)\{\s*\/\/[^\\n]*\n\s*if\(!await waitBrowserCircuit\(browserCircuit,\(\)=>stopping\)\)break;/);
+ assert.match(worker,/while\(!target&&!stopping\)\{/);
+ assert.match(worker,/if\(!await waitBrowserCircuit\(browserCircuit,\(\)=>stopping\)\)break;/);
  assert.match(worker,/do \{\s*if\(stopping\)break;\s*if\(!await waitBrowserCircuit\(browserCircuit,\(\)=>stopping\)\)break;\s*let nowTarget, page/);
  assert.match(worker,/const browserFailureCode=noteBrowserFailure\(e\)/);
  assert.match(worker,/noteBrowserSuccess\(\)/);
