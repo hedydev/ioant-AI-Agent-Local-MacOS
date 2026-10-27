@@ -18,6 +18,7 @@ import { reconcilePrewrite } from './openclaw-dev-prewrite-reconcile.mjs';
 import { observeGuiReadOnly } from './gui-readonly-observation.mjs';
 import { tabVisibility } from './tab-visibility.mjs';
 import {resolveProjectRoute} from './project-chat-routing.mjs';
+import {validateIsolatedProjectScope,sameIsolatedProjectChat,isolatedProjectAllowsAction} from './project-worker-scope.mjs';
 import {enqueueZeroTabNotice,maintainerReceipt,maintainerNoticeMessage,markMaintainerPressIntent,completeMaintainerNotice,pendingMaintainerPhase} from './maintainer-outbox.mjs';
 import { isBoundDevDiscussion } from './development-agent-route.mjs';
 import { recordDiagnosticEvent, diagnosticCode } from './diagnostic-log.mjs';
@@ -86,7 +87,7 @@ const readPageFunction=`() => {
 }`;
 
 function argsOf(argv){
-  const out={mode:'watch',interval:15,url:null,initialize:false,enableAlicePreflight:false,enableAliceLabStartupProbe:false,enableMintDiagnostics:false,enableSelfUpdate:false,enableOpenClawProvision:false,enableOpenClawAgentCreate:false,enableOpenClawDevCreate:false,enableGuiReadonly:false,devAgent:null};
+  const out={mode:'watch',interval:15,url:null,projectKey:null,initialize:false,enableAlicePreflight:false,enableAliceLabStartupProbe:false,enableMintDiagnostics:false,enableSelfUpdate:false,enableOpenClawProvision:false,enableOpenClawAgentCreate:false,enableOpenClawDevCreate:false,enableGuiReadonly:false,devAgent:null};
   for(let i=0;i<argv.length;i++){
     if(argv[i]==='--once')out.mode='once';
     else if(argv[i]==='--watch')out.mode='watch';
@@ -105,6 +106,7 @@ function argsOf(argv){
       if(!['alice-ai','openclaw-dev'].includes(id))throw Error('--dev-agent must be alice-ai or openclaw-dev');
       out.devAgent=id;
     }
+    else if(argv[i]==='--project-key')out.projectKey=argv[++i]??'';
     else if(argv[i]==='--chat-url')out.url=validateChatUrl(argv[++i]??'');
     else if(argv[i]==='--interval'){out.interval=Number(argv[++i]); if(!Number.isInteger(out.interval)||out.interval<10||out.interval>3600)throw Error('--interval must be 10..3600 seconds');}
     else throw Error('Unknown flag: '+argv[i]);
@@ -118,6 +120,8 @@ if(!['openclaw','user','chrome'].includes(profile)) {
   throw Error('Unsupported browser profile: only openclaw, user or chrome may be used for this loop');
 }
 const bin=process.env.IOANT_OPENCLAW_BIN || join(homedir(),'.openclaw','bin','openclaw');
+// Single-process, operator-selected scope, verified before any browser access.
+let isolatedProjectScope=null;
 
 async function browser(...args){
   const {stdout}=await call(bin,['browser','--browser-profile',profile,...args],{timeout:45000,maxBuffer:1024*1024});
@@ -133,7 +137,8 @@ async function exactTab(url){
   if(!Array.isArray(tabs))throw Error('OpenClaw tab list not available');
   if(!url)return tabs;
   const details=tabVisibility(tabs,url,profile);
-  const matches=tabs.filter(t=>sameChatConversationUrl(t?.url,url));
+  const matches=tabs.filter(t=>sameChatConversationUrl(t?.url,url)&&
+    (!isolatedProjectScope||sameIsolatedProjectChat(isolatedProjectScope,t?.url)));
   if(matches.length!==1){
     const failure=Error('Authorized ChatGPT tab unavailable: '+details.code+
      ' (profile='+details.profile+', visible='+details.visibleTabs+
@@ -172,7 +177,9 @@ function unpackMarked(value){
 async function readPage(target, url){
   const raw=await browser('--json','evaluate','--target-id',target,'--fn',readPageFunction);
   const parsed=unpackMarked(raw);
-  if(!parsed||!sameChatConversationUrl(parsed.url,url))throw Error('Browser DOM result does not match the authorized conversation ID');
+  if(!parsed||!sameChatConversationUrl(parsed.url,url)||
+    (isolatedProjectScope&&!sameIsolatedProjectChat(isolatedProjectScope,parsed.url)))
+    throw Error('Browser DOM result does not match the authorized conversation and Project');
   if(!parsed.composerPresent) {
     const detail='profile='+profile+', readyState='+(parsed.readyState??'unknown')+
       ', assistantTurns='+(parsed.selectorFound?'present':'absent')+
@@ -338,6 +345,11 @@ const INIT_LAB=`Ioant Mac Alice isolated 17880 startup probe ioant-mac-ops-v1. ç
 
 async function main(){
   const opts=argsOf(process.argv.slice(2));
+  if(opts.projectKey){
+    const raw=await readFile(join(ROOT,'config','chat-projects.json'),'utf8');
+    if(raw.length>16384)throw Error('unsafe_isolated_project_manifest');
+    isolatedProjectScope=validateIsolatedProjectScope(opts,JSON.parse(raw),profile);
+  }
   if(opts.mode==='list'){
     const tabs=await exactTab(null);
     const matches=tabs.filter(t=>{try{return !!validateChatUrl(t.url)}catch{return false}});
@@ -363,6 +375,7 @@ async function main(){
   process.on('SIGTERM',()=>{stopping=true;console.log('[loop] Stop requested; finishing current operation.');});
   let state,previousFingerprint='',stable=0,lastVisibleStatus='';
   console.log('[loop] Tracking only: '+opts.url);
+  if(isolatedProjectScope)console.log('[loop] AliceAI isolated coordinator: read-only UI probe only; all host/task write actions rejected.');
   console.log('[loop] Actions: project-tests / project-status / project-head / environment-scan'+(opts.enableAlicePreflight?' / alice-witness-preflight (scoped Mint sync)':'')+(opts.enableAliceLabStartupProbe?' / alice-lab-startup-probe (one-shot 17880 only)':'')+(opts.enableMintDiagnostics?' / mint-bds-process-identity / mint-bds-process-lineage (read-only, fixed SSH target)':'')
     +(opts.enableSelfUpdate?' / project-update-verify (clean main, pretested fast-forward only)':'')
     +(opts.enableOpenClawProvision?' / openclaw-ollama-provision (local model provider write only)':'')
@@ -373,7 +386,7 @@ async function main(){
     // Independent Project owner verification: only the registered Project Chat
     // receives maintenance notices. Unknown or other chats stay unchanged.
     let maintainerRoute=null,consecutiveZeroTabs=0;
-    if(opts.mode==='watch'&&profile==='chrome'){
+    if(opts.mode==='watch'&&profile==='chrome'&&!isolatedProjectScope){
       try{
         const raw=await readFile(join(ROOT,'config','chat-projects.json'),'utf8');
         if(raw.length<=16384)maintainerRoute=resolveProjectRoute(JSON.parse(raw),opts.url);
@@ -609,7 +622,8 @@ async function main(){
           const task=a.task;
           const isDevDiscussion=['openclaw-alice-dev-discuss','openclaw-agent-dev-discuss'].includes(task.action);
            const devBindingOk=isBoundDevDiscussion(task.action,opts.devAgent);
-           const authorized=(task.authorized&&(!isDevDiscussion||devBindingOk)) ||
+           const authorized=(!isolatedProjectScope||isolatedProjectAllowsAction(isolatedProjectScope,task,opts)) &&
+           ((task.authorized&&(!isDevDiscussion||devBindingOk)) ||
              (task.action==='alice-witness-preflight' && opts.enableAlicePreflight)
             || (task.action==='alice-lab-startup-probe' && opts.enableAliceLabStartupProbe)
             || ((task.action==='mint-bds-process-identity'||task.action==='mint-bds-process-lineage') && opts.enableMintDiagnostics)
@@ -620,7 +634,7 @@ async function main(){
              || (task.action==='openclaw-dev-prewrite-reconcile' && opts.enableOpenClawDevCreate)
              || (task.action==='openclaw-gui-readonly-probe' && opts.enableGuiReadonly)
              || task.action==='mac-terminal'
-             || task.action==='mac-window-text';
+             || task.action==='mac-window-text');
           recordDiagnosticEvent('task_seen',{taskId:task.id,action:task.known?task.action:'unknown'});
           recordDiagnosticEvent('action_started',{taskId:task.id,action:task.known?task.action:'unknown'});
           let result;

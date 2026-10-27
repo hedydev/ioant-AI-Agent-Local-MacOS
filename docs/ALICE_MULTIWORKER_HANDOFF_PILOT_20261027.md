@@ -23,3 +23,12 @@ One trusted Chat I/O coordinator per Project conversation owns browser writes an
 ## Current non-goals
 
 No browser clicking, chat creation, Agent model changes, LaunchAgent installation, local workflow scheduler deployment or restart of existing Worker. No reliable ChatGPT remaining-context percentage is exposed; manual handoff is the initial trigger. A registered URL is not yet a verified independent Worker.
+
+## AliceAI isolated coordinator code (2026-10-27, candidate until Mac acceptance)
+
+- `stage2/project-worker-scope.mjs` pins `alice-ai` strictly to the verified registered Project ID, conversation ID, repository and Agent. Chrome-only.
+- `scripts/alice-coordinator-readonly.sh --once|--watch` opens no browser tabs, restarts no Gateway and has no host or repo writes. `--once` only confirms exact registered DOM/composer. `--watch` may return a bounded `openclaw-gui-readonly-probe` receipt to the *AliceAI* chat if and only if that chat independently emits the matching structured task. It refuses `--initialize` and all privileged opt-in flags.
+- Any other action (even normally authorized `project-head`, `mac-terminal`, `mac-window-text`, self-update, SSH/Mint and model writes) is `approval_required` under the Alice scope; a new Alice-specific repo-pinned execution worker will be designed and tested separately.
+- The existing `openclaw-workflow` invocation without `--project-key` is unchanged and retains its own operator-selected privileges. Per-conversation state and lock remain separate by exact chat hash. No new LaunchAgent is installed by this commit.
+- Project identity is checked both in `browser tabs` and after targeted DOM evaluation; the same Chat ID inside another Project is rejected for Alice.
+- **Candidate only**: do not claim a second live Worker until full Mac test suite, pinned project self-update and independent `--once` canary pass. Starting the watch loop is a separate task and must not launch via the current interactive Worker without lifecycle checks.
