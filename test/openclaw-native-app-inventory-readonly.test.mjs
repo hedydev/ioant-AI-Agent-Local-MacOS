@@ -27,7 +27,7 @@ test('native success is reported without app identities or browser contents',asy
    {name:'Sensitive Chat Window',title:'private token should never print'}
   ]}}};
  };
- const result=await inspectNativeAppInventory({request,uuid:()=>id});
+ const result=await inspectNativeAppInventory({request,uuid:()=>id,runtimeAllowed:async()=>true});
  assert.equal(result.state,'observed');
  assert.equal(result.invokedComputerAct,true);
  assert.equal(result.browserTabsQueried,false);
@@ -42,7 +42,7 @@ test('native unavailable result is inconclusive and never marks observed',async(
     connected:true,commands:['screen.snapshot','computer.act']}]};
   throw Error('private failure detail');
  };
- const result=await inspectNativeAppInventory({request,uuid:()=>id});
+ const result=await inspectNativeAppInventory({request,uuid:()=>id,runtimeAllowed:async()=>true});
  assert.equal(result.state,'inconclusive');
  assert.equal(JSON.stringify(result).includes('private failure'),false);
 });
@@ -50,7 +50,7 @@ test('node capability missing blocks without invoking the action',async()=>{
  let count=0;
  const request=async()=>{count++;return {nodes:[{nodeId:'n',platform:'macOS 27',
   connected:true,commands:['screen.snapshot']}]}};
- const result=await inspectNativeAppInventory({request,uuid:()=>id});
+ const result=await inspectNativeAppInventory({request,uuid:()=>id,runtimeAllowed:async()=>true});
  assert.equal(result.state,'blocked');
  assert.equal(count,1);
 });
