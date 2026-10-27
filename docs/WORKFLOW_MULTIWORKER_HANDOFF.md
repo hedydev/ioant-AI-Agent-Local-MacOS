@@ -61,3 +61,11 @@ Do not manually restart the running worker or copy code into its private runtime
 - `inspectWorkflow` 返回本地快照和只读摘要；当前没有自动 Sheets 双向同步、远端 Worker 进程管理或实际 Agent 行为采集。
 - `test/workflow-store.test.mjs` 覆盖耐久写入、旧版本阻断、两个并发写竞争、不可识别锁保留、不安全权限拒绝。
 - **候选代码未验收前，不得将 P2 持久化层在台账中标为已部署。**
+
+## 2026-10-27 Worker STOP / timestamp recovery
+
+- Root cause: `actionFromJson` rejects an oversized/malformed assistant action, but `extractAction` propagated `Malformed structured task (strict action-specific fields).` to top-level `main().catch`, terminating the watcher. This was observed after a long `mac-terminal` command; the watcher exit is real, not just a stale log banner.
+- `stage2/task-observation.mjs` now converts **only this exact malformed-action error** into a non-executable `rejected_invalid_task` status. The watcher remains on the same chat, emits one bounded warning per transition, and waits for a valid subsequent assistant task. Unverified role provenance, multiple valid tasks and all other unexpected exceptions remain fatal.
+- `scripts/worker-log-timestamp.sh` is sourced by the launcher before worker output. It timestamps each stdout/stderr log line using Mac local time and numeric UTC offset, e.g. `[2026-10-27 09:47:00 +0800] [loop] ...`. Machine-readable outputs from subprocesses are NOT modified.
+- A stopped LaunchAgent cannot receive `project-update-verify`; one Mac operator recovery is necessary to update both the source checkout and deployed private runtime with the pretested `main` revision, then `launchctl kickstart` only if the exact managed service is not running. Do not use `reset`, `clean`, `stash`, `killall` or restart OpenClaw Gateway/Alice BDS.
+- Validation requirement: candidate Node suite, Bash log helper test, observed time-stamped stdout/stderr, and a fresh post-recovery `project-head` user-role receipt. Until that receipt, runtime recovery is **unverified**.

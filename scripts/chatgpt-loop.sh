@@ -3,6 +3,8 @@
 set -Eeuo pipefail
 umask 077
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT/scripts/worker-log-timestamp.sh"
+ioant_install_log_timestamps
 [[ "$(uname -s)" == Darwin ]] || { echo '[loop] macOS required' >&2; exit 1; }
 if [[ " $* " == *" --enable-alice-preflight " ]]; then
   [[ -n "${ALICE_SSH_TARGET:-}" ]] || { echo '[loop] Set ALICE_SSH_TARGET before enabling Alice preflight' >&2; exit 2; }

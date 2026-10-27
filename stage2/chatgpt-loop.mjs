@@ -10,7 +10,8 @@ import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { privateReportDir } from '../src/report-storage.mjs';
 import { fileURLToPath } from 'node:url';
-import { PROTOCOL, validateChatUrl, sameChatConversationUrl, chatKey, extractAction, responseForTask, redactFeedback } from './protocol.mjs';
+import { PROTOCOL, validateChatUrl, sameChatConversationUrl, chatKey, responseForTask, redactFeedback } from './protocol.mjs';
+import {extractWatchedAction} from './task-observation.mjs';
 import { runAction } from './runner.mjs';
 import { reserveDevDiscussion } from './dev-discussion-claim.mjs';
 import { reconcilePrewrite } from './openclaw-dev-prewrite-reconcile.mjs';
@@ -566,7 +567,7 @@ async function main(){
         await new Promise(r=>setTimeout(r,opts.interval*1000));
         continue;
       }
-      const a=extractAction(page);
+      const a=extractWatchedAction(page);
       if(a.status==='task'&&a.task.id!==state.lastTaskId){
         if(a.fingerprint===previousFingerprint)stable++; else {previousFingerprint=a.fingerprint;stable=1;}
         if(stable>=2){
@@ -696,10 +697,12 @@ async function main(){
       // manufacture an executable task or send another ChatGPT message.
       const watchStatus=a.status==='idle'?'idle'
         :a.status==='generating'?'generating'
+        :a.status==='rejected_invalid_task'?'invalid_task'
         :a.task.id===state.lastTaskId?'handled':'candidate';
       if(watchStatus!==lastVisibleStatus){
         if(watchStatus==='idle')console.log('[loop] Waiting for a structured ChatGPT task; latest reply contains no executable JSON. Watch remains active.');
         else if(watchStatus==='generating')console.log('[loop] ChatGPT is replying; watch remains active.');
+        else if(watchStatus==='invalid_task')console.log('[loop] Rejected malformed structured task; no action executed. Watch remains active until a new valid task.');
         else if(watchStatus==='handled')console.log('[loop] Latest structured task was already handled; awaiting a new task ID.');
         else console.log('[loop] Structured task detected; verifying a second stable page read before execution.');
         lastVisibleStatus=watchStatus;
