@@ -199,18 +199,28 @@ async function writeDesktopResult(result){
  await writeFile(log,JSON.stringify(result,null,2)+'\n',{flag:'wx',mode:0o600});
  return log;
 }
+// Certain locally installed vision backends reject format:'json' with HTTP
+// 501 even though /api/show advertises 'vision'. Do not use constrained
+// decoding for this one-shot screenshot: require JSON in the prompt, then
+// validate the complete response with parseVisualFinding. No retry/fallback.
+export function visionChatPayload(model,imageBytes){
+ fail(MODELS.includes(model),'invalid_vision_model');
+ fail(Buffer.isBuffer(imageBytes)&&imageBytes.length>0&&
+  imageBytes.length<=MAX_BYTES,'invalid_image_size');
+ return {
+  model,
+  messages:[{role:'user',content:prompt(),images:[imageBytes.toString('base64')]}],
+  stream:false,think:false,
+  options:{temperature:0,num_predict:384},
+  keep_alive:0
+ };
+}
 export async function runPinnedVisualAudit(expected,{api=ollama,
  screenshot=locatePinnedScreenshot}={}){
  fail(ROOT===RUNTIME&&await realpath(RUNTIME)===RUNTIME,'private_runtime_required');
  const found=await screenshot(expected);
  const model=await chooseVisionModel(api);
- const result=await api('/api/chat',{
-  model,
-  messages:[{role:'user',content:prompt(),images:[found.bytes.toString('base64')]}],
-  stream:false,think:false,format:'json',
-  options:{temperature:0,num_predict:384},
-  keep_alive:0
- },205000);
+ const result=await api('/api/chat',visionChatPayload(model,found.bytes),205000);
  const content=result?.message?.content;
  const findings=parseVisualFinding(content);
  return {audit:AUDIT,state:'analyzed',model,screenshotSha256:expected,
