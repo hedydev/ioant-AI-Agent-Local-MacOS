@@ -1200,3 +1200,31 @@ verification is required before one controlled 182B live run.
 Do not claim driver failure or granted accessibility permissions
 without independent evidence. Do not retry with broader authority,
 request Screen Recording privileges or force-close a CUA owner.
+
+## 2026-10-28 — 182A candidate gate 864/865; 182A-R1 pure parser fix
+
+The 182A `project-update-verify` gate rejected the candidate
+(`865 tests, 864 pass, 1 fail`), so the Mac runtime stayed at
+`787028125e98b805a8417452d5b13b60e24aafde`. No CUA
+or desktop action was requested by the failed update.
+
+Local reproduction of the newly added code-free `cli_error`
+classifier test found two mistakes in the same scenario:
+1. The fixed redaction-category regex literals had escaped
+   word boundaries (literal `\\b` rather than regex `\b`),
+   so `messageIndicators` remained empty even for a
+   controlled synthetic message.
+2. `codeKind` mistakenly treated `undefined` as `other`
+   when both `error.code` and `error.gatewayCode` were absent.
+   A code-free `cli_error` must report `absent`.
+
+182A-R1 fixes only those two pure parsing details. It retains
+the fixed-label output grammar, no raw error values, private
+window data or sensitive secrets; native invocation protocol,
+read-only fixture, scoped own UUID closure and permission policy
+remain unchanged. A focused dynamic parser reproduction now
+passes canonical CLI, numeric Gateway transport, auth/credentials
+and unknown secret-bearing error cases. Source-level test
+assertion checks show no mismatches. **This does not replace
+Mac's complete candidate 865-test gate**, required before a
+new live CUA read attempt.
