@@ -143,6 +143,13 @@ export function makeReadOnlyNativeArgs(nodeId,executionId,action,params={}){
  return ['nodes','invoke','--node',nodeId,'--command','computer.act',
   '--params',JSON.stringify(payload),'--json'];
 }
+// A completed first computer.act read may already own a persistent lease.
+// A later action refusal must never suppress closing that same own UUID.
+export function shouldCloseOwnFixtureExecution({nativeReadAttempted,
+ firstReadReturned,preAdmissionRejected}){
+ return nativeReadAttempted===true&&
+  (firstReadReturned===true||preAdmissionRejected!==true);
+}
 export async function nativeCUAFixtureObserve({run=nativeCli,
  launch=(bin)=>spawn(bin,[],{stdio:'ignore',windowsHide:true}),
  uuid=randomUUID,wait=pause}={}){
@@ -153,6 +160,7 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
  let child=null,phase='preflight',launched=false;
  let before=null,after=null,unchanged=null;
  let nativeReadAttempted=false,preAdmissionRejected=false;
+ let firstReadReturned=false;
  let leasedExecutionId=null,leasedNodeId=null;
  let returnRef=null;
  const finish=report=>{returnRef=report;return report;};
@@ -213,6 +221,7 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
   phase='window_list';
   nativeReadAttempted=true;
   const windows=await run(makeReadOnlyNativeArgs(chosen.id,executionId,'list_windows'),25000);
+  firstReadReturned=true;
   const match=findExactFixtureWindow(windows,child.pid);
   if(match.state!=='matched')return finish({...base,launchedFixture:true,
    state:'inconclusive',phase:'window_list',
@@ -258,7 +267,8 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
   // A read-only native computer.act still acquires a persistent execution.
   // Release only the UUID issued within this invocation, never an unknown
   // pre-existing owner. Acknowledgement is not proof of effective release.
-  if(nativeReadAttempted&&!preAdmissionRejected&&
+  if(shouldCloseOwnFixtureExecution({nativeReadAttempted,
+      firstReadReturned,preAdmissionRejected})&&
      leasedNodeId&&leasedExecutionId){
    const release={attempted:true,acknowledged:false,
     ownerReleaseVerified:false};
