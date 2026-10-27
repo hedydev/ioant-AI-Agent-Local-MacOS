@@ -114,7 +114,7 @@ export function safeInvokeFailureShape(err){
   .filter(x=>typeof x==='string').join('\n').slice(0,30000);
  const operatorWrite=/\boperator\.write\b/i.test(text);
  const scope=/\b(?:missing|required|insufficient|denied)\b.{0,80}\b(?:scope|permission)\b|\b(?:scope|permission)\b.{0,80}\b(?:missing|required|insufficient|denied)\b/i.test(text);
- const nodePairing=/\b(?:node|device)\b.{0,80}\b(?:pair|not paired|approval|unapproved)\b|\b(?:pair|approval)\b.{0,80}\b(?:node|device)\b/i.test(text);
+ const nodePairing=/\b(?:node|device)\b.{0,80}\b(?:pair|paired|pairing|not paired|approval|unapproved)\b|\b(?:pair|paired|pairing|approval)\b.{0,80}\b(?:node|device)\b/i.test(text);
  const commandDenied=/\bcomputer\.act\b.{0,90}\b(?:not approved|denied|not allowed|blocked)\b|\b(?:denied|blocked)\b.{0,90}\bcomputer\.act\b/i.test(text);
  const driver=/\b(?:CUA|driver|daemon|socket|MCP)\b/i.test(text);
  const gateway=/\b(?:Gateway|RPC|operator)\b/i.test(text);
@@ -146,9 +146,15 @@ export function classifyInvokeFailure(err){
  const code=tokens.find(x=>severityMap.has(x)||
   /^COMPUTER_REFUSED_[A-Z_]{3,70}$/.test(x))??null;
  const shape=safeInvokeFailureShape(err);
+ // An explicit command-policy denial is more specific than a generic
+ // computer.act mention. Keep the historical Gateway-policy classification
+ // stable while still recognizing exact action-not-approved refusals.
+ const explicitPolicy=categories.find(([name,pattern])=>
+   name==='gateway_command_policy'&&pattern.test(text))?.[0]??null;
  const category=code?(severityMap.get(code)??'native_action_refused'):
   shape.recognizedGatewayErrorCode??(shape.operatorWriteMentioned?
-    'operator_write_scope_diagnostic':null)??(shape.computerCommandDeniedMentioned?
+    'operator_write_scope_diagnostic':null)??explicitPolicy??(
+    shape.computerCommandDeniedMentioned?
     'computer_act_approval_or_policy':null)??(
     err?.killed===true||err?.signal==='SIGTERM'?'native_timeout':
     categories.find(([n,pattern])=>pattern.test(text))?.[0]??'unclassified');
