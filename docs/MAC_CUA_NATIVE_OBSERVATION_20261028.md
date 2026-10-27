@@ -168,3 +168,41 @@ Authoritative references:
 https://docs.openclaw.ai/nodes/computer-use
 https://docs.openclaw.ai/nodes/command-policy
 https://docs.openclaw.ai/nodes/troubleshooting
+
+## 2026-10-28 — 161B Driver running, isolate per-action native invoke
+
+161B read-only Mac inspection: `nodeConnected=true`,
+`cuaDescriptorValid=true`, `driverProcessObserved=true`,
+`listWindows/getWindowState/getCursorPosition/setValue` all advertised,
+`backgroundDeliveryAdvertised=true`. Crucially, it still reports
+`cuaDriverEndpointVerified=false`,
+`pairedCommandApprovalProven=false`,
+`accessibilityGrantIndependentlyVerified=false`, and
+`safeForBackgroundInput=false`. A process PID observed at this instant
+does **not** prove the driver socket or action execution works.
+
+New `scripts/openclaw-cua-readonly-invoke-diagnostic.mjs` compares
+`computer.act get_cursor_position` and `computer.act list_windows`
+on the **same selected node and executionId**; it invokes each action
+at most once and does not start a GUI or touch the browser. It returns
+only fixed result/effect types, error classes, allowlisted native
+codes, the CLI exit code and an error digest; it discards all native
+window/application content and other potentially private output. A
+recognized pairing/policy/permission denial on the first action
+short-circuits the second.
+
+This can separate a general native invoke failure from an action-specific
+`list_windows` failure. It does not attempt to fix permissions or approve
+new command surfaces, switch providers, restart services, re-pair
+devices or use a new browser-control channel. A positive cursor probe
+also does not establish background window input or Mac keyboard/focus
+non-interference.
+
+Source references:
+https://docs.openclaw.ai/nodes/computer-use
+https://docs.openclaw.ai/nodes/command-policy
+https://docs.openclaw.ai/nodes/troubleshooting
+
+Next: deploy via full project-update-verify, then execute exactly one
+bounded read-only diagnostic. Do not re-run the GUI fixture until the
+native caller can return actionable structured results or refusal codes.
