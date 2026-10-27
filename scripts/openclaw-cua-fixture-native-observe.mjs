@@ -265,6 +265,69 @@ export function safeFixtureOSDiagnosis(doc){
 // Strict classification of the actual OpenClaw node.invoke JSON envelope.
 // Never return arbitrary code/message values or any raw object keys. Only a
 // documented, finite semantic family and a single dispatch boolean.
+// Extra diagnosis for canonical code-free CLI errors. Return only fixed
+// technical vocabulary, never an error message, arbitrary token, path,
+// title, URL, object key or credential. In particular do not serialize
+// the original message or any nested JSON values to the report.
+export function safeCliMessageFingerprint(value){
+ if(typeof value!=='string')return Object.freeze({
+  state:'missing',lengthBand:'none',technicalTerms:[],
+  nestedErrorForm:'none',nestedCodeFamily:'unknown'
+ });
+ const text=value.slice(0,12000);
+ const lengthBand=text.length===0?'empty':
+  text.length<=24?'tiny':text.length<=80?'short':
+  text.length<=240?'medium':text.length<=800?'long':'very_long';
+ const vocabulary=[
+  'failed','error','unexpected','unknown','missing','required','invalid',
+  'denied','blocked','refused','unavailable','unsupported','expired',
+  'closed','cancelled','canceled','occupied','busy','stale','mismatch',
+  'timeout','timed','wait','access','authorization','authorized',
+  'permission','approval','scope','policy','risk','classified',
+  'gateway','node','invoke','command','driver','provider','computer',
+  'desktop','native','app','window','list','screen','capture',
+  'accessibility','bridge','transport','connection','connect','socket',
+  'websocket','session','execution','owner','lease','runtime',
+  'service','endpoint','backend','foreground','background','device',
+  'pairing','host','route','config','schema','parameter','argument',
+  'version','manifest','signature','digest','installed','install',
+  'state','lock','process','initialization','startup','offline',
+  'response','request','read','write','operator','privilege',
+  'cannot','could','not','no','does','must','failed_to','loading'
+ ];
+ const words=text.toLowerCase().match(/[a-z]+(?:_[a-z]+)?/g)??[];
+ const allowed=new Set(vocabulary);
+ const found=[];
+ for(const word of words){
+  if(allowed.has(word)&&!found.includes(word))found.push(word);
+  if(found.length===16)break;
+ }
+ let nestedErrorForm='none',nestedCodeFamily='unknown';
+ // Only inspect a nested JSON document if the *entire* message is JSON.
+ // Avoid emitting any keys/values from untrusted content.
+ if(text.length<=12000&&text.trim().startsWith('{')){
+  try{
+   const inner=JSON.parse(text);
+   if(plainObj(inner)){
+    const e=plainObj(inner.error)?inner.error:plainObj(inner.result?.error)?inner.result.error:null;
+    if(e){
+     nestedErrorForm='object';
+     const code=typeof e.code==='string'?e.code.toUpperCase():'';
+     nestedCodeFamily=
+      ['INVALID_REQUEST','BAD_REQUEST','INVALID_PARAMS'].includes(code)?'invalid_request':
+      ['UNAUTHORIZED','FORBIDDEN','PERMISSION_DENIED','MISSING_SCOPE'].includes(code)?'authorization':
+      ['COMPUTER_HOST_BUSY'].includes(code)?'owner_busy':
+      ['COMPUTER_DRIVER_UNAVAILABLE','UNAVAILABLE'].includes(code)?'provider_unavailable':
+      ['NODE_DISCONNECTED','NODE_NOT_FOUND'].includes(code)?'node_route':
+      ['TIMEOUT','DEADLINE_EXCEEDED'].includes(code)?'timeout':'unknown';
+    }
+   }
+  }catch{}
+ }
+ return Object.freeze({state:text.length?'present':'empty',
+  lengthBand,technicalTerms:Object.freeze(found),
+  nestedErrorForm,nestedCodeFamily});
+}
 export function safeGatewayNativeError(error){
  const unknown=()=>Object.freeze({available:false});
  const stdout=error?.stdout;
@@ -334,6 +397,7 @@ export function safeGatewayNativeError(error){
    typeof obj?.gatewayCode==='string'?obj.gatewayCode:null;
   const message=typeof value==='string'?value:
    typeof obj?.message==='string'?obj.message:null;
+  const cliMessageFingerprint=safeCliMessageFingerprint(message);
   // v2026.10.7 root CLI failure-output.ts wraps thrown failures as
   // error.type='cli_error' with no error.code. Recognize canonical
   // error types without echoing any unknown type or raw message.
@@ -389,6 +453,7 @@ export function safeGatewayNativeError(error){
    codeFamily:codeCategory(code),
    messageFamily:hintText(message),
    typeFamily,transportKind,codeKind,detailForm,messageIndicators,
+   cliMessageFingerprint,
    retryableKnown:retryable!==null,
    ...(retryable!==null?{retryable}:{}),
    rootOriginMarker,
