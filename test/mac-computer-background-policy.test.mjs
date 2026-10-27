@@ -22,11 +22,15 @@ test('verified background element input may be considered, but is never executed
  assert.equal(result.fallbackToForeground,false);
  assert.equal(result.mutatedDesktop,false);
 });
-test('unknown provider and Peekaboo cannot be promoted to CUA',()=>{
- for(const provider of ['peekaboo','unknown',undefined]){
+test('unknown provider cannot be trusted; Peekaboo requires same independent proof',()=>{
+ for(const provider of ['unknown',undefined,'custom-driver']){
   const m=make();m.capabilities.provider=provider;
-  assert.equal(decide(m).reason,'verified_cua_provider_required');
+  assert.equal(decide(m).reason,'verified_background_provider_required');
  }
+ const m=make();m.capabilities.provider='peekaboo';
+ assert.equal(decide(m).state,'eligible_for_authorized_background_execution');
+ m.capabilities.backgroundVerified=false;
+ assert.equal(decide(m).reason,'background_delivery_not_independently_verified');
 });
 test('background hint on desktop target cannot bypass foreground desktop delivery',()=>{
  const m=make();m.request.target.kind='desktop';
