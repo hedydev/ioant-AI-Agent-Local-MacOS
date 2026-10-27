@@ -200,6 +200,46 @@ export function shouldCloseOwnFixtureExecution({nativeReadAttempted,
  return nativeReadAttempted===true&&
   (firstReadReturned===true||preAdmissionRejected!==true);
 }
+// The only accepted readiness line arrives on stdout of the exact
+// fingerprint-pinned child started by this invocation. PID and fresh nonce
+// must both match. This proof is not derived from private window titles.
+export function parseOwnFixtureReady(line,token,pid){
+ if(!safeNonce(token)||!Number.isSafeInteger(pid)||pid<2||
+    typeof line!=='string'||line.length>180)return false;
+ const hit=/^IOANT_FIXTURE_READY_V1 ([a-f0-9]{24}) ([1-9][0-9]{0,8}) ([01])$/.exec(line);
+ return hit!==null&&hit[1]===token&&Number(hit[2])===pid&&hit[3]==='1';
+}
+export function awaitOwnFixtureReady(child,token,{timeoutMs=4000}={}){
+ if(!child?.stdout||typeof child.stdout.on!=='function'||
+    !Number.isSafeInteger(child.pid)||child.pid<2||!safeNonce(token))
+  return Promise.resolve(false);
+ return new Promise(resolve=>{
+  let buffer='',settled=false,timer;
+  const finish=ok=>{
+   if(settled)return;
+   settled=true;
+   clearTimeout(timer);
+   child.stdout.off('data',onData);
+   child.stdout.off('end',onEnd);
+   child.off('exit',onEnd);
+   child.off('error',onEnd);
+   resolve(ok===true);
+  };
+  const onEnd=()=>finish(false);
+  const onData=chunk=>{
+   buffer+=String(chunk);
+   if(buffer.length>512){finish(false);return;}
+   const pos=buffer.indexOf('\n');
+   if(pos>=0)finish(parseOwnFixtureReady(
+    buffer.slice(0,pos).replace(/\r$/,''),token,child.pid));
+  };
+  child.stdout.on('data',onData);
+  child.stdout.on('end',onEnd);
+  child.on('exit',onEnd);
+  child.on('error',onEnd);
+  timer=setTimeout(()=>finish(false),timeoutMs);
+ });
+}
 // Diagnostic output is a strict allowlist of boolean observations about
 // ONLY this newly spawned synthetic fixture. Never return PIDs/titles,
 // WindowServer rows, paths, errors, raw output or user window metadata.
@@ -219,10 +259,12 @@ export function safeFixtureOSDiagnosis(doc){
  return Object.freeze(out);
 }
 export async function nativeCUAFixtureObserve({run=nativeCli,
- launch=(bin,nonce)=>spawn(bin,['--run',nonce],{stdio:'ignore',windowsHide:true}),
+ launch=(bin,nonce)=>spawn(bin,['--run',nonce],{stdio:['ignore','pipe','ignore'],windowsHide:true}),
  uuid=randomUUID,nonce=()=>randomBytes(12).toString('hex'),wait=pause,
- ownerProof=async(bin,pid,token)=>{
-  const {stdout}=await exec(bin,['--prove-window',String(pid),token],{
+ ownerProof=async(bin,pid)=>{
+  // PID + normal-layer metadata are readable even if Screen Recording
+  // permission hides kCGWindowName. Exact nonce/title is self-attested.
+  const {stdout}=await exec(bin,['--prove-owned-window',String(pid)],{
    timeout:8000,maxBuffer:2048,shell:false});
   const proof=JSON.parse(stdout);
   return proof?.verified===true;
@@ -288,18 +330,24 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
   if(!child||!Number.isInteger(child.pid)||child.pid<1)
    return {...base,state:'inconclusive',reason:'fixture_launch_failed'};
   launched=true;
-  await wait(1200);
-  if(child.exitCode!==null)
-   return {...base,launchedFixture:true,state:'inconclusive',reason:'fixture_exited_early'};
+  phase='self_window_attestation';
+  const selfAttested=await awaitOwnFixtureReady(child,token);
+  if(!selfAttested||child.exitCode!==null)
+   return finish({...base,launchedFixture:true,state:'inconclusive',
+    phase,reason:'owned_fixture_self_attestation_unavailable',
+    nativeReadAttempted:false,fixtureSelfAttested:false});
+  await wait(100);
   after=await state();
   unchanged=after.frontmost===before.frontmost&&
     after.mouseX===before.mouseX&&after.mouseY===before.mouseY;
   if(!unchanged)return {...base,launchedFixture:true,state:'blocked',
    reason:'foreground_or_pointer_changed_on_launch',
    focusAndPointerUnchanged:false};
-  // OS proof sees the synthetic title in WindowServer, bound to the PID
-  // returned by spawn(). CUA's opaque windowRef will later be matched
-  // using the very same unpredictable exact title.
+  // The dedicated child has now proved its own NSWindow title, window
+  // number, owner PID/layer and nonforeground state via its private stdout.
+  // Verify its PID still owns a normal WindowServer window, without
+  // requiring the protected WindowServer title. CUA will independently
+  // require the same fresh nonce title on exactly one opaque windowRef.
   phase='independent_ownership_proof';
   const osVerified=await ownerProof(binary,child.pid,token).catch(()=>false);
   if(osVerified!==true){
@@ -307,7 +355,8 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
     .then(safeFixtureOSDiagnosis).catch(()=>({available:false}));
    return finish({...base,launchedFixture:true,
     state:'inconclusive',phase,reason:'window_server_pid_proof_unavailable',
-    nativeReadAttempted:false,fixtureOSDiagnosis:diagnosis});
+    nativeReadAttempted:false,fixtureSelfAttested:true,
+    fixtureOSDiagnosis:diagnosis});
   }
   const executionId=uuid();
   leasedExecutionId=executionId;
@@ -318,7 +367,7 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
   firstReadReturned=true;
   const postListOSVerified=await ownerProof(binary,child.pid,token).catch(()=>false);
   const match=findOSAttestedFixtureWindow(windows,child.pid,title,
-   osVerified===true&&postListOSVerified===true);
+   osVerified===true&&postListOSVerified===true&&child.exitCode===null);
   if(match.state!=='matched')return finish({...base,launchedFixture:true,
    state:'inconclusive',phase:'window_list',
    reason:match.reason,matchedWindowCount:match.matchedWindowCount,
@@ -333,7 +382,7 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
    state:'inconclusive',phase:'window_state',reason:element.reason,
    matchedElementCount:element.matchedElementCount});
   const osAfter=await ownerProof(binary,child.pid,token).catch(()=>false);
-  if(osAfter!==true)return finish({...base,launchedFixture:true,
+  if(osAfter!==true||child.exitCode!==null)return finish({...base,launchedFixture:true,
    state:'inconclusive',reason:'window_server_pid_proof_lost',
    independentOSPidVerified:false});
   const refresh=await run(['nodes','status','--json'],18000);
@@ -351,7 +400,7 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
     'fixture_background_observation_passed',
    providerGenerationStable:fresh,focusAndPointerUnchanged:unchanged,
    fixtureWindowMatched:true,fixtureElementMatched:true,
-   independentOSPidVerified:true,
+   fixtureSelfAttested:true,independentOSPidVerified:true,
    currentObservationVerified:true,mutatingActionAttempted:false});
  }catch(error){
   const failed=classifyNativeFailure(error);
