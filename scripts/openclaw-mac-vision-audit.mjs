@@ -98,23 +98,72 @@ export async function locatePinnedScreenshot(expected){
    (result.name.endsWith('.jpg')&&jpg),'screenshot_format_invalid');
  return Object.freeze({...result,sha256:expected});
 }
-async function ollama(path,data,ms){
+const PHASES=Object.freeze({'/api/tags':'tags','/api/show':'show','/api/chat':'chat'});
+export function classifyOllamaFailure(path,status,raw=''){
+ const phase=PHASES[path]??'unknown';
+ let reason='';
+ if(typeof raw==='string'&&raw.length<=4096){
+  try{
+   const body=JSON.parse(raw);
+   reason=typeof body?.error==='string'?body.error.slice(0,2000):'';
+  }catch{reason=''}
+ }
+ const category=/out of memory|insufficient memory|memory allocation|not enough memory|metal allocation|resource exhausted/i.test(reason)?
+  'resource_pressure':
+  /format|grammar|json schema|structured output/i.test(reason)?
+  'format_rejected':
+  /thinking|think mode|think parameter/i.test(reason)?
+  'thinking_option_rejected':
+  /image|vision|multimodal/i.test(reason)?
+  'image_request_rejected':
+  /context length|num_ctx|num_predict|invalid option/i.test(reason)?
+  'generation_option_rejected':
+  /model.*not found|not found.*model/i.test(reason)?
+  'model_not_found':'unknown';
+ return Object.freeze({phase,httpStatus:
+  Number.isInteger(status)&&status>=100&&status<=599?status:null,
+  errorClass:category});
+}
+async function boundedErrorBody(response){
+ let reader;
+ try{reader=response.body?.getReader()}catch{return '';}
+ if(!reader)return '';
+ const chunks=[];
+ let total=0;
+ try{
+  for(;;){
+   const {done,value}=await reader.read();
+   if(done)break;
+   total+=value.byteLength;
+   if(total>4096){await reader.cancel();return '';}
+   chunks.push(value);
+  }
+  return Buffer.concat(chunks,total).toString('utf8');
+ }catch{return ''}
+ finally{try{reader.releaseLock()}catch{}}
+}
+export async function ollama(path,data,ms,{request=fetch}={}){
+ const phase=PHASES[path]??'unknown';
  let response;
  try{
-  response=await fetch(ENDPOINT+path,{
+  response=await request(ENDPOINT+path,{
    method:path==='/api/tags'?'GET':'POST',
    headers:{'content-type':'application/json'},
    body:data?JSON.stringify(data):undefined,
    redirect:'error',signal:AbortSignal.timeout(ms)
   });
- }catch{throw Error('ollama_unreachable_or_timed_out')}
- fail(response.ok,'ollama_request_failed');
+ }catch{throw Object.assign(Error('ollama_unreachable_or_timed_out'),{phase})}
+ if(!response.ok){
+  const details=classifyOllamaFailure(path,response.status,await boundedErrorBody(response));
+  throw Object.assign(Error('ollama_request_failed'),details);
+ }
  const type=response.headers.get('content-type')??'';
  fail(type.includes('json'),'ollama_unexpected_response');
  const body=await response.text();
  fail(body.length<=100_000,'ollama_response_too_large');
  try{return JSON.parse(body)}catch{throw Error('ollama_invalid_json')}
 }
+
 export async function chooseVisionModel(api=ollama){
  const tags=await api('/api/tags',undefined,12000);
  fail(Array.isArray(tags?.models),'ollama_tags_invalid');
@@ -184,8 +233,13 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
    'ollama_response_too_large','ollama_invalid_json','ollama_tags_invalid',
    'no_installed_vision_model','private_runtime_required','invalid_model_reply',
    'model_json_unparseable','model_json_invalid','model_schema_invalid']);
+  const technical=known.has(e?.message)?e.message:'unexpected_model_or_file_failure';
   result={audit:AUDIT,state:'inconclusive',
-   reason:known.has(e?.message)?e.message:'unexpected_model_or_file_failure',
+   reason:technical,
+   ...((technical==='ollama_request_failed'||technical==='ollama_unreachable_or_timed_out')&&
+     ['tags','show','chat'].includes(e?.phase)?{phase:e.phase}:{}),
+   ...(technical==='ollama_request_failed'&&Number.isInteger(e?.httpStatus)?
+     {httpStatus:e.httpStatus,errorClass:e.errorClass??'unknown'}:{}),
    browserChanged:false,newScreenshot:false,invokedComputerAct:false};
   process.exitCode=1;
  }
