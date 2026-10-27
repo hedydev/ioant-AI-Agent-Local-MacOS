@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {makeReadOnlyNativeArgs,findExactFixtureWindow,findFixtureElement,
- walkNativePayload,nativeCUAFixtureObserve}
+ walkNativePayload,nativeCUAFixtureObserve,fixtureWindowEvidence}
  from '../scripts/openclaw-cua-fixture-native-observe.mjs';
 
 const root=resolve(import.meta.dirname,'..');
@@ -121,4 +121,59 @@ test('on non-mac runtime no child process or computer query is performed',async(
   assert.equal(r.launchedFixture,false);
   assert.equal(r.performedComputerInput,false);
  }
+});
+
+test('realistic content[].text JSON envelope can preserve exact synthetic PID match',()=>{
+ const body={result:{content:[{type:'text',text:JSON.stringify({
+  result:{details:{windows:[
+   {processId:'46124',windowTitle:name,window_ref:'opaque-owned-win'},
+   {processId:'92820',windowTitle:'Personal browser document',window_ref:'secret-ref'}
+  ]}}})}]}};
+ const hit=findExactFixtureWindow(body,pid);
+ assert.deepEqual(hit,{state:'matched',windowRef:'opaque-owned-win',
+  matchedWindowCount:1});
+ const evidence=fixtureWindowEvidence(body,pid);
+ assert.equal(evidence.fixtureExactTitleSeen,true);
+ assert.equal(evidence.fixtureProcessIdSeen,true);
+ assert.equal(evidence.fixtureTitleAndPidSameRecord,true);
+ assert.equal(evidence.fixtureWindowRefSeen,true);
+ assert.equal(evidence.textContentEnvelopePresent,true);
+ assert.equal(JSON.stringify(evidence).includes('Personal browser'),false);
+ assert.equal(JSON.stringify(evidence).includes('secret-ref'),false);
+});
+test('nested structuredContent envelope and ownerPID accept only exact synthetic identity',()=>{
+ const raw={result:{structuredContent:{windows:[
+  {ownerPID:pid,window_name:name,windowRef:'native-window-ax'},
+  {ownerPID:pid+1,window_name:'Private note',windowRef:'other'}
+ ]}}};
+ assert.equal(findExactFixtureWindow(raw,pid).windowRef,'native-window-ax');
+});
+test('title only and PID only cannot be fused to forge a window identity',()=>{
+ const raw={result:{windows:[
+  {pid,title:'Private foreground window',windowRef:'secret'},
+  {pid:999,title:name,windowRef:'fake'}
+ ]}};
+ const r=findExactFixtureWindow(raw,pid);
+ assert.equal(r.reason,'fixture_window_not_found');
+ const evidence=fixtureWindowEvidence(raw,pid);
+ assert.equal(evidence.fixtureExactTitleSeen,true);
+ assert.equal(evidence.fixtureProcessIdSeen,true);
+ assert.equal(evidence.fixtureTitleAndPidSameRecord,false);
+ assert.equal(evidence.fixtureWindowRefSeen,false);
+});
+test('freeform transport text is diagnostic only, never guessed as a window reference',()=>{
+ const raw={result:{content:[{type:'text',
+  text:'IOANT CUA Noninterference Fixture pid=46124 windowRef=GUESS'}]}};
+ const evidence=fixtureWindowEvidence(raw,pid);
+ assert.equal(evidence.fixtureMentionedInTransportText,true);
+ assert.equal(evidence.fixtureWindowRefSeen,false);
+ assert.equal(findExactFixtureWindow(raw,pid).state,'inconclusive');
+ assert.equal(JSON.stringify(evidence).includes('GUESS'),false);
+});
+test('native failure envelope classified as a boolean without private messages',()=>{
+ const raw={result:{ok:false,reason:'Private runtime approval missing',
+  error:{message:'secret document title'}}};
+ const evidence=fixtureWindowEvidence(raw,pid);
+ assert.equal(evidence.nativeEnvelopeRefused,true);
+ assert.equal(JSON.stringify(evidence).includes('secret'),false);
 });
