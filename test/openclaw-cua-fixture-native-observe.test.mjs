@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {makeReadOnlyNativeArgs,findExactFixtureWindow,findFixtureElement,
  walkNativePayload,nativeCUAFixtureObserve,fixtureWindowEvidence,
- shouldCloseOwnFixtureExecution}
+ shouldCloseOwnFixtureExecution,findOSAttestedFixtureWindow}
  from '../scripts/openclaw-cua-fixture-native-observe.mjs';
 
 const root=resolve(import.meta.dirname,'..');
@@ -94,7 +94,8 @@ test('nested transport JSON string is parsed but raw content never returned',()=
 test('the only UI executable spawned is the private fingerprinted fixture',()=>{
  assert.match(s,/const fingerprint=createHash\('sha256'\)\.update\(code\)/);
  assert.match(s,/const binary=join\(appdir,'Contents','MacOS','ioant-cua-fixture'\)/);
- assert.match(s,/child=launch\(binary\)/);
+ assert.match(s,/child=launch\(binary,token\)/);
+ assert.match(s,/spawn\(bin,\['--run',nonce\]/);
  assert.match(s,/if\(child&&child\.exitCode===null&&child\.pid\)child\.kill\('SIGTERM'\)/);
  assert.match(s,/setTimeout|const pause=ms=>new Promise/);
  assert.doesNotMatch(s,/osascript|--browser-profile|CGEventPost|\.activate\(|killall/);
@@ -303,4 +304,68 @@ test('title in one row and app PID in another never become an identity',()=>{
  assert.equal(e.fixtureExactTitleSeen,true);
  assert.equal(e.fixtureProcessIdSeen,true);
  assert.equal(e.fixtureTitleAndPidSameRecord,false);
+});
+
+const uniqueTitle='IOANT CUA Noninterference Fixture [0123456789abcdefabcdefab]';
+test('source-pinned CUA projection needs independent OS owner PID',()=>{
+ const raw={result:{details:{windows:[
+  {windowRef:'only-fixture-ref',
+   title:uniqueTitle,appName:'IOANT CUA Fixture',
+   bounds:{x:300,y:250,width:440,height:180}},
+  {windowRef:'private-other',title:'Other window'}
+ ]}}};
+ assert.equal(findExactFixtureWindow(raw,pid).state,'inconclusive');
+ assert.deepEqual(findOSAttestedFixtureWindow(raw,pid,uniqueTitle,true),{
+  state:'matched',windowRef:'only-fixture-ref',
+  matchedWindowCount:1,independentOSPidVerified:true
+ });
+ assert.equal(findOSAttestedFixtureWindow(raw,pid,uniqueTitle,false).state,
+  'inconclusive');
+});
+test('OS-attested matcher disallows missing or malformed nonce',()=>{
+ const record={result:{windows:[{title:uniqueTitle,windowRef:'fixture'}]}};
+ for(const title of [name,name+' [short]',
+  name+' [0123456789abcdefabcdefaZ]',
+  name+' [0123456789abcdefabcdefab]extra']){
+  assert.equal(findOSAttestedFixtureWindow(record,pid,title,true).state,
+   'inconclusive');
+ }
+});
+test('OS proof plus exact title never accepts ambiguous native refs',()=>{
+ const raw={result:{windows:[
+  {title:uniqueTitle,windowRef:'a'},
+  {title:uniqueTitle,windowRef:'b'}
+ ]}};
+ const r=findOSAttestedFixtureWindow(raw,pid,uniqueTitle,true);
+ assert.equal(r.state,'inconclusive');
+ assert.equal(r.reason,'ambiguous_fixture_window');
+ assert.equal(r.windowRef,undefined);
+});
+test('OS proof refuses a contradictory native process ID',()=>{
+ for(const row of [
+  {title:uniqueTitle,pid:pid+1,windowRef:'bad'},
+  {title:uniqueTitle,pid,app:{pid:pid+1},windowRef:'bad'}
+ ]){
+  const r=findOSAttestedFixtureWindow({result:{windows:[row]}},
+   pid,uniqueTitle,true);
+  assert.equal(r.state,'inconclusive');
+  assert.equal(r.windowRef,undefined);
+ }
+});
+test('OS proof does not permit missing CUA windowRef or wrong row title',()=>{
+ const missing={result:{windows:[{title:uniqueTitle}]}};
+ assert.equal(findOSAttestedFixtureWindow(missing,pid,uniqueTitle,true)
+  .reason,'window_reference_missing');
+ const other={result:{windows:[{title:'Browser',windowRef:'other'}]}};
+ assert.equal(findOSAttestedFixtureWindow(other,pid,uniqueTitle,true)
+  .reason,'fixture_window_not_found');
+});
+test('live native fixture requires independent OS attestation before and after CUA reads',()=>{
+ assert.match(s,/randomBytes\(12\)\.toString\('hex'\)/);
+ assert.match(s,/--prove-window/);
+ assert.match(s,/ownerProof\(binary,child\.pid,token\)/);
+ assert.match(s,/findOSAttestedFixtureWindow\(windows,child\.pid,title/);
+ assert.match(s,/independentOSPidVerified:true/);
+ assert.match(s,/scopedCloseRequest\(leasedNodeId,leasedExecutionId\)/);
+ assert.doesNotMatch(s,/osascript|--browser-profile|CGEventPost|killall/);
 });
