@@ -32,7 +32,7 @@ test('unified-log messages are mapped only to fixed boolean flags',()=>{
  });
  assert.equal(Object.isFrozen(out),true);
  const encoded=JSON.stringify(out);
- for(const word of ['private','Secret','password','Safari','document','sock'])
+ for(const word of ['private','Secret','password','Safari','document','/Users/'])
   assert.equal(encoded.includes(word),false);
  assert.deepEqual(safeCuaHostLogFlags(null),{available:false});
 });
