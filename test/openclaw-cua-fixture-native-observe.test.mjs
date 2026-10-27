@@ -6,7 +6,7 @@ import {makeReadOnlyNativeArgs,findExactFixtureWindow,findFixtureElement,
  walkNativePayload,nativeCUAFixtureObserve,fixtureWindowEvidence,
  shouldCloseOwnFixtureExecution,findOSAttestedFixtureWindow,
  safeFixtureOSDiagnosis,parseOwnFixtureReady,awaitOwnFixtureReady,
- safeNativeCLIExitEvidence}
+ safeNativeCLIExitEvidence,safeGatewayNativeError}
  from '../scripts/openclaw-cua-fixture-native-observe.mjs';
 
 const root=resolve(import.meta.dirname,'..');
@@ -535,4 +535,68 @@ test('only native read failure reports safe CLI evidence, not raw error strings'
  assert.doesNotMatch(s,/console\.log\(error\)|console\.error\(error\)|nativeCliEvidence:error/);
  assert.match(s,/scopedCloseRequest\(leasedNodeId,leasedExecutionId\)/);
  assert.match(s,/performedComputerInput:false/);
+});
+
+test('Gateway INVALID_REQUEST error is typed without leaking opaque error values',()=>{
+ const obj=safeGatewayNativeError({stdout:JSON.stringify({error:{
+  code:'INVALID_REQUEST',message:'secret user window password'}})});
+ assert.deepEqual(obj,{available:true,origin:'top',errorForm:'object',
+  codePresent:true,codeFamily:'invalid_request',messageFamily:'none',
+  dispatchKnown:false});
+ assert.equal(JSON.stringify(obj).includes('secret'),false);
+ assert.equal(JSON.stringify(obj).includes('password'),false);
+});
+test('Gateway plugin policy denial identifies pre-dispatch refusal',()=>{
+ const obj=safeGatewayNativeError({stdout:JSON.stringify({
+  result:{ok:false,error:{code:'PLUGIN_POLICY_RISK_CLASSIFICATION_FAILED',
+   message:'node.invoke computer.act arguments could not be classified'},
+   details:{nodeCommandDispatched:false}}
+ })});
+ assert.equal(obj.available,true);
+ assert.equal(obj.origin,'result');
+ assert.equal(obj.codeFamily,'invalid_request');
+ assert.equal(obj.messageFamily,'authorization');
+ assert.equal(obj.dispatchKnown,true);
+ assert.equal(obj.nodeCommandDispatched,false);
+});
+test('Gateway node error nested under details is categorized without nested disclosure',()=>{
+ const obj=safeGatewayNativeError({stdout:JSON.stringify({
+  result:{ok:false,details:{nodeError:{
+   code:'COMPUTER_DRIVER_UNAVAILABLE',message:'sensitive title'},
+   nodeCommandDispatched:true}}
+ })});
+ assert.equal(obj.available,true);
+ assert.equal(obj.origin,'result_node_error');
+ assert.equal(obj.codeFamily,'provider_unavailable');
+ assert.equal(obj.nodeCommandDispatched,true);
+ assert.equal(JSON.stringify(obj).includes('sensitive'),false);
+});
+test('Gateway plain-text error and unknown code remain redacted',()=>{
+ const r=safeGatewayNativeError({stdout:JSON.stringify({
+  error:'operator.write required to invoke node command; private token'
+ })});
+ assert.equal(r.errorForm,'string');
+ assert.equal(r.messageFamily,'authorization');
+ assert.equal(r.codePresent,false);
+ const unknown=safeGatewayNativeError({stdout:JSON.stringify({
+  error:{code:'SECRET_API_PASSWORD',message:'do not reveal me'}
+ })});
+ assert.equal(unknown.codePresent,true);
+ assert.equal(unknown.codeFamily,'unknown');
+ for(const token of ['SECRET_API_PASSWORD','do not reveal me','private token'])
+  assert.equal(JSON.stringify({r,unknown}).includes(token),false);
+});
+test('Gateway failure parser refuses unstructured and oversized stderr',()=>{
+ for(const x of [null,{stderr:'secret'}, {stdout:'not a json blob'},
+  {stdout:'[]'}, {stdout:'x'.repeat(300000)}]){
+  assert.deepEqual(safeGatewayNativeError(x),{available:false});
+ }
+});
+test('CLI observer only reports Gateway bounded refusal; own UUID only',()=>{
+ assert.match(s,/safeGatewayNativeError\(error\):null/);
+ assert.match(s,/gatewayErrorEvidence/);
+ assert.match(s,/gatewayErrorEvidence\?\.nodeCommandDispatched===false/);
+ assert.match(s,/scopedCloseRequest\(leasedNodeId,leasedExecutionId\)/);
+ assert.match(s,/performedComputerInput:false/);
+ assert.doesNotMatch(s,/console\.log\(error\)|console\.error\(error\)|rawFailure:error/);
 });
