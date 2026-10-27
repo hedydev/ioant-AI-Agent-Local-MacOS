@@ -37,8 +37,8 @@ export function summarizeComputerProviderStatus(raw){
  const providerId=schemaValid?descriptor.provider.id.toLowerCase():'';
  // Normalization is strictly a known provider family, not a substring
  // from arbitrary text supplied by an unrelated device.
- const providerName=/^(?:cua|macos-cua|cua-macos|cua-driver)$/.test(providerId)?'cua':
-  /^(?:peekaboo|macos-peekaboo|peekaboo-macos)$/.test(providerId)?'peekaboo':'unknown';
+ const providerName=/^(?:cua|cua-computer|macos-cua|cua-macos|cua-driver)$/.test(providerId)?'cua':
+  /^(?:peekaboo|peekaboo-computer|macos-peekaboo|peekaboo-macos)$/.test(providerId)?'peekaboo':'unknown';
  const backgroundAdvertised=schemaValid&&
   descriptor.deliveryModes.includes('background');
  const listAppsAdvertised=schemaValid?
@@ -54,6 +54,8 @@ export function summarizeComputerProviderStatus(raw){
   descriptorSchemaValid:schemaValid,
   descriptorContractVersion:schemaValid?2:null,
   agentCursorAdvertised:schemaValid&&descriptor.features?.agentCursor===true,
+  // Only canonical public IDs; no custom identifier, provider label, or generation.
+  canonicalProviderId:(providerName!=='unknown'&&schemaValid)?providerId:null,
   backgroundDeliveryAdvertised:backgroundAdvertised,
   listAppsAdvertised,
   // Advertisement is not validated execution; guard requires live proof.
