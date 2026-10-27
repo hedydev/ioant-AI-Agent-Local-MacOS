@@ -718,7 +718,7 @@ test('fingerprint limits terms and buckets even for maliciously long messages',(
  assert.equal(result.lengthBand,'very_long');
  assert.equal(result.technicalTerms.length,16);
  assert.equal(JSON.stringify(result).includes('username'),false);
- assert.equal(JSON.stringify(result).length<900);
+ assert.equal(JSON.stringify(result).length<900,true);
 });
 test('native CLI diagnostic retains strict one-shot and no user desktop input',()=>{
  assert.match(s,/cliMessageFingerprint=safeCliMessageFingerprint\(message\)/);
