@@ -102,7 +102,7 @@ test('app lifecycle and reads compare frontmost identity + hardware cursor',()=>
  assert.match(s,/after\.frontmost===before\.frontmost/);
  assert.match(s,/after\.mouseX===before\.mouseX/);
  assert.match(s,/after\.mouseY===before\.mouseY/);
- assert.match(s,/provider\.generation===generation/);
+ assert.match(s,/provider\?\.generation===generation/);
  assert.match(s,/includeScreenshot=false/);
 });
 test('read-only script has no input command construction, no screenshot output',()=>{
