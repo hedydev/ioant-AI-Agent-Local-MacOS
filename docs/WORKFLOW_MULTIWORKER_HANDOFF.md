@@ -83,3 +83,10 @@ Do not manually restart the running worker or copy code into its private runtime
 - Root cause: using URL pathname encodes spaces as %20, unlike process.argv[1] containing literal Application Support. The entrypoint guard was false; Node imported the module and silently exited 0.
 - Corrected the guard using fileURLToPath(import.meta.url). Added a sandboxed child-process regression test copying script/dependencies to a directory literally named Application Support, setting OPENCLAW_PROFILE so no config is touched, and requiring an explicit custom_profile_review JSON audit.
 - **Still not live-applied.** Update the isolated runtime with project-update-verify, then run one guarded patch. An exit code without an expected IOANT_GEMMA_VISION_PATCH JSON receipt is never evidence of modification.
+
+### Entry invocation: symlink canonicalization follow-up (2026-10-27)
+
+- Task 037 isolated the sole failing candidate test: child process exit 0 but empty stdout, causing JSON.parse to throw Unexpected end of JSON input.
+- On macOS Node may canonicalize a temporary script under /var to /private/var, or resolve other symlinks in ESM import URLs. Decoding %20 alone is insufficient. The entrypoint now compares realpath of argv[1] and fileURLToPath(import.meta.url), without executing when imported or either path is unresolved.
+- The isolated regression test launches from both an Application Support-style directory and a symlink alias pointing to that directory. Both must return a bounded blocked/custom_profile_review JSON status without reading or changing the live OpenClaw config.
+- Still a candidate until Mac runs full test suite and isolated runtime self-update succeeds. No live model metadata write has been verified.

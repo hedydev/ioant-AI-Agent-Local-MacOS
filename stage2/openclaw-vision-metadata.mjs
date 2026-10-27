@@ -138,7 +138,15 @@ export async function patchGemmaVision({
  }catch{return audit('inconclusive','readback_unavailable',{backup:true})}
  return audit('applied','vision_input_enabled',{backup:true,verified:true});
 }
-if(process.argv[1]&&resolve(process.argv[1])===resolve(fileURLToPath(import.meta.url))){
+// On macOS /var is commonly a symlink to /private/var, so a direct Node
+// invocation may have a different argv path than the canonical ESM URL.
+// Compare real files, not path spelling, and avoid running during imports.
+async function invokedDirectly(){
+ if(!process.argv[1])return false;
+ try{return (await realpath(process.argv[1]))===(await realpath(fileURLToPath(import.meta.url)));}
+ catch{return false;}
+}
+if(await invokedDirectly()){
  patchGemmaVision().then(x=>process.stdout.write(JSON.stringify(x)+'\n')).catch(()=>
   process.stdout.write(JSON.stringify(audit('blocked','unexpected_failure'))+'\n'));
 }
