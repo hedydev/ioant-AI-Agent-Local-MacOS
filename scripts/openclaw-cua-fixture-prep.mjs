@@ -27,6 +27,17 @@ const plist=[
 ].join('\n');
 const AUDIT='IOANT_CUA_FIXTURE_PREPARATION';
 const hash=s=>createHash('sha256').update(s).digest('hex');
+// Keep the real build on the exact compiler-driver route proven in the
+// Mac's successful 156B compiler forensics. Never execute a path printed
+// by --find as an unverified second launch route.
+export function makeFixtureCompileInvocation(source,binary){
+ if(typeof source!=='string'||typeof binary!=='string'||
+    !source.endsWith('/fixtures/cua-noninterference/Fixture.swift')||
+    !binary.endsWith('/Contents/MacOS/ioant-cua-fixture'))
+  throw Error('invalid_fixture_build_target');
+ return Object.freeze({bin:'/usr/bin/xcrun',
+  args:Object.freeze(['swiftc',source,'-o',binary])});
+}
 async function safeDir(p){
  const st=await lstat(p);
  if(!st.isDirectory()||st.isSymbolicLink()||
@@ -105,7 +116,8 @@ export async function prepareFixture({run=exec,platform=process.platform}={}){
   await writeFile(join(stage,NAME,'Contents','Info.plist'),plist,{mode:0o600,flag:'wx'});
   const binary=join(stage,NAME,'Contents','MacOS','ioant-cua-fixture');
   phase='swift_compile';
-  await run(compiler,[source,'-o',binary],{timeout:90000,maxBuffer:16384});
+  const invocation=makeFixtureCompileInvocation(source,binary);
+  await run(invocation.bin,[...invocation.args],{timeout:90000,maxBuffer:16384});
   phase='binary_verify';
   const st=await lstat(binary);
   if(!st.isFile()||st.isSymbolicLink()||st.size<10000)throw Error('compile_artifact_invalid');
@@ -119,7 +131,8 @@ export async function prepareFixture({run=exec,platform=process.platform}={}){
   await rename(stage,target);
   stage=null;
   return {...base,state:'prepared',reused:false,sourceDigestPrefix:fingerprint,
-    compilerFound:true,readOnlyStateProbePassed:true};
+    compilerFound:true,compileDriver:'xcrun_swiftc',
+    readOnlyStateProbePassed:true};
  }catch(error){
   return {...base,state:'inconclusive',reason:'fixture_build_or_probe_failed',
    diagnosis:classifyFixtureFailure(phase,error)};
