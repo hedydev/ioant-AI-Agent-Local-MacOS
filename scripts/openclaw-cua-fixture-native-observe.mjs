@@ -13,6 +13,7 @@ import {randomUUID,createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {chooseConnectedMacNode} from './openclaw-mac-visual.mjs';
 import {classifyNativeFailure} from './openclaw-native-app-inventory-readonly.mjs';
+import {scopedCloseRequest} from './openclaw-cua-owned-session-guard.mjs';
 const exec=promisify(execFile);
 const HOME=homedir();
 const ROOT=resolve(fileURLToPath(new URL('..',import.meta.url)));
@@ -151,6 +152,10 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
   screenshotTaken:false,launchedFixture:false};
  let child=null,phase='preflight',launched=false;
  let before=null,after=null,unchanged=null;
+ let nativeReadAttempted=false,preAdmissionRejected=false;
+ let leasedExecutionId=null,leasedNodeId=null;
+ let returnRef=null;
+ const finish=report=>{returnRef=report;return report;};
  try{
   if(process.platform!=='darwin'||ROOT!==RUNTIME||await realpath(RUNTIME)!==RUNTIME)
    return {...base,state:'blocked',reason:'private_runtime_required'};
@@ -203,21 +208,24 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
    reason:'foreground_or_pointer_changed_on_launch',
    focusAndPointerUnchanged:false};
   const executionId=uuid();
+  leasedExecutionId=executionId;
+  leasedNodeId=chosen.id;
   phase='window_list';
+  nativeReadAttempted=true;
   const windows=await run(makeReadOnlyNativeArgs(chosen.id,executionId,'list_windows'),25000);
   const match=findExactFixtureWindow(windows,child.pid);
-  if(match.state!=='matched')return {...base,launchedFixture:true,
+  if(match.state!=='matched')return finish({...base,launchedFixture:true,
    state:'inconclusive',phase:'window_list',
    reason:match.reason,matchedWindowCount:match.matchedWindowCount,
-   fixtureEvidence:fixtureWindowEvidence(windows,child.pid)};
+   fixtureEvidence:fixtureWindowEvidence(windows,child.pid)});
   phase='window_state';
   const windowState=await run(makeReadOnlyNativeArgs(chosen.id,executionId,
    'get_window_state',{windowRef:match.windowRef}),25000);
   const element=findFixtureElement(windowState);
   // Never emit raw observations or opaque native references.
-  if(element.state!=='matched')return {...base,launchedFixture:true,
+  if(element.state!=='matched')return finish({...base,launchedFixture:true,
    state:'inconclusive',phase:'window_state',reason:element.reason,
-   matchedElementCount:element.matchedElementCount};
+   matchedElementCount:element.matchedElementCount});
   const refresh=await run(['nodes','status','--json'],18000);
   const current=chooseConnectedMacNode(refresh);
   const node2=(refresh.result??refresh).nodes.find(x=>x&&(x.nodeId===current.id||x.id===current.id));
@@ -225,7 +233,7 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
   after=await state();
   unchanged=after.frontmost===before.frontmost&&after.mouseX===before.mouseX&&
     after.mouseY===before.mouseY;
-  return {...base,launchedFixture:true,state:unchanged&&fresh&&element.valueMatchesInitial?
+  return finish({...base,launchedFixture:true,state:unchanged&&fresh&&element.valueMatchesInitial?
    'observed':'inconclusive',
    reason:!fresh?'provider_generation_changed':
     !unchanged?'foreground_or_pointer_changed':
@@ -233,15 +241,41 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
     'fixture_background_observation_passed',
    providerGenerationStable:fresh,focusAndPointerUnchanged:unchanged,
    fixtureWindowMatched:true,fixtureElementMatched:true,
-   currentObservationVerified:true,mutatingActionAttempted:false};
+   currentObservationVerified:true,mutatingActionAttempted:false});
  }catch(error){
-  return {...base,launchedFixture:launched,state:'inconclusive',
+  const failed=classifyNativeFailure(error);
+  preAdmissionRejected=[
+   'computer_execution_occupied','unsupported_action','control_disabled',
+   'permission_or_policy_denied','node_unavailable'
+  ].includes(failed.errorClass);
+  return finish({...base,launchedFixture:launched,state:'inconclusive',
    phase:['native_provider_preflight','baseline_read','fixture_launch','window_list','window_state'].includes(phase)?phase:'preflight',
    reason:phase==='window_list'||phase==='window_state'?
     'native_read_refused_or_unavailable':'native_fixture_preflight_failed',
    ...(phase==='window_list'||phase==='window_state'?
-     {nativeFailure:classifyNativeFailure(error)}:{})};
+     {nativeFailure:failed}:{})});
  }finally{
+  // A read-only native computer.act still acquires a persistent execution.
+  // Release only the UUID issued within this invocation, never an unknown
+  // pre-existing owner. Acknowledgement is not proof of effective release.
+  if(nativeReadAttempted&&!preAdmissionRejected&&
+     leasedNodeId&&leasedExecutionId){
+   const release={attempted:true,acknowledged:false,
+    ownerReleaseVerified:false};
+   try{
+    const receipt=await run(
+     scopedCloseRequest(leasedNodeId,leasedExecutionId),15000);
+    release.acknowledged=receipt?.ok===true||receipt?.result?.ok===true;
+   }catch{}
+   if(returnRef){
+    returnRef.ownExecutionClosure=release;
+    returnRef.existingComputerOwnerReleased=false;
+    if(!release.acknowledged&&returnRef.state==='observed'){
+     returnRef.state='inconclusive';
+     returnRef.reason='own_execution_close_not_acknowledged';
+    }
+   }
+  }
   // Kill only the child launched and still owned by this script, not any
   // other application/PID. Fixture itself has a 120-second auto-quit.
   if(child&&child.exitCode===null&&child.pid)child.kill('SIGTERM');
