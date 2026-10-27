@@ -116,3 +116,24 @@ test('unrecognized provider IDs are never inferred from substring matches',()=>{
  assert.equal(result.providerIndependentlyConfirmed,false);
  assert.equal(result.listAppsAdvertised,true);
 });
+
+test('canonical CUA provider id cua-computer is accepted as official v2',()=>{
+ const r=summary({nodes:[node({computerUse:v2('cua-computer')})]});
+ assert.equal(r.provider,'cua');
+ assert.equal(r.canonicalProviderId,'cua-computer');
+ assert.equal(r.providerIndependentlyConfirmed,true);
+ assert.equal(r.backgroundDeliveryAdvertised,true);
+ assert.equal(r.safeToControlActiveUserDesktop,false);
+});
+test('canonical Peekaboo id is recognized without assuming safe background',()=>{
+ const r=summary({nodes:[node({computerUse:v2('peekaboo-computer')})]});
+ assert.equal(r.provider,'peekaboo');
+ assert.equal(r.canonicalProviderId,'peekaboo-computer');
+ assert.equal(r.backgroundExecutionVerified,false);
+});
+test('unknown v2 provider canonical ID is never reflected to output',()=>{
+ const r=summary({nodes:[node({computerUse:v2('private-secret-provider')})]});
+ assert.equal(r.provider,'unknown');
+ assert.equal(r.canonicalProviderId,null);
+ assert.equal(JSON.stringify(r).includes('private-secret-provider'),false);
+});
