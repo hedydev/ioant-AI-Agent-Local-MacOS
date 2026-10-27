@@ -24,6 +24,7 @@ import {validateIsolatedProjectScope,sameIsolatedProjectChat,isolatedProjectAllo
 import {enqueueZeroTabNotice,maintainerReceipt,maintainerNoticeMessage,markMaintainerPressIntent,completeMaintainerNotice,pendingMaintainerPhase} from './maintainer-outbox.mjs';
 import { isBoundDevDiscussion } from './development-agent-route.mjs';
 import { recordDiagnosticEvent, diagnosticCode } from './diagnostic-log.mjs';
+import { BrowserReadCircuit,waitBrowserCircuit } from './chatgpt-browser-read-circuit.mjs';
 
 const call=promisify(execFile);
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -377,6 +378,23 @@ async function main(){
   process.on('SIGINT',()=>{stopping=true;console.log('[loop] Stop requested; finishing current operation.');});
   process.on('SIGTERM',()=>{stopping=true;console.log('[loop] Stop requested; finishing current operation.');});
   let state,previousFingerprint='',stable=0,lastVisibleStatus='';
+  const browserCircuit=new BrowserReadCircuit();
+  const noteBrowserSuccess=()=>{
+    if(browserCircuit.recordSuccess().recovered){
+      recordDiagnosticEvent('browser_circuit_recovered',{code:'page_verified'});
+      console.log('[loop] Browser read circuit recovered after an exact-page verification.');
+    }
+  };
+  const noteBrowserFailure=e=>{
+    const result=browserCircuit.recordFailure(e);
+    if(result.opened){
+      recordDiagnosticEvent('browser_circuit_open',{code:result.code});
+      console.log(result.state==='halted'?
+        '[loop] Browser access denied; watcher parked without further browser requests until explicitly stopped.':
+        '[loop] Browser reads repeatedly failed; circuit opened. Pausing browser requests for '+Math.ceil(result.waitMs/60000)+' minutes.');
+    }
+    return result.code;
+  };
   console.log('[loop] Tracking only: '+opts.url);
   if(isolatedProjectScope)console.log('[loop] AliceAI isolated coordinator: read-only UI probe only; all host/task write actions rejected.');
   console.log('[loop] Actions: project-tests / project-status / project-head / environment-scan'+(opts.enableAlicePreflight?' / alice-witness-preflight (scoped Mint sync)':'')+(opts.enableAliceLabStartupProbe?' / alice-lab-startup-probe (one-shot 17880 only)':'')+(opts.enableMintDiagnostics?' / mint-bds-process-identity / mint-bds-process-lineage (read-only, fixed SSH target)':'')
@@ -410,7 +428,9 @@ async function main(){
     }
     // A user may need to finish signing into ChatGPT in the managed browser.
     let target, lastStartupMissingLog=0;
-    while(!target){
+    while(!target&&!stopping){
+      // Cooldown makes ZERO browser requests; Ctrl-C/SIGTERM still stops promptly.
+      if(!await waitBrowserCircuit(browserCircuit,()=>stopping))break;
       try{
         target=await exactTab(opts.url);
         if(opts.mode==='once') {
@@ -429,22 +449,25 @@ async function main(){
         } else {
           await readPage(target,opts.url);
         }
+        noteBrowserSuccess();
       }
       catch(e){
         if(opts.mode==='once')throw e;
         target=null;
         await noteRelayGap(e);
+        const browserFailureCode=noteBrowserFailure(e);
         // Keep the per-login watcher alive through transient Chrome tab loss.
         // Throttle public logs; private events carry only allowlisted reason codes.
         const now=Date.now();
         if(now-lastStartupMissingLog>=60000){
-          console.log('[loop] Waiting for authorized ChatGPT conversation: '+redactFeedback(e.message));
+          console.log('[loop] Waiting for authorized ChatGPT conversation; browser read failed: '+browserFailureCode);
           recordDiagnosticEvent('page_not_ready',{code:diagnosticCode(e)});
           lastStartupMissingLog=now;
         }
         await new Promise(r=>setTimeout(r,opts.interval*1000));
       }
     }
+    if(stopping)return;
     consecutiveZeroTabs=0;
     recordDiagnosticEvent('page_ready',{profile});
     // --once is acceptance-only. After the first successful exact-tab DOM read,
@@ -512,18 +535,22 @@ async function main(){
     }
     do {
       if(stopping)break;
+      if(!await waitBrowserCircuit(browserCircuit,()=>stopping))break;
       let nowTarget, page;
       try{
         nowTarget=await exactTab(opts.url); // Verify tab cannot switch between iterations.
         page=await readPage(nowTarget,opts.url);
+        noteBrowserSuccess();
       }catch(e){
         if(opts.mode==='once')throw e;
         await noteRelayGap(e);
+        const browserFailureCode=noteBrowserFailure(e);
         if(Date.now()-lastPageErrorEvent>=60000){
           recordDiagnosticEvent('page_not_ready',{code:diagnosticCode(e)});
           lastPageErrorEvent=Date.now();
         }
-        console.log('[loop] ChatGPT tab not ready: '+redactFeedback(e.message));
+        if(browserCircuit.remaining()===0)
+          console.log('[loop] ChatGPT tab not ready: '+browserFailureCode);
         await new Promise(r=>setTimeout(r,opts.interval*1000));
         continue;
       }
