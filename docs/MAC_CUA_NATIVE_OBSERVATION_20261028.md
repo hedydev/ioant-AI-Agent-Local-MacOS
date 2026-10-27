@@ -1279,3 +1279,23 @@ proposing Mac deployment. If technicalTerms is empty again, do not
 continue unbounded trial-and-error; switch to reviewing a private
 on-device error with explicit consent or an alternative read-only
 diagnostic whose privacy scope is approved.
+
+## 2026-10-28 — 183A-R1 test assertion fix (no runtime change)
+
+183A Mac `project-update-verify` blocked the candidate at
+`869/870 passing` and retained the previous validated runtime.
+The sole failing new test was reproduced directly with the pure
+`safeCliMessageFingerprint` and `safeGatewayNativeError`
+functions. The long-message bound test accidentally called
+`assert.equal(JSON.stringify(result).length < 900)` with
+**no expected argument**. The result actually met the limit,
+but the assertion compared `true` against `undefined`.
+The test now explicitly checks
+`assert.equal(JSON.stringify(result).length < 900, true)`.
+
+A focused in-process run of all 16 Gateway/fingerprint tests
+now passes 16/16; 72 corresponding source-regex checks show
+no mismatch. **The Mac 870-test candidate gate still must run.**
+No CUA source, request, permissions, other user sessions,
+Gateway configuration, or GUI behavior changed. The guarded
+`project-update-verify` must pass before attempting 183B.
