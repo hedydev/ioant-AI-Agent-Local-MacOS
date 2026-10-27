@@ -804,3 +804,48 @@ The fixture observation phase remains strictly **read-only**; it does
 not prove background text entry until a separate non-browser
 `set_value` test executes and independently verifies the target value,
 focus and mouse unchanged, with precisely scoped authority.
+
+## 2026-10-28 — 175B live fixture title visible, PID identity unrecognized; 176A schema fix
+
+175A deployed `8d601bd8814b782846782fb41bc38035cb903fc0`
+with 828/828 Mac regression tests.
+
+175B real Mac after fixture preparation `prepared`, `reused=true`,
+source digest `8371dd07643b3861`:
+- The dedicated AppKit fixture did launch.
+- Native CUA `list_windows` returned `fixtureExactTitleSeen=true`.
+- `fixtureProcessIdSeen=false`,
+  `fixtureTitleAndPidSameRecord=false`, and
+  `fixtureWindowRefSeen=false` (the last is dependent on the exact
+  title **and** PID match). The exact target was not accepted:
+  `fixture_window_not_found`, `matchedWindowCount=0`.
+- `get_window_state` was NOT invoked; no UI input occurred.
+- Scoped execution close was attempted and acknowledged, but
+  effective owner release remains unverified.
+- There was no historical `COMPUTER_HOST_BUSY` or Driver-unavailable
+  error in this run. Do not restart OpenClaw.app or Gateway.
+
+The fixture matching code accepted only **flat** per-window PID
+properties (`pid`, `processId`, `ownerPid`, etc.).
+The official CUA SDK WindowInfo schema represents its owner as
+`WindowInfo.app: AppInfo` with `AppInfo.pid`, meaning a genuine
+window with an exact title and a nested `app.pid` could fail the
+existing matcher. This is an evidence-informed schema hypothesis,
+not yet a proof that the user's live 175B payload had that shape.
+
+176A adds strict nested `app.pid` support while preserving all
+identity and safety gates: exact known fixture window title, actual
+just-launched fixture PID and valid opaque windowRef must coexist
+**on one window row**. If flat and nested PID coexist but disagree,
+the whole record is refused. Title-only matches and data fused from
+different rows remain prohibited. The next synthetic-only report
+includes safe flags indicating whether the exact-title row had nested
+app.pid, a flat PID, a PID match or a conflict, with no raw process
+IDs, other window names, paths or window references.
+
+The 176A Mac full test gate must pass before rerunning fixture
+preparation/observation. Still no background input; the pending
+`set_value` acceptance requires a later separately reviewed script.
+
+SDK schema:
+https://cua.ai/docs/cua-sdk/reference/protocol/env-computer
