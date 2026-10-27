@@ -258,6 +258,54 @@ export function safeFixtureOSDiagnosis(doc){
  out.exactTitleWindowCount=doc.exactTitleWindowCount;
  return Object.freeze(out);
 }
+// Safe shape-only evidence for an unsuccessful OpenClaw CLI invocation.
+// stdout/stderr may contain user-app names, chat data, URLs or credentials:
+// inspect them locally and disclose neither source strings nor JSON values.
+// The hint is a coarse fixed category, never a quoted error message.
+export function safeNativeCLIExitEvidence(error){
+ const shape=raw=>{
+  if(typeof raw!=='string'||raw.length===0)return {kind:'empty',hasErrorEnvelope:false};
+  let doc;
+  try{doc=JSON.parse(raw)}catch{
+   return {kind:raw.length>524288?'large_text':'text',hasErrorEnvelope:false};
+  }
+  const obj=plainObj(doc)?doc:null;
+  const nested=obj&&plainObj(obj.result)?obj.result:null;
+  return {kind:'json',hasErrorEnvelope:!!(obj&&(
+   Object.hasOwn(obj,'error')||obj.ok===false||
+   nested&&(Object.hasOwn(nested,'error')||nested.ok===false)))};
+ };
+ const stdout=shape(error?.stdout),stderr=shape(error?.stderr);
+ const chunks=[error?.stdout,error?.stderr,error?.message]
+  .filter(x=>typeof x==='string').map(x=>x.slice(0,12000));
+ const content=chunks.join('\n');
+ const flags=[
+  ['owner_busy',/\bCOMPUTER_HOST_BUSY\b|\b(?:host busy|execution occupied|another computer execution)\b/i],
+  ['policy_denied',/\b(?:operator\.write required|command denied by policy|approval required|not authorized|permission denied|forbidden)\b/i],
+  ['invalid_native_action',/\b(?:COMPUTER_UNSUPPORTED_ACTION|unsupported action|unknown action)\b/i],
+  ['invalid_request',/\b(?:invalid parameters|invalid params|invalid argument|schema validation|invalid execution.?id)\b/i],
+  ['driver_unavailable',/\b(?:COMPUTER_DRIVER_UNAVAILABLE|driver unavailable|driver not running|driver disconnected)\b/i],
+  ['node_unavailable',/\b(?:NODE_NOT_FOUND|NODE_DISCONNECTED|node disconnected|node not found)\b/i],
+  ['transport_error',/\b(?:connection refused|connection reset|broken pipe|websocket closed|socket hang up|connect ECONN|EPIPE)\b/i],
+  ['timeout',/\b(?:timeout|timed out|deadline exceeded|ETIMEDOUT)\b/i],
+  ['cli_usage',/\b(?:unknown option|unrecognized option|unknown command|missing required option)\b/i]
+ ];
+ const hint=flags.find(([,pattern])=>pattern.test(content))?.[0]??'none_recognized';
+ const code=error?.code;
+ const localProcessFault=
+  code==='ERR_CHILD_PROCESS_STDIO_MAXBUFFER'?'output_size':
+  code==='ENOENT'?'executable_missing':
+  code==='EACCES'?'executable_access':
+  error?.killed===true?'terminated_or_timeout':'none';
+ return Object.freeze({
+  stdoutKind:stdout.kind,stderrKind:stderr.kind,
+  stdoutErrorEnvelope:stdout.hasErrorEnvelope,
+  stderrErrorEnvelope:stderr.hasErrorEnvelope,
+  hint,localProcessFault,
+  stderrErrorPrefix:typeof error?.stderr==='string'&&
+   /^\s*(?:error|failed|fatal)\s*:/i.test(error.stderr)
+ });
+}
 export async function nativeCUAFixtureObserve({run=nativeCli,
  launch=(bin,nonce)=>spawn(bin,['--run',nonce],{stdio:['ignore','pipe','ignore'],windowsHide:true}),
  uuid=randomUUID,nonce=()=>randomBytes(12).toString('hex'),wait=pause,
@@ -404,6 +452,8 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
    currentObservationVerified:true,mutatingActionAttempted:false});
  }catch(error){
   const failed=classifyNativeFailure(error);
+  const cliEvidence=phase==='window_list'||phase==='window_state'?
+   safeNativeCLIExitEvidence(error):null;
   preAdmissionRejected=[
    'computer_execution_occupied','unsupported_action','control_disabled',
    'permission_or_policy_denied','node_unavailable'
@@ -413,7 +463,7 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
    reason:phase==='window_list'||phase==='window_state'?
     'native_read_refused_or_unavailable':'native_fixture_preflight_failed',
    ...(phase==='window_list'||phase==='window_state'?
-     {nativeFailure:failed}:{})});
+     {nativeFailure:failed,nativeCliEvidence:cliEvidence}:{})});
  }finally{
   // A read-only native computer.act still acquires a persistent execution.
   // Release only the UUID issued within this invocation, never an unknown
