@@ -86,3 +86,16 @@ test('unvalidated route, counts, and freshness fail closed',()=>{
    control:{browser:'authorized',computer:'authorized'}}
  ])assert.equal(planProjectChatEnvironment(args).reason,'invalid_or_unverified_inputs');
 });
+
+test('closed Chrome does not need an impossible all-window enumeration',()=>{
+ const result=plan({chrome:{running:'no',allWindowsScanned:false}});
+ assert.equal(result.nextAction,'request_authorized_launch_then_verify');
+});
+test('conflicting inventory sources require recheck, not auto-open or auto-reuse',()=>{
+ const a=plan({relay:{state:'unavailable',exactMatches:1}});
+ assert.equal(a.nextAction,'recheck_inconsistent_inventory');
+ const b=plan({relay:{exactMatches:1},chrome:{running:'no',exactMatches:0}});
+ assert.equal(b.nextAction,'recheck_inconsistent_inventory');
+ const c=plan({chrome:{running:'no',exactMatches:1}});
+ assert.equal(c.nextAction,'recheck_inconsistent_inventory');
+});
