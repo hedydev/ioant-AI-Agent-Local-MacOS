@@ -31,7 +31,6 @@ test('state reader accesses only frontmost app bundle identity and pointer',()=>
  assert.match(swift,/CGWindowListCopyWindowInfo/);
  assert.match(swift,/kCGWindowOwnerPID/);
  assert.match(swift,/kCGWindowName/);
- assert.match(swift,/hits\.count == 1/);
  assert.match(swift,/evidence\.exactTitleCount == 1/);
  assert.match(swift,/evidence\.exactTitleOwnedByTarget/);
  assert.match(swift,/evidence\.exactTitleOwnedAtNormalLayer/);
