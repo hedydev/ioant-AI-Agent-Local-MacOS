@@ -128,3 +128,43 @@ gate is another clean full `project-update-verify`; only then attempt
 another single read-only test fixture window observation. No CUA
 background write is authorized before its own window and element are
 uniquely confirmed.
+
+## 2026-10-28 — 160B CLI-level refusal, not a parser miss
+
+After 160A full deployment (709/709), a new one-shot read-only
+fixture probe 160B reported `launchedFixture=true` but failed at
+`window_list` with `native_read_refused_or_unavailable`, its
+sanitized classifier returning `errorClass=unclassified` and
+`cliExitCode=1`. No pointer, keyboard, browser or GUI input occurred.
+
+Unlike 158B, `list_windows` did **not** return a successful JSON body
+for the parser to inspect. Therefore do not interpret 160B as
+`fixture_window_not_found`, or adjust PID/title matching again.
+A provider advertised capability does not prove that the app-owned
+CUA Driver daemon is initialized or that the Gateway approved command
+and macOS permissions are good.
+
+New `scripts/openclaw-cua-native-runtime-readiness.mjs` performs
+**one** read-only `nodes status --json` and a bounded exact process-
+name check (`pgrep -x cua-driver`). It emits only verified
+advertisement flags and a daemon-process-observed boolean, never
+PIDs, command lines, node identities, windows, browser details,
+raw error text or input actions. `driverProcessObserved=false`
+is only point-in-time evidence: macOS may launch this app-owned
+driver lazily; it does not prove the provider is permanently broken.
+Likewise process presence does not prove the private endpoint is
+healthy. This script does not query macOS TCC grants or node
+pairing-approval records, both of which remain unverified.
+
+Use full project-update-verify and inspect this read-only readiness
+before any additional fixture launch. Depending on that result,
+design a future narrowly scoped diagnostics pass that classifies the
+original native CLI error response while still retaining exact
+non-browser read scope. Do not restart services, modify permissions,
+switch providers, bypass policy, or enable a foreground fallback
+merely to force success.
+
+Authoritative references:
+https://docs.openclaw.ai/nodes/computer-use
+https://docs.openclaw.ai/nodes/command-policy
+https://docs.openclaw.ai/nodes/troubleshooting
