@@ -14,7 +14,7 @@ const otherProject='https://chatgpt.com/g/g-p-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-o
 
 test('seed registry binds this project chat to fixed local advisor and repository',()=>{
  const items=validateProjectRoutes(real);
- assert.equal(items.length,1);
+ assert.equal(items.length,2);
  assert.equal(items[0].key,'openclaw-workflow');
  assert.equal(items[0].role,'ops-platform');
  assert.equal(items[0].agentId,'openclaw-dev');
@@ -82,4 +82,28 @@ test('successful promotion updates just one chat route without changing Agent or
  assert.equal(real.projects[0].chatUrl,original,'do not mutate running watcher registry');
  assert.equal(resolveProjectRoute(promoted,moved).conversationId,proposal.toConversationId);
  assert.throws(()=>resolveProjectRoute(promoted,original),/inactive_project_conversation/);
+});
+
+test('AliceAI project is separately registered with a scoped advisor and no cross-project promotion',()=>{
+ const routes=validateProjectRoutes(real);
+ const alice=routes.find(x=>x.key==='alice-ai');
+ const ops=routes.find(x=>x.key==='openclaw-workflow');
+ assert.ok(alice&&ops);
+ assert.equal(alice.repo,'hedydev/ioant-AI-Minecraft-Alice');
+ assert.equal(alice.agentId,'alice-ai');
+ assert.equal(alice.role,'project-lead');
+ assert.equal(alice.projectId,'g-p-6acaef839af081919426a885b3209f54');
+ assert.equal(alice.conversationId,'6ade11a5-f0c0-83ec-add1-8a0cff00c938');
+ assert.notEqual(alice.projectId,ops.projectId);
+ assert.notEqual(alice.conversationId,ops.conversationId);
+ assert.equal(resolveProjectRoute(real,alice.chatUrl).agentId,'alice-ai');
+ assert.throws(()=>proposedSuccessor(real,'alice-ai',ops.chatUrl),/cross_project_handoff/);
+ assert.throws(()=>proposedSuccessor(real,'openclaw-workflow',alice.chatUrl),/cross_project_handoff/);
+ const next=alice.projectUrl+'/c/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+ const proposed=proposedSuccessor(real,'alice-ai',next);
+ const updated=promoteProjectChat(real,proposed,{oldWatcherInactive:true,
+  newProjectChatVerified:true,handoffReceiptVerified:true,agentRouteAcknowledged:true});
+ assert.equal(resolveProjectRoute(updated,next).agentId,'alice-ai');
+ assert.equal(resolveProjectRoute(updated,ops.chatUrl).agentId,'openclaw-dev');
+ assert.equal(real.projects.find(x=>x.key==='alice-ai').chatUrl,alice.chatUrl);
 });
