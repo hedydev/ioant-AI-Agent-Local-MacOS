@@ -21,8 +21,12 @@ export function evaluateBackgroundComputerAction({request,capabilities,authoriza
  if(authorization.sharedDesktopUserActive!==true&&
     authorization.sharedDesktopUserActive!==false)
   return blocked('user_activity_unknown');
- if(capabilities.provider!=='cua'||capabilities.providerVerified!==true)
-  return blocked('verified_cua_provider_required');
+ // Both CUA and native Peekaboo may advertise some background window
+ // actions. Their named family alone grants nothing; execution requires
+ // independently verified provider-specific action and delivery evidence.
+ if(!['cua','peekaboo'].includes(capabilities.provider)||
+    capabilities.providerVerified!==true)
+  return blocked('verified_background_provider_required');
  if(capabilities.backgroundVerified!==true||
     !Array.isArray(capabilities.deliveryModes)||
     !capabilities.deliveryModes.includes('background'))
