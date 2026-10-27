@@ -96,3 +96,29 @@ New \`development-agent-route.mjs\` only admits the exact *known* optional \`mac
 \`scripts/dev-env.sh\` sourcing detection also tolerates Bash-specific \`BASH_SOURCE\` being absent when the script is sourced under zsh \`set -u\`, fixing the observed benign Mac console warning in task 115. Prefer \`bash scripts/dev-env.sh exec ...\` for cross-shell production tasks.
 
 Candidate verification: full \`node --test\` in an isolated remote-main archive; then the exact source/active roster read-only checker on the Mac. After protected \`project-update-verify\`, separately execute a no-tools advisor preflight before any real text-only model call. Never auto-claim the Alice \`requirements\` DAG task from this roster compatibility check. The actual persisted workflow remains \`alice-local-pilot\` revision 21 (seven pending, no leases, receipts or acceptances), and the Alice Chrome Relay handshake remains in state \`requested\`.
+
+## 2026-10-27 — Local AliceAI requirements Agent one-shot candidate (awaiting live validation)
+
+Real Mac task 121: \`verifyBoundAgentConfig\` for \`alice-ai\` and \`openclaw-dev\` both returned true; \`mac-computer\` remained excluded from the advisor whitelist; existing Main Worker PID 99222 and Alice coordinator PID 82212 were running. Durable \`alice-local-pilot\` still at revision 21, seven pending tasks, zero receipts. This evidence does NOT prove seven OpenClaw agents exist, nor does it grant AliceAI terminal, browser or Minecraft tools.
+
+\`stage2/local-agent-requirements-pilot.mjs\` introduces a separately invoked, one-shot fixed adapter for the **first** \`requirements\` stage only:
+- \`status\`: read-only inspection of the existing workflow, never invokes a model.
+- \`run\`: require exact pristine 21-event workflow, first task ready, only one matching logical worker, the exact real \`alice-ai\` advisor policy and its private workspace. Also rejects injected OpenClaw config/state/profile.
+- Before the first model call, use the existing exclusive-revision private store to journal \`task_claim\` and \`task_start\`; the lease and Agent session key are uniquely linked. On crash, uncertain Gateway reply, stale revision, duplicate invocation or other failure there is **no replay**, no re-claim and no automatic reset of the local task.
+- Calls only existing \`discussBoundAgent\` fixed to \`alice-ai\`, with a bounded predefined requirements-analysis prompt and NO tools; it does not receive arbitrary code or model-created commands. The second advisor policy verification occurs inside \`discussBoundAgent\`. The output is *untrusted model advice*, not evidence of repo/code/Minecraft state.
+- Persist one private, owner-only, bounded model-evidence file in the verified LunaDrive workflow directory with its SHA-256; then append the original task \`task_receipt\`. Successful model text results only in \`verification_pending\`; a failed/inconclusive reply becomes failed, and must not be automatically retried. No automatic \`task_accept\`: independent validation and trusted reviewer attestation will be developed and tested as a separate authority.
+- Does NOT add Worker privileges, change agent models/config, launch new processes as services, create/modify any chat, access the blocked ChatGPT browser surface, control the Mac via \`mac-computer\`, or touch Mint/BDS/Minecraft.
+
+All adapter helpers are test-injectable only under \`IOANT_WORKFLOW_TEST_ROOT=1\`; production CLI accepts only literal \`status\` or \`run\`, and the latter is an operator-approved explicit on-demand action. Test fixtures cover no-op status, successful model mock receipt and persisted hash, policy refusal without task claim, inconclusive no-retry behavior, and double-claim race. Do not claim real model execution before actual Mac acceptance.
+
+Candidate verification commands (Mac; private runtime preserved until tests pass):
+\`\`\`bash
+# After checking the pinned remote main in a private candidate archive:
+node --test --test-reporter=tap
+# Following protected project-update-verify:
+cd "$HOME/Library/Application Support/ioant-openclaw-ops/runtime"
+bash scripts/dev-env.sh exec node stage2/local-agent-requirements-pilot.mjs status
+# ONLY after separately approved one-shot invocation:
+bash scripts/dev-env.sh exec node stage2/local-agent-requirements-pilot.mjs run
+\`\`\`
+The standalone one-shot adapter requires no service restart. Running \`run\` is a material live model action, not a smoke test or read-only observation. For review, use the private evidence SHA and task receipt; do not mark the task complete from model text alone. Preserve the previous Alice handshake \`requested\` and Chrome Relay access restrictions.
