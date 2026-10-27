@@ -6,8 +6,11 @@ import {prepareFixture,makeFixtureCompileInvocation} from '../scripts/openclaw-c
 const root=resolve(import.meta.dirname,'..');
 const swift=readFileSync(resolve(root,'fixtures/cua-noninterference/Fixture.swift'),'utf8');
 const prep=readFileSync(resolve(root,'scripts/openclaw-cua-fixture-prep.mjs'),'utf8');
-test('dedicated fixture has one exact accessible text field and unique title',()=>{
- assert.match(swift,/window\.title = "IOANT CUA Noninterference Fixture"/);
+test('dedicated fixture has one exact accessible text field and per-run nonce title',()=>{
+ assert.match(swift,/window\.title = self\.title/);
+ assert.match(swift,/private let prefix = "IOANT CUA Noninterference Fixture"/);
+ assert.match(swift,/fixtureTitle\(args\[1\]\)/);
+ assert.match(swift,/token\.utf8\.count == 24/);
  assert.match(swift,/setAccessibilityLabel\("IOANT CUA Fixture Editable"\)/);
  assert.match(swift,/field\.stringValue = "IOANT-FIXTURE-INITIAL"/);
  assert.match(swift,/window\.contentView\?\.addSubview\(field\)/);
@@ -22,7 +25,16 @@ test('fixture never activates the user desktop and always auto-exits',()=>{
 test('state reader accesses only frontmost app bundle identity and pointer',()=>{
  assert.match(swift,/NSWorkspace\.shared\.frontmostApplication/);
  assert.match(swift,/NSEvent\.mouseLocation/);
- assert.doesNotMatch(swift,/\bimport\s+(?:ScriptingBridge|JavaScriptCore)\b|AXUIElementCreate|CGWindowListCopy/);
+ assert.doesNotMatch(swift,/\bimport\s+(?:ScriptingBridge|JavaScriptCore)\b|AXUIElementCreate|CGEventPost/);
+ // The new owner-proof is WindowServer metadata only, exact synthetic title
+ // + just-spawned PID, and emits only one boolean; no desktop screenshot.
+ assert.match(swift,/CGWindowListCopyWindowInfo/);
+ assert.match(swift,/kCGWindowOwnerPID/);
+ assert.match(swift,/kCGWindowName/);
+ assert.match(swift,/hits\.count == 1/);
+ assert.match(swift,/owner\.int32Value == pid && layer\.intValue == 0/);
+ assert.match(swift,/--prove-window/);
+ assert.doesNotMatch(swift,/CGWindowListCreateImage|CGDisplayCreateImage|screencapture/);
 });
 test('preparation does not launch GUI, browser or Computer Use actions',()=>{
  assert.doesNotMatch(prep,/\bspawn\(|open -g|--command.*computer\.act|nodes.*invoke|browser --|osascript/);
