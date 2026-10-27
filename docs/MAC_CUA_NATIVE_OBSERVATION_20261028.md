@@ -915,3 +915,55 @@ is separately gated and not yet authorized by these observations.
 Exact OpenClaw provider source:
 https://github.com/openclaw/openclaw/blob/v2026.10.7/extensions/cua-computer/src/driver-result.ts
 https://github.com/openclaw/openclaw/blob/v2026.10.7/apps/macos/Sources/OpenClaw/ComputerWindowActionExecutor.swift
+
+## 2026-10-28 — 177B real Mac WindowServer proof unavailable; 178A restricted diagnostics
+
+177A installed `b549e35848df9ba78f0aca64ed2061cf3866b9d9`
+with 839/839 passing tests. The 177B Mac execution:
+- Rebuilt and compiled the new nonce-window AppKit fixture successfully,
+  source digest `79a233cac0a4a149`, `reused=false`,
+  `compilerFound=true`, `readOnlyStateProbePassed=true`.
+- The temporary window was launched without a browser, screenshot,
+  keyboard/pointer action or focus activation from the observer.
+- At `phase=independent_ownership_proof`, the standalone helper
+  returned `window_server_pid_proof_unavailable`, so native
+  `computer.act` was **not invoked**, and there is no new Computer
+  execution from 177B to release.
+- The fixture child was signaled only by its own observation script,
+  which retains the 120-second self-termination safeguard.
+- The result does **not** prove a macOS permission denial: it could
+  reflect missing/redacted window title, missing target owner window,
+  incorrect layer, or a startup timing issue.
+
+Apple confirms window names in `CGWindowListCopyWindowInfo` can be
+restricted without Screen Recording permission; it does not request
+authorization when reading window metadata. Permission state should
+be obtained through the supported non-prompting
+`CGPreflightScreenCaptureAccess()` rather than inferring it from
+which keys were returned. See
+https://developer.apple.com/videos/play/wwdc2019/701/
+and
+https://developer.apple.com/forums/thread/839069
+
+178A adds only a diagnostic branch for **failed pre-CUA ownership proof**:
+the precompiled disposable fixture helper supports
+`--diagnose-window <pid> <nonce>` and emits one bounded JSON object
+with `metadataAvailable`, `screenRecordingGranted`, whether **the
+known synthetic PID** owns any normal-layer window or has a
+nonempty/title key, and whether the exact synthetic nonce title
+was observed at the correct owner/layer. Window counts are only
+`none/one/multiple`; no actual PID, title, bounds, window ID,
+other process details or WindowServer rows leave the helper.
+
+The Node observer permits a fixed whitelist of these booleans and
+count buckets, never raw stdout or an error message. It still
+refuses any Computer Use action until an exact owner proof succeeds.
+There is no TCC permission request, service change, browser access,
+screenshot or desktop input. Changes to the Swift source require
+rebuilding the private fixture under the new digest after the full
+test gate passes.
+
+**Do not grant extra permissions or widen target selection** without
+first examining the safe diagnostic; if the title cannot be read
+from outside the target process, consider a non-screen-capture OS
+attestation path rather than bypassing identity checks.
