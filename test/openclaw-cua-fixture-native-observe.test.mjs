@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {makeReadOnlyNativeArgs,findExactFixtureWindow,findFixtureElement,
- walkNativePayload,nativeCUAFixtureObserve,fixtureWindowEvidence}
+ walkNativePayload,nativeCUAFixtureObserve,fixtureWindowEvidence,
+ shouldCloseOwnFixtureExecution}
  from '../scripts/openclaw-cua-fixture-native-observe.mjs';
 
 const root=resolve(import.meta.dirname,'..');
@@ -208,4 +209,29 @@ test('fixture observation retains exact execution ID for scoped lease cleanup',(
  assert.match(s,/ownerReleaseVerified:false/);
  assert.match(s,/existingComputerOwnerReleased=false/);
  assert.match(s,/own_execution_close_not_acknowledged/);
+});
+
+test('first completed list_windows always requires closing this session even if second read is refused',()=>{
+ for(const preAdmissionRejected of [false,true]){
+  assert.equal(shouldCloseOwnFixtureExecution({
+   nativeReadAttempted:true,firstReadReturned:true,preAdmissionRejected
+  }),true);
+ }
+ assert.match(s,/firstReadReturned=true/);
+ assert.match(s,/shouldCloseOwnFixtureExecution\(\{nativeReadAttempted,/);
+ assert.match(s,/scopedCloseRequest\(leasedNodeId,leasedExecutionId\)/);
+});
+test('first denied native read does not close an existing unknown execution owner',()=>{
+ assert.equal(shouldCloseOwnFixtureExecution({
+  nativeReadAttempted:true,firstReadReturned:false,preAdmissionRejected:true
+ }),false);
+ assert.equal(shouldCloseOwnFixtureExecution({
+  nativeReadAttempted:false,firstReadReturned:false,preAdmissionRejected:false
+ }),false);
+});
+test('ambiguous failure of first native read attempts to close only its own UUID',()=>{
+ assert.equal(shouldCloseOwnFixtureExecution({
+  nativeReadAttempted:true,firstReadReturned:false,preAdmissionRejected:false
+ }),true);
+ assert.match(s,/ownerReleaseVerified:false/);
 });
