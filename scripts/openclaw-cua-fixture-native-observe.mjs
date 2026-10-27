@@ -262,6 +262,97 @@ export function safeFixtureOSDiagnosis(doc){
 // stdout/stderr may contain user-app names, chat data, URLs or credentials:
 // inspect them locally and disclose neither source strings nor JSON values.
 // The hint is a coarse fixed category, never a quoted error message.
+// Strict classification of the actual OpenClaw node.invoke JSON envelope.
+// Never return arbitrary code/message values or any raw object keys. Only a
+// documented, finite semantic family and a single dispatch boolean.
+export function safeGatewayNativeError(error){
+ const unknown=()=>Object.freeze({available:false});
+ const stdout=error?.stdout;
+ if(typeof stdout!=='string'||stdout.length<2||stdout.length>262144)
+  return unknown();
+ let doc;
+ try{doc=JSON.parse(stdout)}catch{return unknown();}
+ if(!plainObj(doc))return unknown();
+ const locations=[
+  ['top',doc],
+  ['result',doc.result],
+  ['payload',doc.payload],
+  ['result_payload',plainObj(doc.result)?doc.result.payload:null],
+  ['data',doc.data]
+ ];
+ const codeCategory=value=>{
+  if(typeof value!=='string'||value.length>100)return 'unknown';
+  const code=value.trim().toUpperCase();
+  if(['COMPUTER_HOST_BUSY','HOST_BUSY'].includes(code))return 'owner_busy';
+  if(['TIMEOUT','DEADLINE_EXCEEDED','GATEWAY_TIMEOUT'].includes(code))return 'timeout';
+  if(['INVALID_REQUEST','BAD_REQUEST','INVALID_PARAMS','COMPUTER_CONTRACT_MISMATCH',
+    'PLUGIN_POLICY_RISK_CLASSIFICATION_FAILED'].includes(code))return 'invalid_request';
+  if(['UNAUTHORIZED','FORBIDDEN','PERMISSION_DENIED','ACCESS_DENIED',
+    'AUTH_REQUIRED','AUTH_UNAUTHORIZED','AUTH_SCOPE_MISMATCH',
+    'MISSING_SCOPE','INSUFFICIENT_SCOPE','APPROVAL_REQUIRED',
+    'APPROVAL_AUTHORITY_CLOSED','PLUGIN_POLICY_MISSING',
+    'NODE_COMMAND_REVOKED','COMPUTER_DISABLED'].includes(code))return 'authorization';
+  if(['NODE_NOT_FOUND','NODE_DISCONNECTED','NOT_FOUND','ROUTE_CHANGED',
+    'PAIRING_CHANGED','PRIVATE_OWNER_CLOSED'].includes(code))return 'node_route';
+  if(['COMPUTER_DRIVER_UNAVAILABLE','COMPUTER_DRIVER_PACKAGE_MISSING',
+    'COMPUTER_DRIVER_VERSION_MISMATCH','COMPUTER_DRIVER_DIGEST_MISMATCH',
+    'UNAVAILABLE'].includes(code))return 'provider_unavailable';
+  if(['CONFLICT','ALREADY_EXISTS'].includes(code))return 'conflict';
+  if(['COMPUTER_UNSUPPORTED_ACTION','UNSUPPORTED','NOT_IMPLEMENTED'].includes(code))
+   return 'unsupported_action';
+  return 'unknown';
+ };
+ const hintText=value=>{
+  if(typeof value!=='string')return 'none';
+  const v=value.slice(0,6000);
+  const patterns=[
+   ['authorization',/\b(?:operator\.(?:write|admin)|missing scope|scope mismatch|approval|permission denied|forbidden|unauthorized|not authorized|risk classification|cannot be classified)\b/i],
+   ['owner_busy',/\b(?:computer host busy|host busy|another execution|execution occupied|execution already owned)\b/i],
+   ['invalid_request',/\b(?:invalid request|invalid params|invalid parameters|validation failed|schema rejected|unrecognized field)\b/i],
+   ['provider_unavailable',/\b(?:provider unavailable|computer driver unavailable|driver not available|node driver not installed|provider not ready)\b/i],
+   ['node_route',/\b(?:node command not allowed|node disconnected|node unavailable|node not found|node route changed|pairing changed)\b/i],
+   ['timeout',/\b(?:timed out|deadline exceeded|request timeout)\b/i]
+  ];
+  return patterns.find(([,r])=>r.test(v))?.[0]??'none';
+ };
+ let first=null;
+ for(const [location,item] of locations){
+  if(!plainObj(item))continue;
+  let value=null;
+  let origin=location;
+  if(Object.hasOwn(item,'error')&&item.error!==null){
+   value=item.error;
+  }else if(item.ok===false&&Object.hasOwn(item,'code')){
+   value=item;
+  }else if(plainObj(item.details)&&item.details.nodeError){
+   value=item.details.nodeError;
+   origin=location+'_node_error';
+  }
+  if(value===null)continue;
+  const obj=plainObj(value)?value:null;
+  const code=typeof obj?.code==='string'?obj.code:
+   typeof obj?.gatewayCode==='string'?obj.gatewayCode:null;
+  const message=typeof value==='string'?value:
+   typeof obj?.message==='string'?obj.message:null;
+  const dispatch=(plainObj(item.details)&&
+   typeof item.details.nodeCommandDispatched==='boolean')
+   ?item.details.nodeCommandDispatched:
+   (obj&&plainObj(obj.details)&&
+    typeof obj.details.nodeCommandDispatched==='boolean')
+    ?obj.details.nodeCommandDispatched:null;
+  first=Object.freeze({
+   available:true,origin,
+   errorForm:typeof value==='string'?'string':obj?'object':'other',
+   codePresent:code!==null,
+   codeFamily:codeCategory(code),
+   messageFamily:hintText(message),
+   dispatchKnown:dispatch!==null,
+   ...(dispatch!==null?{nodeCommandDispatched:dispatch}:{})
+  });
+  break;
+ }
+ return first??unknown();
+}
 export function safeNativeCLIExitEvidence(error){
  const shape=raw=>{
   if(typeof raw!=='string'||raw.length===0)return {kind:'empty',hasErrorEnvelope:false};
@@ -454,16 +545,20 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
   const failed=classifyNativeFailure(error);
   const cliEvidence=phase==='window_list'||phase==='window_state'?
    safeNativeCLIExitEvidence(error):null;
+  const gatewayErrorEvidence=phase==='window_list'||phase==='window_state'?
+   safeGatewayNativeError(error):null;
   preAdmissionRejected=[
    'computer_execution_occupied','unsupported_action','control_disabled',
    'permission_or_policy_denied','node_unavailable'
-  ].includes(failed.errorClass);
+  ].includes(failed.errorClass)||
+  gatewayErrorEvidence?.nodeCommandDispatched===false;
   return finish({...base,launchedFixture:launched,state:'inconclusive',
    phase:['native_provider_preflight','baseline_read','fixture_launch','window_list','window_state'].includes(phase)?phase:'preflight',
    reason:phase==='window_list'||phase==='window_state'?
     'native_read_refused_or_unavailable':'native_fixture_preflight_failed',
    ...(phase==='window_list'||phase==='window_state'?
-     {nativeFailure:failed,nativeCliEvidence:cliEvidence}:{})});
+     {nativeFailure:failed,nativeCliEvidence:cliEvidence,
+      gatewayErrorEvidence}:{})});
  }finally{
   // A read-only native computer.act still acquires a persistent execution.
   // Release only the UUID issued within this invocation, never an unknown
