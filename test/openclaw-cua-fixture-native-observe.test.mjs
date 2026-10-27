@@ -177,3 +177,24 @@ test('native failure envelope classified as a boolean without private messages',
  assert.equal(evidence.nativeEnvelopeRefused,true);
  assert.equal(JSON.stringify(evidence).includes('secret'),false);
 });
+
+test('nested transport fixture row occurs at depth 9 and bounded default reaches it',()=>{
+ const wrapped={result:{content:[{type:'text',text:JSON.stringify({
+  result:{details:{windows:[{processId:String(pid),
+   windowTitle:name,window_ref:'depth-nine-only'}]}}
+ })}]}};
+ const shallow=walkNativePayload(wrapped,{maxDepth:8});
+ assert.equal(shallow.some(x=>x?.window_ref==='depth-nine-only'),false);
+ const bounded=walkNativePayload(wrapped);
+ assert.equal(bounded.some(x=>x?.window_ref==='depth-nine-only'),true);
+ assert.deepEqual(findExactFixtureWindow(wrapped,pid),{
+  state:'matched',windowRef:'depth-nine-only',matchedWindowCount:1});
+ assert.ok(bounded.length<1800);
+});
+test('deeply nested arbitrary wrapper cannot bypass finite traversal limit',()=>{
+ let data={pid,title:name,windowRef:'should-not-be-reachable'};
+ for(let i=0;i<16;i++)data={result:data};
+ const found=walkNativePayload(data);
+ assert.equal(found.some(x=>x.windowRef==='should-not-be-reachable'),false);
+ assert.equal(findExactFixtureWindow(data,pid).state,'inconclusive');
+});
