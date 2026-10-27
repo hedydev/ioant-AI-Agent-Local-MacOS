@@ -40,6 +40,10 @@ export function planProjectChatEnvironment({route,relay,chrome,visual,control}={
  const base={projectKey:route.key,targetConversationId:target.conversationId};
  const freshVisual=visual.ageSeconds<=60&&visual.exactChatVisible==='yes';
  const relayReady=relay.state==='ready';
+ if((!relayReady&&exact>0)||(chrome.running==='no'&&osExact>0)||
+    (chrome.running==='no'&&relayReady&&exact>0))
+  return reply('needs_observation','recheck_inconsistent_inventory',
+   'contradictory_observations',base);
 
  // A relay view cannot prove the absence of an actual Chrome tab.
  if(relayReady&&exact>1)
@@ -59,7 +63,7 @@ export function planProjectChatEnvironment({route,relay,chrome,visual,control}={
  if(control.browser==='blocked'||control.computer==='blocked')
   return reply('blocked','none','browser_or_computer_control_policy_block',base);
 
- if(chrome.running==='unknown'||!chrome.allWindowsScanned)
+ if(chrome.running==='unknown'||(chrome.running==='yes'&&!chrome.allWindowsScanned))
   return reply('needs_observation','inspect_all_chrome_windows',
    'absence_not_independently_confirmed',base);
  if(chrome.running==='no'){
