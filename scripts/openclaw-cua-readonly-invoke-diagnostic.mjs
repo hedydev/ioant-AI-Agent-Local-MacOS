@@ -47,6 +47,11 @@ const severityMap=new Map([
  ['COMPUTER_DRIVER_PACKAGE_MISSING','cua_driver_transport'],
  ['COMPUTER_DRIVER_VERSION_MISMATCH','cua_driver_transport'],
  ['COMPUTER_CONTRACT_MISMATCH','invalid_native_params'],
+ ['COMPUTER_INVALID_REQUEST','invalid_native_params'],
+ ['COMPUTER_DRIVER_ERROR','cua_driver_transport'],
+ ['COMPUTER_DRIVER_DIGEST_MISMATCH','cua_driver_transport'],
+ ['COMPUTER_DRIVER_PLATFORM_UNSUPPORTED','cua_driver_transport'],
+ ['COMPUTER_UNSUPPORTED_DISPLAY','native_action_unsupported'],
  ['COMPUTER_UNSUPPORTED_ACTION','native_action_unsupported'],
  ['COMPUTER_STALE_OBSERVATION','execution_session_conflict'],
  ['NODE_BACKGROUND_UNAVAILABLE','node_unreachable'],
@@ -79,8 +84,9 @@ export function classifyInvokeFailure(err){
  }catch{}
  const text=[...textParts,...safeObjTexts(doc)].join('\n').slice(0,65000);
  const tokens=text.match(nativeCodePattern)??[];
- const code=tokens.find(x=>severityMap.has(x))??null;
- const category=code?severityMap.get(code):
+ const code=tokens.find(x=>severityMap.has(x)||
+  /^COMPUTER_REFUSED_[A-Z_]{3,70}$/.test(x))??null;
+ const category=code?(severityMap.get(code)??'native_action_refused'):
   err?.killed===true||err?.signal==='SIGTERM'?'native_timeout':
   categories.find(([n,pattern])=>pattern.test(text))?.[0]??'unclassified';
  const exitCode=Number.isInteger(err?.code)&&err.code>=0&&err.code<=255?err.code:null;
