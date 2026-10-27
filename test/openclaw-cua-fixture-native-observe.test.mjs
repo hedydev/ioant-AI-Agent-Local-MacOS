@@ -544,7 +544,7 @@ test('Gateway INVALID_REQUEST error is typed without leaking opaque error values
   codePresent:true,codeFamily:'invalid_request',messageFamily:'none',
   typeFamily:'unknown',transportKind:'unknown',codeKind:'string',
   detailForm:'absent',messageIndicators:[],retryableKnown:false,
-  cliMessageFingerprint:{state:'present',lengthBand:'medium',technicalTerms:[],
+  cliMessageFingerprint:{state:'present',lengthBand:'short',technicalTerms:['window'],
    nestedErrorForm:'none',nestedCodeFamily:'unknown'},
   rootOriginMarker:'absent',dispatchKnown:false});
  assert.equal(JSON.stringify(obj).includes('secret'),false);
