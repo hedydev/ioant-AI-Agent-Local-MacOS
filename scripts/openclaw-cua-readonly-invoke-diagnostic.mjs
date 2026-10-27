@@ -74,6 +74,65 @@ function safeObjTexts(obj,maxDepth=5){
  }
  return arr;
 }
+// Exactly allowlisted structural metadata. No arbitrary JSON key or message,
+// node IDs, Gateway tokens, application names or native window values escape.
+const ERROR_KEYS=['ok','success','error','code','message','type','name',
+ 'details','data','reason','cause','status','statusCode','issues'];
+const GATEWAY_CODES=new Map([
+ ['UNAUTHORIZED','gateway_unauthorized'],
+ ['FORBIDDEN','gateway_forbidden'],
+ ['PERMISSION_DENIED','gateway_permission_denied'],
+ ['ACCESS_DENIED','gateway_permission_denied'],
+ ['INSUFFICIENT_SCOPE','operator_scope_missing'],
+ ['SCOPE_REQUIRED','operator_scope_missing'],
+ ['NOT_PAIRED','node_pairing_required'],
+ ['PAIRING_REQUIRED','node_pairing_required'],
+ ['COMMAND_NOT_APPROVED','node_command_approval_required'],
+ ['COMMAND_NOT_ALLOWED','node_command_policy_denied'],
+ ['INVALID_PARAMS','invalid_native_params'],
+ ['INVALID_ARGUMENT','invalid_native_params'],
+ ['METHOD_NOT_FOUND','gateway_method_unavailable']
+]);
+const errorKind=x=>x===null?'null':
+ Array.isArray(x)?'array':typeof x;
+export function safeInvokeFailureShape(err){
+ let doc=null;
+ try{
+  if(typeof err?.stdout==='string'&&err.stdout.length<=1048576)
+   doc=JSON.parse(err.stdout);
+ }catch{}
+ const root=isObj(doc)?doc:null;
+ const envelope=isObj(root?.error)?root.error:null;
+ const nested=isObj(envelope?.details)?envelope.details:null;
+ const allowedKeys=x=>ERROR_KEYS.filter(k=>isObj(x)&&
+  Object.hasOwn(x,k));
+ const errorCodes=[root?.code,root?.error?.code,nested?.code]
+  .filter(x=>typeof x==='string').map(x=>x.trim().toUpperCase());
+ const code=errorCodes.find(x=>GATEWAY_CODES.has(x))??null;
+ const text=[root?.message,envelope?.message,
+  root?.error,root?.reason,envelope?.reason,err?.stderr]
+  .filter(x=>typeof x==='string').join('\n').slice(0,30000);
+ const operatorWrite=/\boperator\.write\b/i.test(text);
+ const scope=/\b(?:missing|required|insufficient|denied)\b.{0,80}\b(?:scope|permission)\b|\b(?:scope|permission)\b.{0,80}\b(?:missing|required|insufficient|denied)\b/i.test(text);
+ const nodePairing=/\b(?:node|device)\b.{0,80}\b(?:pair|not paired|approval|unapproved)\b|\b(?:pair|approval)\b.{0,80}\b(?:node|device)\b/i.test(text);
+ const commandDenied=/\bcomputer\.act\b.{0,90}\b(?:not approved|denied|not allowed|blocked)\b|\b(?:denied|blocked)\b.{0,90}\bcomputer\.act\b/i.test(text);
+ const driver=/\b(?:CUA|driver|daemon|socket|MCP)\b/i.test(text);
+ const gateway=/\b(?:Gateway|RPC|operator)\b/i.test(text);
+ return Object.freeze({
+  jsonObjectParsed:root!==null,
+  topLevelKeys:allowedKeys(root),
+  errorFieldType:errorKind(root?.error),
+  errorObjectKeys:allowedKeys(envelope),
+  errorDetailsKeys:allowedKeys(nested),
+  recognizedGatewayErrorCode:code?GATEWAY_CODES.get(code):null,
+  operatorWriteMentioned:operatorWrite,
+  scopeOrPermissionMentioned:scope,
+  nodePairingMentioned:nodePairing,
+  computerCommandDeniedMentioned:commandDenied,
+  driverOrSocketMentioned:driver,
+  gatewayOrRpcMentioned:gateway
+ });
+}
 export function classifyInvokeFailure(err){
  const textParts=[err?.stdout,err?.stderr,err?.message]
   .filter(x=>typeof x==='string').map(x=>x.slice(0,24000));
@@ -86,9 +145,13 @@ export function classifyInvokeFailure(err){
  const tokens=text.match(nativeCodePattern)??[];
  const code=tokens.find(x=>severityMap.has(x)||
   /^COMPUTER_REFUSED_[A-Z_]{3,70}$/.test(x))??null;
+ const shape=safeInvokeFailureShape(err);
  const category=code?(severityMap.get(code)??'native_action_refused'):
-  err?.killed===true||err?.signal==='SIGTERM'?'native_timeout':
-  categories.find(([n,pattern])=>pattern.test(text))?.[0]??'unclassified';
+  shape.recognizedGatewayErrorCode??(shape.operatorWriteMentioned?
+    'operator_write_scope_diagnostic':null)??(shape.computerCommandDeniedMentioned?
+    'computer_act_approval_or_policy':null)??(
+    err?.killed===true||err?.signal==='SIGTERM'?'native_timeout':
+    categories.find(([n,pattern])=>pattern.test(text))?.[0]??'unclassified');
  const exitCode=Number.isInteger(err?.code)&&err.code>=0&&err.code<=255?err.code:null;
  return Object.freeze({
   state:'failed',category,
@@ -97,6 +160,7 @@ export function classifyInvokeFailure(err){
   stderrPresent:typeof err?.stderr==='string'&&err.stderr.length>0,
   structuredErrorBody:isObj(doc)&&(
    isObj(doc.error)||typeof doc.error==='string'||doc.ok===false),
+  safeErrorShape:shape,
   // Content digest is only to correlate identical failures; never raw text.
   diagnosticDigest:createHash('sha256').update(text).digest('hex').slice(0,12)
  });
@@ -131,7 +195,7 @@ async function callCli(args,ms){
  return JSON.parse(stdout);
 }
 export async function inspectCUAInvokeReads({
- call=callCli,uuid=randomUUID,
+ call=callCli,uuid=randomUUID,cursorOnly=false,
  allowedRuntime=async()=>process.platform==='darwin'&&
  ROOT===RUNTIME&&await realpath(RUNTIME)===RUNTIME
 }={}){
@@ -156,7 +220,8 @@ export async function inspectCUAInvokeReads({
    return {...base,state:'blocked',reason:'native_cua_reads_not_advertised'};
   const executionId=uuid();
   const results={};
-  for(const action of ['get_cursor_position','list_windows']){
+  for(const action of (cursorOnly?
+    ['get_cursor_position']:['get_cursor_position','list_windows'])){
    try{results[action]=classifyInvokeResult(await call(
     makeSafeReadArgs(chosen.id,executionId,action),25000))}
    catch(err){results[action]=classifyInvokeFailure(err);}
@@ -168,7 +233,7 @@ export async function inspectCUAInvokeReads({
   }
   const cursor=results.get_cursor_position;
   const windows=results.list_windows??{state:'skipped',
-   reason:'prior_permission_or_policy_denial'};
+   reason:cursorOnly?'cursor_only_mode':'prior_permission_or_policy_denial'};
   return {...base,state:'observed',
    sameExecutionIdUsed:true,
    cursorRead:cursor,
@@ -179,7 +244,10 @@ export async function inspectCUAInvokeReads({
   reason:'node_status_or_diagnostic_preflight_failed'};}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- const result=process.argv.length===2?await inspectCUAInvokeReads():
+ const supported=process.argv.length===2||
+   (process.argv.length===3&&process.argv[2]==='--cursor-only');
+ const result=supported?await inspectCUAInvokeReads({
+   cursorOnly:process.argv.length===3}):
   {audit:AUDIT,state:'blocked',reason:'unsupported_args',readOnly:true};
  console.log(JSON.stringify(result));
  if(result.state!=='observed')process.exitCode=1;
