@@ -32,7 +32,11 @@ test('state reader accesses only frontmost app bundle identity and pointer',()=>
  assert.match(swift,/kCGWindowOwnerPID/);
  assert.match(swift,/kCGWindowName/);
  assert.match(swift,/hits\.count == 1/);
- assert.match(swift,/owner\.int32Value == pid && layer\.intValue == 0/);
+ assert.match(swift,/evidence\.exactTitleCount == 1/);
+ assert.match(swift,/evidence\.exactTitleOwnedByTarget/);
+ assert.match(swift,/evidence\.exactTitleOwnedAtNormalLayer/);
+ assert.match(swift,/owner == pid/);
+ assert.match(swift,/layer == 0/);
  assert.match(swift,/--prove-window/);
  assert.doesNotMatch(swift,/CGWindowListCreateImage|CGDisplayCreateImage|screencapture/);
 });
@@ -71,4 +75,14 @@ test('fixed compile command never accepts arbitrary source or target paths',()=>
  assert.throws(()=>makeFixtureCompileInvocation(
   '/private/runtime/fixtures/cua-noninterference/Fixture.swift',
   '/tmp/unsafe-or-user-visible-file'),/invalid_fixture_build_target/);
+});
+
+test('diagnostic reads only WindowServer metadata of synthetic PID and nonce',()=>{
+ assert.match(swift,/--diagnose-window/);
+ assert.match(swift,/CGPreflightScreenCaptureAccess\(\)/);
+ assert.match(swift,/targetPidWindowNameVisible/);
+ assert.match(swift,/targetPidWindowCount/);
+ assert.match(swift,/exactTitleWindowCount/);
+ assert.match(swift,/func safeJSON\(\)/);
+ assert.doesNotMatch(swift,/CGRequestScreenCaptureAccess|print\(rows\)|print\(row\)|CGDisplayCreateImage|CGWindowListCreateImage/);
 });
