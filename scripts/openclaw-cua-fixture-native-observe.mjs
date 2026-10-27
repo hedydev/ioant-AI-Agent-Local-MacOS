@@ -200,6 +200,24 @@ export function shouldCloseOwnFixtureExecution({nativeReadAttempted,
  return nativeReadAttempted===true&&
   (firstReadReturned===true||preAdmissionRejected!==true);
 }
+// Diagnostic output is a strict allowlist of boolean observations about
+// ONLY this newly spawned synthetic fixture. Never return PIDs/titles,
+// WindowServer rows, paths, errors, raw output or user window metadata.
+export function safeFixtureOSDiagnosis(doc){
+ const bad={available:false};
+ const keys=['verified','metadataAvailable','screenRecordingGranted',
+  'targetPidNormalWindowSeen','targetPidWindowNameVisible',
+  'exactTitleOwnerMatched','exactTitleNormalLayerMatched'];
+ const bucket=x=>['none','one','multiple'].includes(x);
+ if(!plainObj(doc)||keys.some(key=>typeof doc[key]!=='boolean')||
+    !bucket(doc.targetPidWindowCount)||
+    !bucket(doc.exactTitleWindowCount))return bad;
+ const out={available:true};
+ for(const key of keys)out[key]=doc[key];
+ out.targetPidWindowCount=doc.targetPidWindowCount;
+ out.exactTitleWindowCount=doc.exactTitleWindowCount;
+ return Object.freeze(out);
+}
 export async function nativeCUAFixtureObserve({run=nativeCli,
  launch=(bin,nonce)=>spawn(bin,['--run',nonce],{stdio:'ignore',windowsHide:true}),
  uuid=randomUUID,nonce=()=>randomBytes(12).toString('hex'),wait=pause,
@@ -208,6 +226,11 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
    timeout:8000,maxBuffer:2048,shell:false});
   const proof=JSON.parse(stdout);
   return proof?.verified===true;
+ },
+ ownerDiagnosis=async(bin,pid,token)=>{
+  const {stdout}=await exec(bin,['--diagnose-window',String(pid),token],{
+   timeout:8000,maxBuffer:2048,shell:false});
+  return safeFixtureOSDiagnosis(JSON.parse(stdout));
  }}={}){
  const base={audit:AUDIT,schemaVersion:1,
   browserAccess:false,chatContentRead:false,changedBrowser:false,
@@ -279,9 +302,13 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
   // using the very same unpredictable exact title.
   phase='independent_ownership_proof';
   const osVerified=await ownerProof(binary,child.pid,token).catch(()=>false);
-  if(osVerified!==true)return finish({...base,launchedFixture:true,
-   state:'inconclusive',phase,reason:'window_server_pid_proof_unavailable',
-   nativeReadAttempted:false});
+  if(osVerified!==true){
+   const diagnosis=await ownerDiagnosis(binary,child.pid,token)
+    .then(safeFixtureOSDiagnosis).catch(()=>({available:false}));
+   return finish({...base,launchedFixture:true,
+    state:'inconclusive',phase,reason:'window_server_pid_proof_unavailable',
+    nativeReadAttempted:false,fixtureOSDiagnosis:diagnosis});
+  }
   const executionId=uuid();
   leasedExecutionId=executionId;
   leasedNodeId=chosen.id;
