@@ -22,7 +22,14 @@ process.stdout.write(alice.chatUrl);
 JS
 )"
 [[ "$CHAT_URL" == https://chatgpt.com/g/g-p-*/c/* ]] || exit 1
-LOGDIR="$PROJECT_DEV_CACHE/logs/chatgpt-loop"
+# Match the existing Stage-2 launcher: the background watcher may not have
+# Terminal's LunaDrive/Desktop permissions. Never force the background process
+# to create a diagnostic log on the external volume.
+if [[ "${IOANT_BACKGROUND_SAFE_REPORTS:-0}" == 1 ]]; then
+  LOGDIR="$HOME/Library/Application Support/ioant-openclaw-ops/logs/chatgpt-loop"
+else
+  LOGDIR="$PROJECT_DEV_CACHE/logs/chatgpt-loop"
+fi
 export IOANT_LOOP_LOG_FILE
 IOANT_LOOP_LOG_FILE="$(node "$ROOT/stage2/diagnostic-log.mjs" init "$LOGDIR")"
 echo '[alice-coordinator] Isolated read-only worker; no Mint/BDS, host commands, Git writes or Chrome navigation.'

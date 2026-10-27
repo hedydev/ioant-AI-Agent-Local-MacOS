@@ -32,3 +32,9 @@ No browser clicking, chat creation, Agent model changes, LaunchAgent installatio
 - The existing `openclaw-workflow` invocation without `--project-key` is unchanged and retains its own operator-selected privileges. Per-conversation state and lock remain separate by exact chat hash. No new LaunchAgent is installed by this commit.
 - Project identity is checked both in `browser tabs` and after targeted DOM evaluation; the same Chat ID inside another Project is rejected for Alice.
 - **Candidate only**: do not claim a second live Worker until full Mac test suite, pinned project self-update and independent `--once` canary pass. Starting the watch loop is a separate task and must not launch via the current interactive Worker without lifecycle checks.
+
+### 2026-10-27 — First Mac --once failure and candidate diagnosis
+
+The first live `--once` result `openclaw-alice-coordinator-once-20261027-096` failed after ~1.2 s with `[loop-log] unexpected`, before a proven AliceAI browser read. The launcher had unconditionally supplied the external `PROJECT_DEV_CACHE/logs/chatgpt-loop` directory to the private diagnostic log initializer. The existing Mac Worker can inherit `IOANT_BACKGROUND_SAFE_REPORTS=1`, which makes `stage2/diagnostic-log.mjs` require `~/Library/Application Support/ioant-openclaw-ops/logs/chatgpt-loop`. This discrepancy is a code-level root-cause candidate, not yet a proven environment observation.
+
+The launch script now mirrors the established Stage-2 launcher branch for background/private local logs versus foreground/LunaDrive logs; the separate operator-facing acceptance trace remains on Desktop. Added fixtures exercise both exact diagnostic initialization modes without Chrome/Gateway access. Do not claim live success before Mac worker confirms the background flag and reruns `--once`. No changes to normal OpenClaw worker, Gateway, ChatGPT binding, AliceAI production, BDS or world.
