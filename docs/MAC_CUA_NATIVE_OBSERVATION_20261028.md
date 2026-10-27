@@ -283,3 +283,38 @@ Next action: deploy only the new GitHub main through the standard
 `project-update-verify` gate and require all tests passing. If any
 candidate tests still fail, do not invoke real CUA diagnostics until
 the test failure is fixed.
+
+## 2026-10-28 — 164B standardized CLI error and 165A safe lexical signals
+
+The one-shot 164B `--cursor-only` probe returned the standard CLI
+JSON failure envelope: `ok=false`, `error={message,type}`;
+`exitCode=1`, `category=unclassified`, with no public native
+error code. The shape classifiers found no `operator.write`,
+pairing, permission/scope, command denial, driver or Gateway keywords.
+`windowListRead.state=skipped`, no fixture app, screenshot, mouse,
+keyboard, browser access or desktop input.
+
+The error remains **unclassified**. Do not infer operator.write is
+missing, that pairing has been revoked, or that the app-owned Driver
+is broken. OpenClaw documents that the CLI's standard JSON failure
+uses `error.type="cli_error"`, which is a generic wrapper, not
+the underlying node/driver failure category; the accompanying
+`error.message` is where the useful reason usually appears.
+
+Updated the existing read-only diagnostic to decode `error.message`
+**locally only** into `safeErrorShape.cliErrorSignals`:
+a known CLI error type (`cli_error`, etc.), a fixed message-length
+bucket, and at most 24 **unique words selected only from a hard-coded,
+nonpersonal operational vocabulary**. No raw text, private token,
+home directory, host, path, app/window name, arbitrary error type,
+device identity, or URL may be included in the returned report.
+Unmatched strings are ignored. This is diagnostic evidence, not
+permission to bypass or repair any authorization automatically.
+
+Re-test is **one** non-mutating `get_cursor_position` invocation
+(`--cursor-only`) following a passing full safe-update test gate.
+No further window enumeration or set_value until the original
+command path can return meaningful classified evidence. Even a
+successful cursor read is not proof of safe background text input.
+
+Source: https://docs.openclaw.ai/cli/index
