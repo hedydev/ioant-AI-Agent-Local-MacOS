@@ -18,14 +18,22 @@ function run(...args){
  return {...out,exitCode:p.status,stderr:p.stderr};
 }
 
-test('read-only status lists one registered Mac owner project and agent',()=>{
+test('read-only status lists isolated OpenClaw and AliceAI project bindings',()=>{
  const a=run('status');
  assert.equal(a.exitCode,0,a.stderr);
  assert.equal(a.audit,'IOANT_CHAT_PROJECT_ROUTER');
  assert.equal(a.state,'read_only');
- assert.equal(a.routes.length,1);
- assert.equal(a.routes[0].key,'openclaw-workflow');
- assert.equal(a.routes[0].agentId,'openclaw-dev');
+ assert.equal(a.routes.length,2);
+ const ops=a.routes.find(r=>r.key==='openclaw-workflow');
+ const alice=a.routes.find(r=>r.key==='alice-ai');
+ assert.ok(ops&&alice);
+ assert.equal(ops.agentId,'openclaw-dev');
+ assert.equal(ops.repo,'hedydev/ioant-AI-Agent-Local-MacOS');
+ assert.equal(alice.agentId,'alice-ai');
+ assert.equal(alice.repo,'hedydev/ioant-AI-Minecraft-Alice');
+ assert.equal(alice.role,'project-lead');
+ assert.notEqual(ops.projectId,alice.projectId);
+ assert.notEqual(ops.conversationId,alice.conversationId);
 });
 
 test('inspect recognises same project and safely strips ChatGPT utm_source',()=>{
