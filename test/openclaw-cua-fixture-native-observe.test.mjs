@@ -5,7 +5,8 @@ import {resolve} from 'node:path';
 import {makeReadOnlyNativeArgs,findExactFixtureWindow,findFixtureElement,
  walkNativePayload,nativeCUAFixtureObserve,fixtureWindowEvidence,
  shouldCloseOwnFixtureExecution,findOSAttestedFixtureWindow,
- safeFixtureOSDiagnosis,parseOwnFixtureReady,awaitOwnFixtureReady}
+ safeFixtureOSDiagnosis,parseOwnFixtureReady,awaitOwnFixtureReady,
+ safeNativeCLIExitEvidence}
  from '../scripts/openclaw-cua-fixture-native-observe.mjs';
 
 const root=resolve(import.meta.dirname,'..');
@@ -466,4 +467,72 @@ test('fixture requires process self-window proof and non-TCC owner metadata befo
  assert.match(s,/fixtureSelfAttested:true,independentOSPidVerified:true/);
  assert.match(s,/scopedCloseRequest\(leasedNodeId,leasedExecutionId\)/);
  assert.doesNotMatch(s,/CGRequestScreenCaptureAccess|screencapture|osascript|killall/);
+});
+
+test('opaque OpenClaw exit 1 exposes only coarse CLI channel and envelope shape',()=>{
+ const privateError=Object.assign(Error('Private notes secret'),{
+  code:1,
+  stdout:JSON.stringify({ok:false,error:{message:'private ChatGPT Chrome window',
+   token:'secret-user-token'},windows:[{title:'private chat'}]}),
+  stderr:'Error: private runtime output with embedded access-token'
+ });
+ const out=safeNativeCLIExitEvidence(privateError);
+ assert.deepEqual(out,{
+  stdoutKind:'json',stderrKind:'text',
+  stdoutErrorEnvelope:true,stderrErrorEnvelope:false,
+  hint:'none_recognized',localProcessFault:'none',stderrErrorPrefix:true
+ });
+ const json=JSON.stringify(out);
+ for(const secret of ['secret-user-token','ChatGPT','Chrome','private','access-token'])
+  assert.equal(json.includes(secret),false);
+});
+test('native CLI evidence only emits fixed enums for known busy and denial',()=>{
+ for(const [snippet,hint] of [
+  ['COMPUTER_HOST_BUSY another owner','owner_busy'],
+  ['approval required; forbidden','policy_denied'],
+  ['COMPUTER_UNSUPPORTED_ACTION','invalid_native_action'],
+  ['invalid executionId','invalid_request'],
+  ['COMPUTER_DRIVER_UNAVAILABLE','driver_unavailable'],
+  ['NODE_DISCONNECTED','node_unavailable'],
+  ['Error: websocket closed','transport_error'],
+  ['Error: deadline exceeded','timeout'],
+  ['unknown command for nodes','cli_usage']
+ ]){
+  const r=safeNativeCLIExitEvidence({code:1,stderr:snippet});
+  assert.equal(r.hint,hint);
+  assert.equal(r.stdoutKind,'empty');
+ }
+});
+test('CLI failure evidence never leaks a structured nested native error payload',()=>{
+ const r=safeNativeCLIExitEvidence({code:1,
+  stdout:JSON.stringify({result:{ok:false,error:{
+   code:'unknown-private-code',message:'my diary title and api password'
+  }}}),
+  stderr:JSON.stringify({error:{message:'other private text'}})
+ });
+ assert.equal(r.stdoutKind,'json');
+ assert.equal(r.stderrKind,'json');
+ assert.equal(r.stdoutErrorEnvelope,true);
+ assert.equal(r.stderrErrorEnvelope,true);
+ assert.equal(r.hint,'none_recognized');
+ assert.equal(JSON.stringify(r).includes('diary'),false);
+ assert.equal(JSON.stringify(r).includes('password'),false);
+});
+test('native failure local subprocess size and binary errors remain bounded',()=>{
+ const maxed=safeNativeCLIExitEvidence({
+  code:'ERR_CHILD_PROCESS_STDIO_MAXBUFFER',stdout:'x'.repeat(525000)});
+ assert.equal(maxed.localProcessFault,'output_size');
+ assert.equal(maxed.stdoutKind,'large_text');
+ assert.equal(safeNativeCLIExitEvidence({code:'ENOENT'}).localProcessFault,
+  'executable_missing');
+ assert.equal(safeNativeCLIExitEvidence({code:'EACCES'}).localProcessFault,
+  'executable_access');
+});
+test('only native read failure reports safe CLI evidence, not raw error strings',()=>{
+ assert.match(s,/safeNativeCLIExitEvidence\(error\):null/);
+ assert.match(s,/nativeFailure:failed,nativeCliEvidence:cliEvidence/);
+ assert.match(s,/phase==='window_list'\|\|phase==='window_state'/);
+ assert.doesNotMatch(s,/console\.log\(error\)|console\.error\(error\)|nativeCliEvidence:error/);
+ assert.match(s,/scopedCloseRequest\(leasedNodeId,leasedExecutionId\)/);
+ assert.match(s,/performedComputerInput:false/);
 });
