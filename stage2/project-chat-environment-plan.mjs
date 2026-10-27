@@ -41,7 +41,8 @@ export function planProjectChatEnvironment({route,relay,chrome,visual,control}={
  const freshVisual=visual.ageSeconds<=60&&visual.exactChatVisible==='yes';
  const relayReady=relay.state==='ready';
  if((!relayReady&&exact>0)||(chrome.running==='no'&&osExact>0)||
-    (chrome.running==='no'&&relayReady&&exact>0))
+    (chrome.running==='no'&&relayReady&&exact>0)||
+    (chrome.running==='no'&&freshVisual))
   return reply('needs_observation','recheck_inconsistent_inventory',
    'contradictory_observations',base);
 
