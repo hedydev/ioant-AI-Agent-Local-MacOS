@@ -34,7 +34,11 @@ test('native success is reported without app identities or browser contents',asy
  assert.equal(result.rawAppNamesReturned,false);
  assert.equal(JSON.stringify(result).includes('Sensitive Chat'),false);
  assert.equal(JSON.stringify(result).includes('private token'),false);
- assert.equal(calls.length,2);
+ assert.equal(calls.length,3);
+ assert.equal(JSON.parse(calls[2][7]).action,'__close_execution');
+ assert.equal(JSON.parse(calls[2][7]).executionId,id);
+ assert.equal(result.ownExecutionClosure.attempted,true);
+ assert.equal(result.ownExecutionClosure.ownerReleaseVerified,false);
 });
 test('native unavailable result is inconclusive and never marks observed',async()=>{
  const request=async(args)=>{
@@ -53,4 +57,23 @@ test('node capability missing blocks without invoking the action',async()=>{
  const result=await inspectNativeAppInventory({request,uuid:()=>id,runtimeAllowed:async()=>true});
  assert.equal(result.state,'blocked');
  assert.equal(count,1);
+});
+
+test('legacy list_apps rejects busy owner without speculative close',async()=>{
+ const target={nodes:[{nodeId:'n',platform:'macOS 27',connected:true,
+  commands:['screen.snapshot','computer.act']}]};
+ const calls=[];
+ const r=await inspectNativeAppInventory({uuid:()=>id,
+  runtimeAllowed:async()=>true,
+  request:async args=>{
+   calls.push(args);
+   if(args[1]==='status')return target;
+   throw Object.assign(Error('private owner details'),{code:1,
+    stdout:JSON.stringify({error:{message:
+     'COMPUTER_HOST_BUSY: another provider execution owns this computer'}})});
+  }});
+ assert.equal(calls.length,2);
+ assert.equal(r.errorClass,'computer_execution_occupied');
+ assert.equal(r.ownExecutionClosure.attempted,false);
+ assert.equal(r.existingOwnerReleased,false);
 });
