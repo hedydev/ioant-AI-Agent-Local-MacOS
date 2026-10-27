@@ -7,7 +7,7 @@ import {promisify} from 'node:util';
 import {homedir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {realpath,lstat,mkdir,readFile,writeFile,rename,rm} from 'node:fs/promises';
+import {realpath,lstat,mkdir,mkdtemp,readFile,writeFile,rename,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 const exec=promisify(execFile);
 const ROOT=resolve(fileURLToPath(new URL('..',import.meta.url)));
@@ -65,7 +65,7 @@ export async function prepareFixture({run=exec,platform=process.platform}={}){
    {timeout:12000,maxBuffer:2048})).stdout.trim();
   if(!compiler.startsWith('/'))throw Error('compiler_unavailable');
   // One scoped staging directory, renamed atomically after successful compile.
-  stage=join(FIXTURES,'.stage-'+fingerprint+'-'+process.pid);
+  stage=await mkdtemp(join(FIXTURES,'.stage-'+fingerprint+'-'));
   await mkdir(join(stage,NAME,'Contents','MacOS'),{recursive:true,mode:0o700});
   await writeFile(join(stage,NAME,'Contents','Info.plist'),plist,{mode:0o600,flag:'wx'});
   const binary=join(stage,NAME,'Contents','MacOS','ioant-cua-fixture');
