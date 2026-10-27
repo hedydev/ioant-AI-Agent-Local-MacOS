@@ -33,7 +33,10 @@ const knownKeys=new Set(['result','payload','data','response','output',
  'content','text','structuredContent','body','message','value','details',
  'observation','windows','window','elements','items','accessibilityTree',
  'tree','children']);
-export function walkNativePayload(raw,{maxDepth=8,maxNodes=1800}={}){
+// content[].text may encode result.details.windows in a second JSON
+// document. Traversal must allow its ninth-level window rows while staying
+// bounded by the existing node cap and a finite maximum depth.
+export function walkNativePayload(raw,{maxDepth=12,maxNodes=1800}={}){
  const found=[];const queue=[{obj:raw,depth:0}];const seen=new Set();
  while(queue.length&&found.length<maxNodes){
   const {obj,depth}=queue.shift();
