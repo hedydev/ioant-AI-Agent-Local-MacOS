@@ -77,3 +77,9 @@ Do not manually restart the running worker or copy code into its private runtime
 - Deliberate patch contains the complete existing provider model array with only Gemma's \`input\` changed to \`["text","image"]\`; doing so preserves sibling entries under both array replacement and ID-merge behaviors. The script blocks when the source snapshot/inventory is inconsistent.
 - \`test/openclaw-vision-metadata.test.mjs\` covers field scope, Agent preservation, stale revision, inventory conflict, unexpected provider, one write with backup, failure/no retry, and read-back. Running this test does not write the real Gateway.
 - **No live OpenClaw config mutation has occurred as of this candidate Git commit.** To accept, validate the Mac full test suite through \`project-update-verify\`; then run the one-shot command using the authorised bounded Worker and verify real App image delivery separately.
+### macOS runtime path with spaces — corrected entrypoint 2026-10-27
+
+- Live task 033 failed on stale source checkout (37dfe2e) versus active runtime c74b8dd. Task 035 launched the runtime script and returned status passed, exit 0, but **no JSON audit** after 63ms. It did not verify any config write.
+- Root cause: using URL pathname encodes spaces as %20, unlike process.argv[1] containing literal Application Support. The entrypoint guard was false; Node imported the module and silently exited 0.
+- Corrected the guard using fileURLToPath(import.meta.url). Added a sandboxed child-process regression test copying script/dependencies to a directory literally named Application Support, setting OPENCLAW_PROFILE so no config is touched, and requiring an explicit custom_profile_review JSON audit.
+- **Still not live-applied.** Update the isolated runtime with project-update-verify, then run one guarded patch. An exit code without an expected IOANT_GEMMA_VISION_PATCH JSON receipt is never evidence of modification.

@@ -5,6 +5,7 @@
 import {lstat,readFile,mkdir,open,realpath} from 'node:fs/promises';
 import {homedir} from 'node:os';
 import {join,resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {randomBytes} from 'node:crypto';
 import {isDeepStrictEqual} from 'node:util';
 import {spawn} from 'node:child_process';
@@ -137,7 +138,7 @@ export async function patchGemmaVision({
  }catch{return audit('inconclusive','readback_unavailable',{backup:true})}
  return audit('applied','vision_input_enabled',{backup:true,verified:true});
 }
-if(process.argv[1]&&resolve(process.argv[1])===resolve(new URL(import.meta.url).pathname)){
+if(process.argv[1]&&resolve(process.argv[1])===resolve(fileURLToPath(import.meta.url))){
  patchGemmaVision().then(x=>process.stdout.write(JSON.stringify(x)+'\n')).catch(()=>
   process.stdout.write(JSON.stringify(audit('blocked','unexpected_failure'))+'\n'));
 }
