@@ -849,3 +849,69 @@ preparation/observation. Still no background input; the pending
 
 SDK schema:
 https://cua.ai/docs/cua-sdk/reference/protocol/env-computer
+
+## 2026-10-28 — 176B investigation and 177A independent WindowServer PID attestation
+
+176A installed `21dd13d6609cf838c772e97c5a6dcf7b2f798abc`
+with **833/833** Mac tests. The subsequent 176B live Mac read was
+`state=inconclusive` at `phase=window_list` with
+`fixtureExactTitleSeen=true`, `fixtureTitleHasNestedAppPid=false`,
+`fixtureTitleHasDirectPid=false`, `fixtureProcessIdSeen=false`.
+No `get_window_state` or input was executed, the fixture was
+terminated by its own scope, and its own native execution close was
+acknowledged (effective owner release still not independently proved).
+No COMPUTER_HOST_BUSY was observed.
+
+**Root cause source-confirmed:** the OpenClaw 2026.10.7 macOS CUA
+projection in `extensions/cua-computer/src/driver-result.ts`,
+`projectWindows()`, intentionally constructs a projected row with
+`windowRef`, optionally `appName`, `title`, `bounds`,
+`isOnScreen` and `minimized`, but does **not** export `pid`.
+The underlying native SDK window record *has* a PID, which the OpenClaw
+provider consumes to mint the opaque `windowRef`. The OpenClaw
+macOS window action executor likewise projects
+`windowRef/appName/title/bounds/isOnScreen/minimized` without PID.
+The earlier 176A assumption that `app.pid` could appear in the
+projected `list_windows` output was based on the lower-level CUA
+SDK `WindowInfo`, not on OpenClaw's *actual* output contract.
+Do not keep trying to extract a PID from this projected response,
+and do not adopt title-only selection.
+
+177A corrects the identity contract without changing any OpenClaw
+application binary:
+- The disposable AppKit fixture gets a fresh 96-bit random token on
+  each launch and displays `IOANT CUA Noninterference Fixture [token]`.
+  The token is never logged or returned.
+- Its existing compiled binary has a non-GUI `--prove-window` mode:
+  use the macOS WindowServer read-only
+  `CGWindowListCopyWindowInfo` metadata to ensure **exactly one**
+  window with that unpredictable title exists, owned by the exact
+  PID returned by this invocation's `spawn` and at layer zero.
+  The helper reports only `{"verified":true|false}`, no PID, title,
+  other app/window data or screen capture.
+- This independent proof must succeed before the first CUA read,
+  after CUA `list_windows`, and after CUA
+  `get_window_state`; otherwise fail closed.
+- From `list_windows`, require exactly one row with the same
+  unpredictable title and a valid opaque `windowRef`. A supplied
+  flat or nested native PID (on another provider/version) must not
+  disagree with the WindowServer owner. A direct/nested PID conflict
+  is always rejected.
+- Input, browser access, screenshots, focus activation and pointer
+  movement remain prohibited. The only process terminated is this
+  invocation's own temporary fixture child. Own UUID closure after
+  native reads continues to apply.
+- If WindowServer cannot read the synthetic title (including due
+  to macOS permissions), refuse instead of falling back to title.
+- The fixture source fingerprint changes; running
+  `openclaw-cua-fixture-prep.mjs` after 177A deploy builds a new
+  private AppKit binary. The existing pre-177A fixture is never reused
+  under the new fingerprint.
+
+Full Mac candidate tests must pass before running the new fixture.
+This remains **read-only**. Later background `set_value` acceptance
+is separately gated and not yet authorized by these observations.
+
+Exact OpenClaw provider source:
+https://github.com/openclaw/openclaw/blob/v2026.10.7/extensions/cua-computer/src/driver-result.ts
+https://github.com/openclaw/openclaw/blob/v2026.10.7/apps/macos/Sources/OpenClaw/ComputerWindowActionExecutor.swift
