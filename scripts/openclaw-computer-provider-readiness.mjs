@@ -23,25 +23,37 @@ export function summarizeComputerProviderStatus(raw){
  if(!node)throw Error('selected_node_lost');
  // Accept only explicit computer-provider metadata on the selected Mac.
  // Generic runtime/plugin/provider fields are not computer provenance.
- const computer=isObj(node.computer)?node.computer:
-  isObj(node.computerControl)?node.computerControl:null;
- const declared=provider(node.computerProvider??computer?.provider);
- const descriptor=isObj(computer?.descriptor)?computer.descriptor:null;
- const providerName=declared!=='unknown'?declared:
-  provider(descriptor?.provider);
- const modes=descriptor?.deliveryModes??descriptor?.deliveryFamilies;
- const availableActions=descriptor?.actions??descriptor?.supportedActions;
- const backgroundAdvertised=Array.isArray(modes)&&modes.includes('background');
- const listAppsAdvertised=Array.isArray(availableActions)?
-  availableActions.includes('list_apps'):null;
+ // Official v2 capability descriptor is node.computerUse with a nested
+ // provider identity. Older nodes may omit it. Never infer provider from
+ // computer.act availability or from a similarly named generic node field.
+ const descriptor=isObj(node.computerUse)?node.computerUse:null;
+ const schemaValid=descriptor?.contractVersion===2&&
+  isObj(descriptor?.provider)&&
+  typeof descriptor.provider.id==='string'&&
+  typeof descriptor.provider.generation==='string'&&
+  descriptor.provider.generation.length>0&&
+  Array.isArray(descriptor.actions)&&
+  Array.isArray(descriptor.deliveryModes);
+ const providerId=schemaValid?descriptor.provider.id.toLowerCase():'';
+ // Normalization is strictly a known provider family, not a substring
+ // from arbitrary text supplied by an unrelated device.
+ const providerName=/^(?:cua|macos-cua|cua-macos|cua-driver)$/.test(providerId)?'cua':
+  /^(?:peekaboo|macos-peekaboo|peekaboo-macos)$/.test(providerId)?'peekaboo':'unknown';
+ const backgroundAdvertised=schemaValid&&
+  descriptor.deliveryModes.includes('background');
+ const listAppsAdvertised=schemaValid?
+  descriptor.actions.includes('list_apps'):null;
  const nodeHasCommands=chosen.snapshotAdvertised&&chosen.computerActAdvertised;
  return Object.freeze({
   audit:AUDIT,schemaVersion:1,state:'observed',
   readOnly:true,browserAccess:false,chatContentRead:false,
   appOrWindowInventoryCalled:false,invokedComputerAct:false,
   computerAdvertised:nodeHasCommands,
-  provider:providerName,providerIndependentlyConfirmed:providerName!=='unknown',
+  provider:providerName,providerIndependentlyConfirmed:providerName!=='unknown'&&schemaValid,
   descriptorAvailable:descriptor!==null,
+  descriptorSchemaValid:schemaValid,
+  descriptorContractVersion:schemaValid?2:null,
+  agentCursorAdvertised:schemaValid&&descriptor.features?.agentCursor===true,
   backgroundDeliveryAdvertised:backgroundAdvertised,
   listAppsAdvertised,
   // Advertisement is not validated execution; guard requires live proof.
