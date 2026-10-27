@@ -5,7 +5,10 @@ const base={url:'https://chatgpt.com/c/12345678-aaaa-bbbb-cccc-0123456789ab',gen
 const message=code=>({...base,messages:[{codes:[code]}]});
 test('malformed action never executes, next valid task still accepted',()=>{
  const bad=JSON.stringify({protocol:'ioant-mac-ops-v1',id:'bad-command-001',action:'mac-terminal',cwd:'workspace',command:'a'.repeat(2049)});
- assert.deepEqual(extractWatchedAction(message(bad)),{status:'rejected_invalid_task'});
+ const invalid=extractWatchedAction(message(bad));
+ assert.equal(invalid.status,'rejected_invalid_task');
+ assert.equal(invalid.report.reason,'terminal_command_too_long');
+ assert.equal(Object.hasOwn(invalid,'task'),false);
  const ok=JSON.stringify({protocol:'ioant-mac-ops-v1',id:'new-task-002',action:'project-head'});
  const next=extractWatchedAction(message(ok));
  assert.equal(next.status,'task');assert.equal(next.task.id,'new-task-002');

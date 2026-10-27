@@ -18,7 +18,7 @@ test('too-long command is never executable and yields bounded correction receipt
  assert.match(reply,/Status: invalid_task/);
  assert.match(reply,/2048 characters/);
  assert.match(reply,/No action was executed/);
- assert.doesNotMatch(reply,/x{50}|command:|\\bBearer\\b/);
+ assert.doesNotMatch(reply,/x{50}|command:|Bearer/i);
 });
 test('bad fields get generic safe feedback without echoing private contents',()=>{
  const raw=JSON.stringify({protocol:'ioant-mac-ops-v1',id:'bad-fields-076',
@@ -48,10 +48,11 @@ test('the exact-page Watcher persists one correction before send and never execu
  assert.ok(start>0&&end>start);
  const chunk=s.slice(start,end);
  assert.match(chunk,/stable>=2/);
- assert.match(chunk,/state.feedbackPending=\\{id:bad.id,action:'invalid-task-feedback'/);
- assert.match(chunk,/await atomicState\\(stateFile,state\\)/);
- assert.match(chunk,/await sendToChat\\(nowTarget,opts.url,feedback,receipt/);
- assert.match(chunk,/beforePress:async/);
- assert.match(chunk,/state.lastTaskId=bad.id/);
- assert.doesNotMatch(chunk,/runAction|config.patch|execFile|browser\\('press'/);
+ assert.ok(chunk.includes("state.feedbackPending={id:bad.id,action:'invalid-task-feedback'"));
+ assert.ok(chunk.includes('await atomicState(stateFile,state)'));
+ assert.ok(chunk.includes('await sendToChat(nowTarget,opts.url,feedback,receipt'));
+ assert.ok(chunk.includes('beforePress:async'));
+ assert.ok(chunk.includes('state.lastTaskId=bad.id'));
+ for(const forbidden of ['runAction(', 'config.patch', 'execFile(', "browser('press'"])
+   assert.equal(chunk.includes(forbidden),false);
 });
