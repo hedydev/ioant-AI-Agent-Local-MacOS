@@ -6,7 +6,7 @@ import {makeReadOnlyNativeArgs,findExactFixtureWindow,findFixtureElement,
  walkNativePayload,nativeCUAFixtureObserve,fixtureWindowEvidence,
  shouldCloseOwnFixtureExecution,findOSAttestedFixtureWindow,
  safeFixtureOSDiagnosis,parseOwnFixtureReady,awaitOwnFixtureReady,
- safeNativeCLIExitEvidence,safeGatewayNativeError}
+ safeNativeCLIExitEvidence,safeGatewayNativeError,safeCliMessageFingerprint}
  from '../scripts/openclaw-cua-fixture-native-observe.mjs';
 
 const root=resolve(import.meta.dirname,'..');
@@ -544,6 +544,8 @@ test('Gateway INVALID_REQUEST error is typed without leaking opaque error values
   codePresent:true,codeFamily:'invalid_request',messageFamily:'none',
   typeFamily:'unknown',transportKind:'unknown',codeKind:'string',
   detailForm:'absent',messageIndicators:[],retryableKnown:false,
+  cliMessageFingerprint:{state:'present',lengthBand:'medium',technicalTerms:[],
+   nestedErrorForm:'none',nestedCodeFamily:'unknown'},
   rootOriginMarker:'absent',dispatchKnown:false});
  assert.equal(JSON.stringify(obj).includes('secret'),false);
  assert.equal(JSON.stringify(obj).includes('password'),false);
@@ -669,4 +671,59 @@ test('gateway structural classifier remains readonly and bounded on code-free CL
  assert.match(s,/gatewayErrorEvidence/);
  assert.match(s,/scopedCloseRequest\(leasedNodeId,leasedExecutionId\)/);
  assert.doesNotMatch(s,/console\.log\(error\)|console\.error\(error\)|rawFailure:error/);
+});
+
+test('CLI code-free error fingerprint returns bounded technical vocabulary only',()=>{
+ const e='Operation failed: native window backend unavailable; '+
+  'user profile secret private document is never returned';
+ const o=safeCliMessageFingerprint(e);
+ assert.equal(o.state,'present');
+ assert.equal(o.lengthBand,'medium');
+ assert.deepEqual(o.technicalTerms,
+  ['failed','native','window','backend','unavailable']);
+ assert.equal(o.nestedErrorForm,'none');
+ for(const forbidden of ['user profile','secret','private document','never returned']){
+  assert.equal(JSON.stringify(o).includes(forbidden),false);
+ }
+ assert.equal(Object.isFrozen(o),true);
+ assert.equal(Object.isFrozen(o.technicalTerms),true);
+});
+test('empty/nonstring error messages cannot be mistaken for useful error evidence',()=>{
+ assert.deepEqual(safeCliMessageFingerprint(undefined),{
+  state:'missing',lengthBand:'none',technicalTerms:[],
+  nestedErrorForm:'none',nestedCodeFamily:'unknown'
+ });
+ assert.deepEqual(safeCliMessageFingerprint(''),{
+  state:'empty',lengthBand:'empty',technicalTerms:[],
+  nestedErrorForm:'none',nestedCodeFamily:'unknown'
+ });
+});
+test('nested code in message recognized only if complete message is bounded JSON',()=>{
+ const e=JSON.stringify({error:{code:'MISSING_SCOPE',
+  message:'private user browser password'},meta:{password:'secret'}});
+ const out=safeCliMessageFingerprint(e);
+ assert.equal(out.nestedErrorForm,'object');
+ assert.equal(out.nestedCodeFamily,'authorization');
+ assert.equal(JSON.stringify(out).includes('secret'),false);
+ assert.equal(JSON.stringify(out).includes('private'),false);
+ const other=safeCliMessageFingerprint('prefix '+e);
+ assert.equal(other.nestedErrorForm,'none');
+ assert.equal(other.nestedCodeFamily,'unknown');
+});
+test('fingerprint limits terms and buckets even for maliciously long messages',()=>{
+ const raw='version config process backend service window owner execution '+
+  'native driver provider gateway policy scope permission denied invalid '+
+  'state session computer launch username private ';
+ const result=safeCliMessageFingerprint(raw.repeat(10000));
+ assert.equal(result.lengthBand,'very_long');
+ assert.equal(result.technicalTerms.length,16);
+ assert.equal(JSON.stringify(result).includes('username'),false);
+ assert.equal(JSON.stringify(result).length<900);
+});
+test('native CLI diagnostic retains strict one-shot and no user desktop input',()=>{
+ assert.match(s,/cliMessageFingerprint=safeCliMessageFingerprint\(message\)/);
+ assert.match(s,/cliMessageFingerprint,/);
+ assert.match(s,/nativeReadAttempted=true/);
+ assert.match(s,/scopedCloseRequest\(leasedNodeId,leasedExecutionId\)/);
+ assert.doesNotMatch(s,/console\.log\(error\)|console\.error\(error\)|private_document_name/);
 });
