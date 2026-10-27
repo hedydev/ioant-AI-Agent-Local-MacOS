@@ -27,7 +27,12 @@ const AUDIT='IOANT_CUA_FIXTURE_NATIVE_READONLY';
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const plainObj=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
 const safeRef=x=>typeof x==='string'&&x.length>=1&&x.length<=1024;
-const knownKeys=new Set(['result','payload','data','response','output','content','value','details','observation','windows','elements','items','accessibilityTree','tree','children']);
+// Real node transports can embed the JSON body as content[].text or
+// structuredContent, not only as result.details.windows.
+const knownKeys=new Set(['result','payload','data','response','output',
+ 'content','text','structuredContent','body','message','value','details',
+ 'observation','windows','window','elements','items','accessibilityTree',
+ 'tree','children']);
 export function walkNativePayload(raw,{maxDepth=8,maxNodes=1800}={}){
  const found=[];const queue=[{obj:raw,depth:0}];const seen=new Set();
  while(queue.length&&found.length<maxNodes){
@@ -52,18 +57,53 @@ export function walkNativePayload(raw,{maxDepth=8,maxNodes=1800}={}){
  return found;
 }
 const pick=x=>typeof x==='string'?x:'';
+const processId=x=>{
+ for(const v of [x.pid,x.processId,x.processID,x.process_id,
+   x.ownerPid,x.ownerPID,x.kCGWindowOwnerPID]){
+  if(Number.isSafeInteger(v)&&v>0)return v;
+  if(typeof v==='string'&&/^[1-9][0-9]{0,9}$/.test(v))
+   return Number(v);
+ }
+ return null;
+};
+const windowTitle=x=>[x.title,x.windowTitle,x.windowName,x.window_name,
+ x.name,x.kCGWindowName].some(t=>t===TITLE);
+const windowRef=x=>pick(x.windowRef)||pick(x.ref)||pick(x.window_ref);
+const fixtureWindowRows=raw=>walkNativePayload(raw)
+ .filter(x=>plainObj(x)&&!Array.isArray(x));
+export function fixtureWindowEvidence(raw,pid){
+ const rows=fixtureWindowRows(raw);
+ const titled=rows.filter(windowTitle);
+ const owned=rows.filter(x=>processId(x)===pid);
+ const joint=titled.filter(x=>processId(x)===pid);
+ // Only synthetic target predicates. Do not return other app or window
+ // inventories, raw text, opaque refs, identifiers or counts.
+ const nodeTexts=rows.flatMap(x=>Array.isArray(x.content)?
+   x.content.filter(c=>plainObj(c)&&typeof c.text==='string')
+    .map(c=>c.text):[]);
+ return Object.freeze({
+  fixtureExactTitleSeen:titled.length>0,
+  fixtureProcessIdSeen:owned.length>0,
+  fixtureTitleAndPidSameRecord:joint.length>0,
+  fixtureWindowRefSeen:joint.some(x=>safeRef(windowRef(x))),
+  fixtureMentionedInTransportText:nodeTexts.some(x=>x.includes(TITLE)),
+  textContentEnvelopePresent:nodeTexts.length>0,
+  nativeEnvelopeRefused:rows.some(x=>x.ok===false&&
+   (plainObj(x.error)||plainObj(x.details)||typeof x.reason==='string'))
+ });
+}
 export function findExactFixtureWindow(raw,pid){
- const objects=walkNativePayload(raw);
- // A generic title alone is NEVER authorization: require this newly started PID.
- const hits=objects.filter(x=>plainObj(x)&&
-  (x.pid===pid||x.processId===pid)&&
-  [x.title,x.windowTitle,x.name].some(t=>t===TITLE));
- const candidates=hits.filter(x=>safeRef(x.windowRef)||safeRef(x.ref));
+ const objects=fixtureWindowRows(raw);
+ // Native window reference is never accepted on title alone.
+ // Only the just-launched fixture PID and exact synthetic title together
+ // may authorize the next read-only action.
+ const hits=objects.filter(x=>processId(x)===pid&&windowTitle(x));
+ const candidates=hits.filter(x=>safeRef(windowRef(x)));
  if(hits.length!==1||candidates.length!==1)
   return {state:'inconclusive',reason:hits.length===0?
    'fixture_window_not_found':hits.length>1?'ambiguous_fixture_window':'window_reference_missing',
    matchedWindowCount:hits.length};
- return {state:'matched',windowRef:pick(candidates[0].windowRef)||pick(candidates[0].ref),
+ return {state:'matched',windowRef:windowRef(candidates[0]),
    matchedWindowCount:1};
 }
 export function findFixtureElement(raw){
@@ -165,7 +205,8 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
   const match=findExactFixtureWindow(windows,child.pid);
   if(match.state!=='matched')return {...base,launchedFixture:true,
    state:'inconclusive',phase:'window_list',
-   reason:match.reason,matchedWindowCount:match.matchedWindowCount};
+   reason:match.reason,matchedWindowCount:match.matchedWindowCount,
+   fixtureEvidence:fixtureWindowEvidence(windows,child.pid)};
   phase='window_state';
   const windowState=await run(makeReadOnlyNativeArgs(chosen.id,executionId,
    'get_window_state',{windowRef:match.windowRef}),25000);
