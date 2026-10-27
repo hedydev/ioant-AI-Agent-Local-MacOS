@@ -373,3 +373,36 @@ https://docs.openclaw.ai/cli/logs
 https://docs.openclaw.ai/nodes/computer-use
 https://github.com/openclaw/openclaw/issues/147420
 https://github.com/openclaw/openclaw/pull/151127
+
+## 2026-10-28 — 166B passive logs exceeded observer's post-JSON cap
+
+166B on Mac returned `installedOpenClawVersion=2026.10.7` and
+`logTail.state=inconclusive`, `reason=log_tail_unavailable_or_oversized`.
+The CLI log call itself **did not fail**: the script only enters this
+branch after `readCLI(LOG_ARGS)` succeeded and returned a string.
+Therefore its output was longer than the diagnostic's previous
+300,000-character ceiling. It was still under the CLI call's existing
+450,000-byte `maxBuffer`, or the call would have thrown a separate
+`gateway_log_tail_unavailable` branch.
+
+The official OpenClaw `logs --max-bytes` option limits log-file bytes,
+whereas `--json` emits line-delimited structured events and can
+produce larger escaped/wrapped stdout. The previous 300k check was
+premature for this existing 450k read buffer.
+
+The passive parser now permits at most 450k characters and emits a
+safe output-size band (`at_most_300k` or
+`between_300k_and_450k`), never raw logs. Input larger than 450k
+remains inconclusive. The CLI `maxBuffer` is unchanged, as are the
+1000-line/250000-source-byte request cap, the 1000-line scan cap,
+strict exact `COMPUTER_HOST_BUSY` token, and no-owner-release guard.
+Two tests cover JSON-expanded logs between 300k/450k and rejection
+above the cap.
+
+This is a **diagnostic bound correction**, not a workaround for
+`COMPUTER_HOST_BUSY`. No ownership conflict was proven by 166B.
+After a clean deployment and passive rerun, a bounded log tail with
+no match remains only an absence in that sampled tail, not proof
+of no stale execution.
+
+Reference: https://docs.openclaw.ai/cli/logs
