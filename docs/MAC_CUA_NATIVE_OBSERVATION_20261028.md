@@ -462,3 +462,76 @@ Authoritative references:
 - https://docs.openclaw.ai/cli/status
 - https://github.com/openclaw/openclaw/issues/147420
 - https://github.com/openclaw/openclaw/pull/151127
+
+## 2026-10-28 — 168B and 169 root cause: our one-shot reads could strand execution ownership
+
+168B upgrade-readiness evidence: CLI and Gateway both
+`2026.10.7`; RPC healthy; the local updater advertises candidate
+`2026.10.8`; update active-run status remains **unknown**; agent task
+summary is unavailable. No rollback backup, maintenance window,
+or proof of no active Computer execution exists. There is **no**
+approval for an update, restart, forced shutdown or owner release.
+
+Review of upstream OpenClaw source at **both tags**
+`v2026.10.7` and `v2026.10.8` shows
+`src/gateway/tool-resolution.ts` and
+`src/agents/tools/computer-tool.ts` are byte-identical and both
+already include the admitted-run computer execution cleanup from PR
+`#151127`. Thus the earlier theory that 2026.10.7 lacks this fix
+was **incorrect**. Updating to 2026.10.8 is not an established fix
+for the observed busy owner; the new release may have independent
+security value, but requires a separate maintenance decision.
+
+The more important source evidence lies in
+`src/plugins/computer-use-registration.ts` at v2026.10.7:
+- Lines 44–48 hold an in-memory `execution` object for the
+  registered node-local provider.
+- Lines 69–93 open a provider execution and reject a different UUID
+  while the owner exists, producing the literal `COMPUTER_HOST_BUSY`.
+- Lines 95–126 close the current execution only for the matching ID.
+  A mismatched close resolves without changing the owner.
+- Lines 203–225 implement `computer.act`; any action with an explicit
+  `executionId` uses the cached execution, even for harmless reads,
+  while `__close_execution` is an explicit lease close with the same
+  execution ID.
+
+Our earlier read-only scripts were **incomplete** in this lifecycle:
+they sent fresh random UUIDs through `computer.act`, but did not close
+the same ID on early return. In particular, 158B
+`list_windows` returned successfully, then the observer reported
+`fixture_window_not_found` and exited **without any matching close**.
+This is a plausible concrete source of the four later host-busy errors,
+although it does not independently prove current owner identity or
+exclude earlier/simultaneous sessions.
+
+Corrective source work:
+- Add `scripts/openclaw-cua-owned-session-guard.mjs` with a strict
+  two-read maximum, exact v4 UUID and fixed one-owner cleanup
+  `__close_execution` builder, plus pure regression tests.
+- Modify `scripts/openclaw-cua-readonly-invoke-diagnostic.mjs`
+  and `scripts/openclaw-cua-fixture-native-observe.mjs` to
+  avoid abandoning their own new execution IDs.
+- Add `COMPUTER_HOST_BUSY` to the safe native error classification
+  and skip any speculative release when the new request is refused
+  because another execution owns the host.
+- Preserve the precise distinction:
+  `closeAcknowledged=true` is **not** proof that a current owner
+  was released. No existing owner ID is recovered by these changes.
+
+**DO NOT RUN older read-only Computer Use scripts again.** Existing
+owner(s) may still be present. Deploy these source fixes via the
+normal full-test safe update only. That deployment runs no
+`computer.act`, does not touch the Mac UI and cannot clear the
+old owner.
+
+Remaining recovery must be a separate, owner-safe maintenance
+procedure that confirms no other legitimate provider execution or
+Agent task is in progress. Never send random `__close_execution`
+UUIDs. An explicitly approved coordinated node disconnect/restart
+could retire a stranded in-memory owner, but cannot be attempted
+until current-work safety and recovery checks have passed.
+
+Source:
+https://github.com/openclaw/openclaw/blob/v2026.10.7/src/plugins/computer-use-registration.ts
+https://github.com/openclaw/openclaw/pull/151127
+https://github.com/openclaw/openclaw/releases/tag/v2026.10.8
