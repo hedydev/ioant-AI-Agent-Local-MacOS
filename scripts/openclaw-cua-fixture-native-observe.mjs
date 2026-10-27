@@ -351,17 +351,17 @@ export function safeGatewayNativeError(error){
   const messageIndicators=(()=>{
    const v=typeof message==='string'?message.slice(0,6000):'';
    const rules=[
-    ['cli_invoke',/\\b(?:nodes? invoke|node\\.invoke|node invocation)\\b/i],
-    ['gateway',/\\bgateway\\b/i],
-    ['policy',/\\b(?:policy|scope|approval|authorized|authorization|permission)\\b/i],
-    ['plugin',/\\bplugin\\b/i],
-    ['computer',/\\b(?:computer|cua|desktop)\\b/i],
-    ['driver',/\\b(?:driver|provider)\\b/i],
-    ['node',/\\bnode\\b/i],
-    ['contract',/\\b(?:schema|contract|parameters|argument|validation)\\b/i],
-    ['transport',/\\b(?:transport|connection|socket|websocket|connect)\\b/i],
-    ['runtime',/\\b(?:typeerror|syntaxerror|referenceerror|cannot read properties|undefined is not|is not a function)\\b/i],
-    ['execution',/\\b(?:execution|session|owner|lease)\\b/i]
+    ['cli_invoke',/\b(?:nodes? invoke|node\.invoke|node invocation)\b/i],
+    ['gateway',/\bgateway\b/i],
+    ['policy',/\b(?:policy|scope|approval|authorized|authorization|permission)\b/i],
+    ['plugin',/\bplugin\b/i],
+    ['computer',/\b(?:computer|cua|desktop)\b/i],
+    ['driver',/\b(?:driver|provider)\b/i],
+    ['node',/\bnode\b/i],
+    ['contract',/\b(?:schema|contract|parameters|argument|validation)\b/i],
+    ['transport',/\b(?:transport|connection|socket|websocket|connect)\b/i],
+    ['runtime',/\b(?:typeerror|syntaxerror|referenceerror|cannot read properties|undefined is not|is not a function)\b/i],
+    ['execution',/\b(?:execution|session|owner|lease)\b/i]
    ];
    return rules.filter(([,pattern])=>pattern.test(v))
     .map(([label])=>label).slice(0,6);
