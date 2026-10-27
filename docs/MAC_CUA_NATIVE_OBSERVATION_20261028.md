@@ -101,3 +101,30 @@ If the next live CUA list reports no record matching even the exact
 fixture title/PID, inspect the test-app's own WindowServer exposure and
 startup ordering without forcing foreground activation; do not weaken
 the window identity constraint.
+
+## 2026-10-28 — 159A blocked safely, bounded parser-depth correction
+
+The first parser update was rejected by `project-update-verify`:
+`candidate_tests_failed`, 707 total / 706 passing / 1 failing,
+no failing locations returned. The worker did **not** install the
+candidate; the last accepted Mac runtime remains HEAD
+`902a0e078f490b870866d1fe0bbfe2591891bd84`.
+
+Source review found a reproducible inconsistency: the added
+`content[].text` test JSON wraps `result.details.windows`. Window row
+objects are reached at depth **9**, whereas the old traversal had a
+default maximum depth of **8**, so strict PID/title match returns zero.
+A pure traversal reproduction returned 0 hits at depth 8 and 1 hit at
+depth 12.
+
+The updated walker permits depth 12 while retaining the 1,800-node
+cap, 512 KiB JSON-string budget and same-record synthetic identity
+check. Two tests cover the depth-9 fixture and blocked 16-level
+arbitrary nesting.
+
+This explains a likely single synthetic test failure; it does not
+yet establish that Mac's **real** CUA response used that format. Next
+gate is another clean full `project-update-verify`; only then attempt
+another single read-only test fixture window observation. No CUA
+background write is authorized before its own window and element are
+uniquely confirmed.
