@@ -23,15 +23,34 @@ export function chooseConnectedMacNode(raw){
  const body=raw?.result??raw;
  const nodes=body?.nodes??[];
  fail(Array.isArray(nodes),'invalid_node_list');
+ // Status rows may use nodeId (Gateway identity) rather than id. An
+ // activeNodeId also denotes computer presence, not a grant or mandatory
+ // unique selector. Select only a unique connected macOS node; where
+ // multiple exist, require exactly one explicit active ID match.
+ const macs=nodes.filter(x=>x&&x.connected===true&&
+   typeof x.platform==='string'&&/^macos\b/i.test(x.platform));
+ fail(macs.length>0,'connected_macos_node_missing');
  const active=body?.activeNodeId;
- fail(id(active),'active_node_missing');
- const match=nodes.filter(x=>x?.id===active&&x.connected===true&&
-  typeof x.platform==='string'&&/^macos\b/i.test(x.platform));
- fail(match.length===1,'active_macos_node_unavailable');
- const node=match[0];
+ const activeMatches=id(active)?macs.filter(n=>
+   n.nodeId===active||n.id===active):[];
+ let node,selection;
+ if(activeMatches.length===1){
+  node=activeMatches[0];
+  selection='active_connected_mac';
+ }else if(macs.length===1){
+  node=macs[0];
+  selection='unique_connected_mac';
+ }else{
+  throw Error('ambiguous_connected_mac_nodes');
+ }
+ // Prefer the documented Gateway nodeId to legacy id, but never guess from
+ // a display name, IP address or data from a disconnected/other-platform node.
+ const nodeId=id(node.nodeId)?node.nodeId:id(node.id)?node.id:null;
+ fail(nodeId!==null,'mac_node_identifier_missing');
  const cmds=[node.commands,node.capabilities,node.supportedCommands];
  const text=JSON.stringify(cmds);
- return Object.freeze({id:active,platform:node.platform,
+ return Object.freeze({id:nodeId,platform:node.platform,selection,
+   identifierField:id(node.nodeId)?'nodeId':'id',
    snapshotAdvertised:text.includes('screen.snapshot'),
    computerActAdvertised:text.includes('computer.act')});
 }
@@ -99,7 +118,8 @@ export async function macVisualTask(mode){
  fail(ROOT===RUNTIME&&await realpath(RUNTIME)===RUNTIME,'private_runtime_required');
  const selected=chooseConnectedMacNode(await callCli(['nodes','status','--json']));
  const base={audit:AUDIT,mode,connected:true,
-  platform:selected.platform,snapshotAdvertised:selected.snapshotAdvertised,
+  platform:selected.platform,selection:selected.selection,
+  identifierField:selected.identifierField,snapshotAdvertised:selected.snapshotAdvertised,
   computerActAdvertised:selected.computerActAdvertised,
   invokedComputerAct:false,changedBrowser:false};
  if(mode==='inspect')return {...base,state:'observed'};
@@ -122,7 +142,8 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  try{result=await macVisualTask(mode);}
  catch(e){
   const publicErrors=new Set(['unsupported_operation','private_runtime_required',
-   'active_node_missing','active_macos_node_unavailable','screen_snapshot_not_advertised',
+   'connected_macos_node_missing','ambiguous_connected_mac_nodes',
+   'mac_node_identifier_missing','screen_snapshot_not_advertised',
    'snapshot_payload_unavailable','image_encoding_unverified','desktop_unavailable']);
   result={audit:AUDIT,state:'blocked',reason:publicErrors.has(e.message)?
    e.message:'preflight_or_capture_failed',invokedComputerAct:false};

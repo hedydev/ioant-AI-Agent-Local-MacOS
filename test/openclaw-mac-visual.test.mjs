@@ -14,12 +14,42 @@ test('chooses exactly one actively connected mac node, with no model or browser 
  assert.equal(found.computerActAdvertised,true);
  assert.equal(Object.isFrozen(found),true);
 });
-test('does not fall back to other macs, phone nodes or an unregistered ID',()=>{
- assert.throws(()=>chooseConnectedMacNode({...good,activeNodeId:'unknown'}),/active_macos_node_unavailable/);
- assert.throws(()=>chooseConnectedMacNode({...good,activeNodeId:'iphone'}),/active_macos_node_unavailable/);
- assert.throws(()=>chooseConnectedMacNode({...good,nodes:[{...node,connected:false}]}),/active_macos_node_unavailable/);
- assert.throws(()=>chooseConnectedMacNode({...good,nodes:[node,node]}),/active_macos_node_unavailable/);
- assert.throws(()=>chooseConnectedMacNode({nodes:[node]}),/active_node_missing/);
+test('accepts a unique connected Mac even if the active computer is another device',()=>{
+ for(const active of ['unknown','iphone',undefined]){
+  const found=chooseConnectedMacNode({...good,activeNodeId:active});
+  assert.equal(found.id,'mac-abc');
+  assert.equal(found.selection,'unique_connected_mac');
+ }
+});
+test('prefers canonical nodeId over id and supports status rows without id',()=>{
+ const n={nodeId:'mac-stable-node',platform:'macOS 27.0.1',
+  connected:true,commands:['screen.snapshot','computer.act']};
+ const chosen=chooseConnectedMacNode({activeNodeId:'iphone',nodes:[n,
+  {nodeId:'iphone',platform:'iOS 26.6',connected:false}]});
+ assert.equal(chosen.id,'mac-stable-node');
+ assert.equal(chosen.identifierField,'nodeId');
+ assert.equal(chosen.snapshotAdvertised,true);
+});
+test('multiple online Macs require an unambiguous active identity',()=>{
+ const second={nodeId:'second-connected-mac',platform:'macOS 27.0.1',
+  connected:true,commands:['screen.snapshot']};
+ const both={activeNodeId:'nonexistent',nodes:[node,second]};
+ assert.throws(()=>chooseConnectedMacNode(both),/ambiguous_connected_mac_nodes/);
+ const chosen=chooseConnectedMacNode({...both,activeNodeId:second.nodeId});
+ assert.equal(chosen.id,second.nodeId);
+ assert.equal(chosen.selection,'active_connected_mac');
+ assert.throws(()=>chooseConnectedMacNode({...both,nodes:[node,node],
+   activeNodeId:node.id}),/ambiguous_connected_mac_nodes/);
+});
+test('offline nodes, missing identity and wrong platform do not get selected',()=>{
+ assert.throws(()=>chooseConnectedMacNode({...good,nodes:[{...node,connected:false}]}),
+  /connected_macos_node_missing/);
+ assert.throws(()=>chooseConnectedMacNode({...good,nodes:[{
+  platform:'macOS 27.0.1',connected:true,commands:['screen.snapshot']}] }),
+  /mac_node_identifier_missing/);
+ assert.throws(()=>chooseConnectedMacNode({activeNodeId:'ios',nodes:[{
+  nodeId:'ios',platform:'iOS 26.6',connected:true}]}),
+  /connected_macos_node_missing/);
 });
 test('bounded nested PNG decoding produces file bytes but no interaction',()=>{
  const result=extractBoundedImage({result:{payload:JSON.stringify({format:'png',

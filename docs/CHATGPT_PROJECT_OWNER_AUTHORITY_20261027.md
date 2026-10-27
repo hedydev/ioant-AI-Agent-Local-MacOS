@@ -50,3 +50,11 @@ Suggested owner-chat request once the authorized Alice Chat is independently rea
 ```
 
 When a matching same-Alice-chat `[IOANT-MAC-OPS RESULT ...]` arrives, the Alice ChatGPT Project Chat should reason over the advice with its AliceAI repository context and either request a revised plan or explicitly approve an actionable requirement spec. An authenticated, owner-bound durable decision/acceptance adapter is **not yet implemented**. Merely asking for a preview must never update the ledger.
+
+## 2026-10-28 — Mac visual helper node identity correction
+
+- `scripts/openclaw-mac-visual.mjs` v1 `inspect` was blocked with `active_macos_node_unavailable`; task 138 separately observed one connected macOS node advertising `screen.snapshot` and `computer.act`. No screen capture or `computer.act` was invoked.
+- The root issue is an overly restrictive selection predicate that assumed `nodes status --json` reports the invocation identifier as `nodes[].id` and that it must equal `activeNodeId`. The status format may instead report `nodeId`, and `activeNodeId` is not guaranteed to target that unique connected macOS node.
+- Selection policy now supports `nodeId` and legacy `id`. If exactly one connected macOS node exists, select it; if multiple exist, require exactly one active-ID match; never select offline nodes, iOS nodes, display names, or ambiguous IDs. Reject missing identity. The `inspect` operation remains read-only, with no screenshots, browser actions, mac-computer control or model calls.
+- Screen capture still requires a separate explicit operator task using `capture`; its result must be verified live with the actual Mac node. The previously blocked run did not perform capture. Do not mistake advertised capabilities for effective OS/Gateway approval.
+- Permanent user preference: anything involving more than trivial logic must be implemented and tested as a version-pinned repo script, then invoked by a **short** Worker command. Reports and logs belong on Mac Desktop.
