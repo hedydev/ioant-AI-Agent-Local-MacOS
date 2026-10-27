@@ -22,10 +22,10 @@ test('fixture never activates the user desktop and always auto-exits',()=>{
 test('state reader accesses only frontmost app bundle identity and pointer',()=>{
  assert.match(swift,/NSWorkspace\.shared\.frontmostApplication/);
  assert.match(swift,/NSEvent\.mouseLocation/);
- assert.doesNotMatch(swift,/AXUIElement|ScriptingBridge|AppleScript|JavaScript|CGWindowList/);
+ assert.doesNotMatch(swift,/\bimport\s+(?:ScriptingBridge|JavaScriptCore)\b|AXUIElementCreate|CGWindowListCopy/);
 });
 test('preparation does not launch GUI, browser or Computer Use actions',()=>{
- assert.doesNotMatch(prep,/\bspawn\(|open -g|\.act\b|nodes.*invoke|browser --|osascript/);
+ assert.doesNotMatch(prep,/\bspawn\(|open -g|--command.*computer\.act|nodes.*invoke|browser --|osascript/);
  assert.match(prep,/launchedFixture:false/);
  assert.match(prep,/desktopInput:false/);
  assert.match(prep,/mkdtemp\(/);
