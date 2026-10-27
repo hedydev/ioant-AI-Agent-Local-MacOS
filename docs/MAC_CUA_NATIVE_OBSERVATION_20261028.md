@@ -661,3 +661,59 @@ the documentation comment.
 Retest through the normal exact-HEAD `project-update-verify`
 candidate gate. No service, Node, Gateway, Watcher or Computer
 owner should be changed by this test-only correction.
+
+## 2026-10-28 — 171B app-owned CUA hypothesis; 172 exact parentage preflight
+
+The Mac 171B passive topology probe on HEAD
+`feec3ef9ffae84b1fb37f6f4eca9920500450f1f`
+reported `connectedMacNode=true`, `computerActAdvertised=true`,
+`cuaProviderV2Advertised=true`;
+both the exact `OpenClaw` application process and exact
+`cua-driver` process were observed. The separately managed
+`openclaw node status --json` CLI returned but its service state
+and installed status were unrecognized (`null`/`unknown`);
+there is no positive proof that a headless node service owns this
+selected Mac Node. `hostKindIndependentlyVerified=false`,
+`safeToRestartNode=false`.
+
+Official v2026.10.7 macOS source reinforces the hypothesis:
+- `apps/macos/Sources/OpenClaw/CuaDriverHostCoordinator.swift`
+  declares the embedded CUA daemon is launched as a **direct
+  OpenClaw.app child** so macOS TCC responsibility remains with
+  the application. This is a source-level architectural statement,
+  not independent verification of the running Mac processes.
+- `apps/macos/Sources/OpenClaw/NodeMode/MacNodeModeCoordinator.swift`
+  coordinates the app Node Worker and serializes route
+  disconnection, cancellation, and worker restarts on provider
+  changes or daemon stop. The app's Node must not be treated as
+  equivalent to a separately installed headless node service.
+- The CLI `openclaw node restart` applies to a managed headless
+  node service and must NOT be attempted against the app-owned
+  Node without independent host identity proof.
+
+New `scripts/openclaw-cua-app-parentage-readonly.mjs`
+queries one paired Mac Node metadata status and the exact
+`pgrep -x OpenClaw` / `pgrep -x cua-driver` process sets,
+then privately resolves only driver parent IDs via
+`ps -p ... -o ppid=`. It reports only whether at least one
+driver is a **direct child of one observed OpenClaw.app process**,
+plus whether all observed drivers match; it never emits PIDs,
+paths, command lines, labels, window titles, browser or screen
+content. An unknown process parent or cross-process ambiguity
+is reported as inconclusive. Even a matching child does **not**
+establish which `computer.act` UUID currently owns the host,
+whether a legitimate execution is active, or whether restart is
+safe. Explicit safe-recovery flags remain false.
+
+Only after a pinned-head full test-gated deployment, run that
+passive query once. Do not restart `OpenClaw.app`, the node host
+worker, its CUA daemon, the full Gateway, or the running Watcher.
+A later recovery procedure requires a separate operator-approved
+maintenance window and a specific, verified app-owned Node
+lifecycle boundary with preserved identity and pairing.
+No guessed execution ID or forced process termination is allowed.
+
+Source:
+- https://github.com/openclaw/openclaw/blob/v2026.10.7/apps/macos/Sources/OpenClaw/CuaDriverHostCoordinator.swift
+- https://github.com/openclaw/openclaw/blob/v2026.10.7/apps/macos/Sources/OpenClaw/NodeMode/MacNodeModeCoordinator.swift
+- https://github.com/openclaw/openclaw/blob/v2026.10.7/docs/cli/node.md
