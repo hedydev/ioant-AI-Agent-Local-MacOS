@@ -18,7 +18,10 @@ const CLI=join(homedir(),'.openclaw','bin','openclaw');
 const AUDIT='IOANT_CUA_HOST_OWNERSHIP_PASSIVE';
 const LOG_ARGS=['logs','--json','--limit','1000','--max-bytes','250000'];
 const VERSION_ARGS=['--version'];
-const BOUND=300000;
+// --max-bytes applies to source log bytes, but --json wraps/escapes each
+// event and can expand stdout beyond that source limit. execFile already
+// enforces a 450,000-byte ceiling, so accept any string it returned.
+const BOUND=450000;
 const base={audit:AUDIT,schemaVersion:1,readOnly:true,
  invokedComputerAct:false,computerReadCalls:0,changedDesktop:false,
  movedPointer:false,performedKeyboardInput:false,screenshotTaken:false,
@@ -33,7 +36,10 @@ export function parseSafeOpenClawVersion(raw){
 }
 export function classifyPassiveLogTail(raw){
  if(typeof raw!=='string'||raw.length>BOUND)
-  return Object.freeze({state:'inconclusive',reason:'log_tail_unavailable_or_oversized'});
+  return Object.freeze({state:'inconclusive',
+   reason:'log_tail_unavailable_or_oversized',
+   inputTypeValid:typeof raw==='string',
+   outputSizeBand:typeof raw!=='string'?'non_text':'exceeded_450k'});
  const lines=raw.split(/\r?\n/).filter(x=>x.length>0).slice(-1000);
  const exact=lines.filter(x=>/\bCOMPUTER_HOST_BUSY\b/.test(x));
  const phrase=lines.filter(x=>/another provider execution owns this computer/i.test(x));
@@ -44,6 +50,7 @@ export function classifyPassiveLogTail(raw){
  return Object.freeze({
   state:'observed',
   inspectedLines:lines.length,
+  outputSizeBand:raw.length<=300000?'at_most_300k':'between_300k_and_450k',
   exactComputerHostBusyCodeObserved:exact.length>0,
   exactHostBusyCodeOccurrences:Math.min(exact.length,1000),
   hostBusyOwnershipPhraseObserved:phrase.length>0,
