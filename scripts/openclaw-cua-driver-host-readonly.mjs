@@ -45,7 +45,7 @@ export function safeCuaProcessIdentity(comm){
 const isOwnedDirectory=(st,privateOnly=false)=>st?.isDirectory()===true&&
  st.isSymbolicLink()===false&&st.uid===process.getuid()&&
  (!privateOnly||(st.mode&0o077)===0);
-async function inspectSocketRoot({root=APP_CUA,stat=lstat,list=readdir,
+export async function inspectSocketRoot({root=APP_CUA,stat=lstat,list=readdir,
  read=readFile,ps=exec}={}){
  const report={socketRoot:'unavailable',...COUNTS};
  let st;
@@ -85,7 +85,7 @@ async function inspectSocketRoot({root=APP_CUA,stat=lstat,list=readdir,
  }
  return report;
 }
-async function inspectHostLogs({run=exec}={}){
+export async function inspectHostLogs({run=exec}={}){
  try{
   const {stdout}=await run('/usr/bin/log',[
    'show','--last','45m','--style','compact','--predicate',
