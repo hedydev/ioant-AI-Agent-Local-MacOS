@@ -11,6 +11,7 @@ import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {chooseConnectedMacNode} from './openclaw-mac-visual.mjs';
 import {classifiedComputerReply} from './openclaw-native-computer-readonly-smoke.mjs';
+import {scopedCloseRequest,knownPreAdmissionNativeFailure} from './openclaw-cua-owned-session-guard.mjs';
 const ROOT=resolve(fileURLToPath(new URL('..',import.meta.url)));
 const RUNTIME=join(homedir(),'Library','Application Support','ioant-openclaw-ops','runtime');
 const CLI=join(homedir(),'.openclaw','bin','openclaw');
@@ -88,16 +89,33 @@ export async function inspectNativeAppInventory({request=call,uuid=randomUUID,
   catch{return {...base,state:'inconclusive',reason:'paired_mac_status_unavailable'};}
   if(!chosen.computerActAdvertised||!chosen.snapshotAdvertised)
    return {...base,state:'blocked',reason:'computer_capability_not_advertised'};
-  let args;
-  try{args=makeInventoryArgs(chosen.id,uuid())}
-  catch{return {...base,state:'blocked',reason:'invalid_readonly_request'};}
-  let body;
-  try{body=await request(args,25000)}
-  catch(e){return {...base,state:'inconclusive',
-   invokedComputerAct:true,reason:'native_call_rejected_or_unavailable',
-   ...classifyNativeFailure(e)};}
-  const result=classifiedComputerReply(body);
-  return {...base,invokedComputerAct:true,...result};
+  let args,executionId;
+  try{
+   executionId=uuid();
+   args=makeInventoryArgs(chosen.id,executionId);
+  }catch{return {...base,state:'blocked',reason:'invalid_readonly_request'};}
+  let result,preAdmissionDenied=false;
+  let closure={attempted:false,acknowledged:false,ownerReleaseVerified:false};
+  try{
+   const body=await request(args,25000);
+   result={...base,invokedComputerAct:true,...classifiedComputerReply(body)};
+  }catch(error){
+   preAdmissionDenied=knownPreAdmissionNativeFailure(error);
+   result={...base,state:'inconclusive',invokedComputerAct:true,
+    reason:'native_call_rejected_or_unavailable',
+    ...classifyNativeFailure(error)};
+  }finally{
+   // list_apps is read-only but still acquires an execution lease.
+   // Close only the one created by this exact request, never an old owner.
+   if(!preAdmissionDenied){
+    closure.attempted=true;
+    try{
+     const r=await request(scopedCloseRequest(chosen.id,executionId),15000);
+     closure.acknowledged=r?.ok===true||r?.result?.ok===true;
+    }catch{}
+   }
+  }
+  return {...result,ownExecutionClosure:closure,existingOwnerReleased:false};
  }catch{return {...base,state:'inconclusive',reason:'preflight_or_probe_failed'};}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
