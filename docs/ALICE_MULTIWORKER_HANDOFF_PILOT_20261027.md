@@ -1,5 +1,8 @@
 # AliceAI separate ChatGPT Project / multi-Worker handoff pilot — 2026-10-27
 
+> **Authoritative correction (user-confirmed):** AliceAI development and acceptance belong to its **ChatGPT AliceAI Project Chat**, NOT the local OpenClaw `alice-ai` Agent, the Worker, or the OpenClaw workflow Chat. All local model analysis is auxiliary evidence only. Do not apply task acceptance/rejection from another Chat or local Agent. See [CHATGPT_PROJECT_OWNER_AUTHORITY_20261027.md](./CHATGPT_PROJECT_OWNER_AUTHORITY_20261027.md).
+
+
 ## Verified registration inputs (not a running Worker)
 
 - AliceAI user-selected Project URL: `https://chatgpt.com/g/g-p-6acaef839af081919426a885b3209f54-ai-mc-alice/c/6ade11a5-f0c0-83ec-add1-8a0cff00c938`.
