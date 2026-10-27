@@ -46,7 +46,7 @@ export function sanitizeAdvice(text){
  if(typeof text!=='string')return '';
  return text.slice(0,2800)
   .replace(/https?:\/\/[^\s"'<>]+/gi,'[URL]')
-  .replace(/(?:[a-f0-9]{8}-){4}[a-f0-9]{12}/gi,'[ID]')
+  .replace(/\b[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\b/gi,'[ID]')
   .replace(/\b(?:sk-[A-Za-z0-9_-]{15,}|Bearer\s+\S+)\b/gi,'[CREDENTIAL]')
   .replace(/[\x00-\x08\x0B-\x1F\x7F]/g,'')
   .trim().slice(0,1650);
