@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {makeCursorReadArgs,classifiedComputerReply}
+import {makeCursorReadArgs,classifiedComputerReply,inspectNativeComputerRead}
  from '../scripts/openclaw-native-computer-readonly-smoke.mjs';
 
 const uuid='d74d37dd-dcc3-42d0-ab46-70a43cad4a7f';
@@ -41,4 +41,50 @@ test('invalid native envelopes remain inconclusive without disclosing content',(
    privateMessage:'my secret'})});
  assert.equal(out.state,'inconclusive');
  assert.equal(JSON.stringify(out).includes('my secret'),false);
+});
+
+test('legacy get_cursor_position uses one own UUID and exactly matching close',async()=>{
+ const calls=[];
+ const out=await inspectNativeComputerRead({
+  uuid:()=>uuid,
+  call:async args=>{
+   calls.push(args);
+   if(args[1]==='status')return {nodes:[{
+    nodeId:'mac',platform:'macOS 27',connected:true,
+    commands:['screen.snapshot','computer.act']
+   }]};
+   const p=JSON.parse(args[7]);
+   if(p.action==='__close_execution')return {ok:true};
+   return {result:{ok:true,details:{cursorX:10,cursorY:20}}};
+  }
+ });
+ assert.equal(calls.length,3);
+ assert.equal(JSON.parse(calls[1][7]).action,'get_cursor_position');
+ assert.equal(JSON.parse(calls[2][7]).action,'__close_execution');
+ assert.equal(JSON.parse(calls[1][7]).executionId,uuid);
+ assert.equal(JSON.parse(calls[2][7]).executionId,uuid);
+ assert.equal(out.state,'observed');
+ assert.equal(out.ownExecutionClosure.attempted,true);
+ assert.equal(out.ownExecutionClosure.ownerReleaseVerified,false);
+ assert.equal(out.existingOwnerReleased,false);
+});
+test('legacy cursor read never attempts to close a busy unknown owner',async()=>{
+ const calls=[];
+ const out=await inspectNativeComputerRead({
+  uuid:()=>uuid,
+  call:async args=>{
+   calls.push(args);
+   if(args[1]==='status')return {nodes:[{
+    nodeId:'mac',platform:'macOS 27',connected:true,
+    commands:['screen.snapshot','computer.act']
+   }]};
+   throw Object.assign(Error('private execution owner'),{code:1,
+    stdout:JSON.stringify({error:{message:
+     'COMPUTER_HOST_BUSY: another provider execution owns this computer'}})});
+  }
+ });
+ assert.equal(calls.length,2);
+ assert.equal(out.state,'inconclusive');
+ assert.equal(out.ownExecutionClosure.attempted,false);
+ assert.equal(JSON.stringify(out).includes('private execution'),false);
 });
