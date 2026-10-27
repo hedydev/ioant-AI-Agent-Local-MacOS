@@ -228,8 +228,12 @@ export async function inspectCUAInvokeReads({
    // Do not proceed to a second native call when a permission or policy
    // denial has already been identified. Inconclusive is not a permit.
    if(action==='get_cursor_position'&&
-    ['macos_permission','pending_node_approval','gateway_command_policy'].includes(
-     results[action].category))break;
+    ['macos_permission','pending_node_approval','gateway_command_policy',
+     'gateway_unauthorized','gateway_forbidden','gateway_permission_denied',
+     'operator_scope_missing','operator_write_scope_diagnostic',
+     'node_pairing_required','node_command_approval_required',
+     'node_command_policy_denied','computer_act_approval_or_policy'].includes(
+      results[action].category))break;
   }
   const cursor=results.get_cursor_position;
   const windows=results.list_windows??{state:'skipped',
