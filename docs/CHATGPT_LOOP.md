@@ -644,3 +644,41 @@ After the safe self-update to ebd715036f6509b864de24385e7878e5e00689f5, the Mac 
 Operator sequence: (1) project-update-verify after candidate test gate; (2) openclaw-dev-preflight (read-only) and inspect receipt; (3) request explicit approval for the local config write; (4) only after that stop the foreground watcher, restart with --enable-openclaw-dev-create and --dev-agent openclaw-dev, and execute one new openclaw-dev-create task ID; (5) verify fresh readback, a no-tools model smoke and a real two-way same-chat development dialogue. The exact project ChatGPT URL must remain pinned. Never use --initialize, never silently grant tools, change model owner, or retry uncertain writes.
 
 This stage changes repository code, not the user's local Gateway configuration. Native Mac node --test, self-update, preflight, creation and end-to-end dev dialogue are unverified until their individual live receipts arrive.
+
+## 2026-10-28 — No busy retry on Chrome Relay failures (task 151B incident)
+
+Observed Mac watch log after the 151A self-reload: exact-chat DOM evaluation
+failed at 03:57:32 local time; subsequent `openclaw browser --browser-profile
+chrome --json tabs` calls failed approximately every 40 seconds through
+04:05:22. The log shows repeated browser *queries*, not clicking or typing.
+The watcher had no long-lived circuit breaker and printed unbounded CLI
+failure text including the JavaScript DOM-evaluate function, creating noise.
+
+The fix in `stage2/chatgpt-browser-read-circuit.mjs` and
+`stage2/chatgpt-loop.mjs` prevents that continuous loop:
+
+- After three consecutive failed exact-chat reads, cease browser queries
+  for 5 minutes. Subsequent failed single probes wait 10 minutes and then
+  at least 15 minutes, until a genuinely successful exact-page read resets
+  the circuit. No browser calls occur during cooldown.
+- A detected browser-host/permission denial stops future probes entirely
+  for that Worker session. It never falls back to shell, CDP, AppleScript,
+  Computer Use, or another browser channel to bypass host restrictions.
+- The watchdog remains interruptible by SIGINT or SIGTERM during cooldown.
+- An exact conversation read that succeeds resets the circuit. Pending
+  feedback remains persisted and can only be reconciled under existing
+  no-duplicate-message and no-duplicate-command rules.
+- Console and diagnostic events now use safe fixed error codes; do not log
+  raw browser error message, evaluate payload, page text or URLs of other
+  tabs. New private events: `browser_circuit_open` and
+  `browser_circuit_recovered`.
+
+**Important:** Changing committed code alone does not update a running Node
+watcher. Deploy via the existing approved self-update task when ChatGPT Relay
+is functional; if the watcher cannot access its ChatGPT chat, stop the
+foreground watcher with Ctrl-C and update using the normal owner-approved
+local deployment path. Do not kill unrelated processes or erase persisted
+watcher/chat state; self-reload must still follow confirmed feedback.
+
+No Chrome profile, extension access, macOS permission, Gateway credentials,
+AliceAI coordinator or Minecraft behavior is changed by this patch.
