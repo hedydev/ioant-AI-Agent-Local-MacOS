@@ -59,8 +59,7 @@ export function summarizeSessions(raw){
  return Object.freeze({
   available:list!==null,
   recentSessionCount:c,
-  snapshotLimited:d.hasMore===true||d.limitApplied!==null||
-   d.limitApplied!==undefined,
+  snapshotLimited:d.hasMore===true||d.limitApplied!=null,
   provesNoActiveAgentWork:false
  });
 }
