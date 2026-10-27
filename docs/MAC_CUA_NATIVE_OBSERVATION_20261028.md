@@ -535,3 +535,54 @@ Source:
 https://github.com/openclaw/openclaw/blob/v2026.10.7/src/plugins/computer-use-registration.ts
 https://github.com/openclaw/openclaw/pull/151127
 https://github.com/openclaw/openclaw/releases/tag/v2026.10.8
+
+## 2026-10-28 — 169A accepted; 170 full legacy read-only audit and safe recovery preflight
+
+169A deployed GitHub commit `8daeffe9ab84866890d80cbad53940915a2ceb12`;
+the Mac's full test gate passed **777/777**. This update installs
+source guards but **does not** release an old CUA lease or clear
+`COMPUTER_HOST_BUSY`.
+
+Further source review discovered two more pre-169 legacy paths that
+could independently abandon their own provider sessions:
+`scripts/openclaw-native-computer-readonly-smoke.mjs` (cursor read)
+and `scripts/openclaw-native-app-inventory-readonly.mjs`
+(`list_apps`). The combined noninterference-readiness script may
+indirectly call the latter. They have now been modified to use
+exactly matching `__close_execution` for the UUID **they** created,
+after a successful or ambiguous read, and to skip closing an
+unrelated owner after a clear `COMPUTER_HOST_BUSY`, unsupported-action,
+or Gateway policy denial. Never infer actual owner release from
+`ok:true`.
+
+New `scripts/openclaw-cua-owner-recovery-readiness.mjs` is passive
+and read-only. It asks only for one connected Mac status, the
+last 30 minutes of bounded **session metadata only**, the Gateway
+RPC status, and the exact project's Watcher status. It reports
+coarse booleans/counts and no agent/session IDs, user data, browser
+content, commands, processes, windows, or execution lease values.
+A recent session count of zero, a connected node, and a Watcher
+`running` or `stopped` state **cannot prove** the Computer provider
+has no live owner. If an endpoint is unavailable, that check is
+inconclusive; the script cannot grant restart permission.
+
+Read-only recovery path:
+1. Deploy with the normal exact-HEAD `project-update-verify`;
+   require a complete passing test suite and no uncontrolled service
+   restart. The source-only deployment must not attempt CUA.
+2. Invoke the new passive readiness script once under the pinned Mac
+   runtime. It must report `attemptedOwnerRelease=false`,
+   `restartedNode=false`, and
+   `safeToDisconnectOrRestartNode=false`.
+3. Review whether another active Agent has legitimate Computer
+   ownership before arranging a **separately explicitly approved**
+   maintenance window for any graceful node reconnect. The paired
+   OpenClaw node-side provider registers `onDisconnect` to close
+   its current execution, but neither an arbitrary `__close_execution`
+   nor an unverified node restart is appropriate.
+
+Official source: https://github.com/openclaw/openclaw/blob/v2026.10.7/src/plugins/computer-use-registration.ts
+
+Do not re-run old deployed `computer.act` read scripts if the
+full 170A rollout has not passed. No active-owner ID has been
+recovered, and the old lease remains untouched.
