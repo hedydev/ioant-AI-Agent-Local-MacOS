@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {scopedReadRequest,scopedCloseRequest,withScopedNativeReads}
+import {scopedReadRequest,scopedCloseRequest,knownPreAdmissionNativeFailure,withScopedNativeReads}
  from '../scripts/openclaw-cua-owned-session-guard.mjs';
 const UUID='7f574a5a-594e-45e6-9d4b-28e920890667',NODE='synthetic-mac';
 const request=action=>({action});
@@ -124,4 +124,23 @@ test('preflight rejects bad identity or >2 read operations without invoking anyt
   }));
  }
  assert.equal(calls,0);
+});
+
+test('legacy list_apps remains a scoped read requiring the same UUID',()=>{
+ assert.deepEqual(JSON.parse(scopedReadRequest(NODE,UUID,'list_apps')[7]),
+  {action:'list_apps',executionId:UUID});
+});
+test('read-only preadmission rejects prevent touching unknown execution owners',()=>{
+ for(const text of [
+  'COMPUTER_HOST_BUSY: another provider execution owns this computer',
+  'COMPUTER_UNSUPPORTED_ACTION',
+  'node command denied by policy',
+  'operator.write required'
+ ]){
+  assert.equal(knownPreAdmissionNativeFailure({stdout:JSON.stringify({
+   ok:false,error:{message:text}})}),true);
+ }
+ assert.equal(knownPreAdmissionNativeFailure({
+  stderr:'unexpected source-side error that could occur after open'
+ }),false);
 });
