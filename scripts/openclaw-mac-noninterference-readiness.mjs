@@ -29,14 +29,22 @@ export async function auditNonInterferingComputer({
   computerAdvertised:provider.computerAdvertised===true,
   providerIndependentlyConfirmed:provider.providerIndependentlyConfirmed===true,
   backgroundDeliveryAdvertised:provider.backgroundDeliveryAdvertised===true,
-  listAppsAdvertised:provider.listAppsAdvertised??null};
+  listAppsAdvertised:provider.listAppsAdvertised??null,
+  descriptorAvailable:provider.descriptorAvailable===true,
+  descriptorSchemaValid:provider.descriptorSchemaValid===true,
+  agentCursorAdvertised:provider.agentCursorAdvertised===true};
  if(provider.state!=='observed')return {...base,state:'inconclusive',
   reason:'provider_status_not_verified',listApps:{state:'skipped'}};
  if(!base.computerAdvertised)return {...base,state:'blocked',
   reason:'computer_not_advertised',listApps:{state:'skipped'}};
- if(base.listAppsAdvertised===false)return {...base,state:'observed',
-  reason:'list_apps_explicitly_unavailable',
-  listApps:{state:'skipped',reason:'not_advertised'}};
+ if(!base.providerIndependentlyConfirmed||!base.descriptorSchemaValid)
+  return {...base,state:'observed',
+   reason:'provider_descriptor_not_verified',
+   listApps:{state:'skipped',reason:'unverified_provider'}};
+ if(base.listAppsAdvertised!==true)
+  return {...base,state:'observed',
+   reason:'list_apps_not_advertised',
+   listApps:{state:'skipped',reason:'not_advertised'}};
  let result;
  try{result=await appsScan();}
  catch{result={state:'inconclusive',reason:'app_inventory_probe_failed'};}
