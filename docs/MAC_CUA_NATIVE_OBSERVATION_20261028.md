@@ -717,3 +717,48 @@ Source:
 - https://github.com/openclaw/openclaw/blob/v2026.10.7/apps/macos/Sources/OpenClaw/CuaDriverHostCoordinator.swift
 - https://github.com/openclaw/openclaw/blob/v2026.10.7/apps/macos/Sources/OpenClaw/NodeMode/MacNodeModeCoordinator.swift
 - https://github.com/openclaw/openclaw/blob/v2026.10.7/docs/cli/node.md
+
+## 2026-10-28 — 172B mixed CUA driver parentage; 173 passive ancestry
+
+172A shipped in GitHub commit
+`306a454c3ca3edff2a934018bc41a3712a90ce36`
+with **813/813** Mac candidate tests passed.
+
+172B real Mac:
+- Connected paired macOS Node advertises native CUA.
+- `OpenClaw.app` and `cua-driver` processes both observed.
+- `driverDirectAppChildVerified=true`: at least one CUA driver has a
+  `OpenClaw` process as its **direct parent**.
+- `allObservedDriversDirectAppChildren=false`: not every observed
+  CUA driver has an OpenClaw process as its direct parent.
+- `selectedNodeHostAttributionVerified=false`;
+  `computerExecutionOwnerVerified=false`;
+  `computerOwnerStaleVerified=false`;
+  `safeToRestartOrDisconnect=false`.
+- No input, browsing, app quit, Gateway restart, process signal or
+  owner release was attempted.
+
+A driver with a different *direct* parent may still be a **grandchild**
+of the app, or may belong to another process tree; the one-hop
+observation does **not** prove orphanhood, a conflicting driver, or
+which host maintains the currently busy Computer execution.
+
+173 adds `scripts/openclaw-cua-driver-ancestry-readonly.mjs`.
+It reads only the unique selected Mac Node's capability metadata,
+exact-name process IDs for `OpenClaw` and `cua-driver`, and at most
+eight `ps -p PID -o ppid=` ancestor hops for at most eight drivers.
+Local PID values never appear in the output. The report contains
+only aggregate counts of direct app children, indirect descendants,
+chains reaching PID 1 without an observed app ancestor, unknown and
+depth-limited chains. Output also explicitly marks current execution
+owner, orphanhood and restart safety **unverified**. A parent chain
+is a point-in-time observation subject to process exit/PID reuse.
+
+The real Mac run must follow a clean pinned-code update gate.
+This is a topology investigation, **not permission to stop, quit,
+kill, reset, disconnect or close anything**. Preserve Gateway,
+Watcher, other Agent tasks and the user's active desktop.
+
+Source context:
+https://github.com/openclaw/openclaw/blob/v2026.10.7/src/plugins/computer-use-registration.ts
+https://docs.openclaw.ai/nodes/computer-use
