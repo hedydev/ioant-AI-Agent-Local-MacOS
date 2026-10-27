@@ -14,22 +14,67 @@ private func validToken(_ token: String) -> Bool {
 private func fixtureTitle(_ token: String) -> String {
   "\(prefix) [\(token)]"
 }
-private func windowOwnershipProved(pid: Int32, token: String) -> Bool {
-  guard pid > 1, validToken(token) else { return false }
-  // Only compare the known synthetic title. Never emit any other
-  // application's title, ownership or content.
+// A passive diagnostic for this one synthetic test PID and its nonce only.
+// No other application names, windows, PIDs, bounds or content are returned.
+// CGPreflightScreenCaptureAccess does not request or change permission.
+private struct WindowProofEvidence {
+  var metadataAvailable = false
+  var screenRecordingGranted = false
+  var ownedWindowCount = 0
+  var ownedNormalWindowSeen = false
+  var ownedWindowNameVisible = false
+  var exactTitleCount = 0
+  var exactTitleOwnedByTarget = false
+  var exactTitleOwnedAtNormalLayer = false
+  var verified = false
+
+  func safeJSON() -> String {
+    func flag(_ value: Bool) -> String { value ? "true" : "false" }
+    let count = ownedWindowCount == 0 ? "none" :
+      ownedWindowCount == 1 ? "one" : "multiple"
+    return "{" +
+      "\"verified\":\(flag(verified))," +
+      "\"metadataAvailable\":\(flag(metadataAvailable))," +
+      "\"screenRecordingGranted\":\(flag(screenRecordingGranted))," +
+      "\"targetPidWindowCount\":\"\(count)\"," +
+      "\"targetPidNormalWindowSeen\":\(flag(ownedNormalWindowSeen))," +
+      "\"targetPidWindowNameVisible\":\(flag(ownedWindowNameVisible))," +
+      "\"exactTitleWindowCount\":\"\(exactTitleCount == 0 ? "none" : exactTitleCount == 1 ? "one" : "multiple")\"," +
+      "\"exactTitleOwnerMatched\":\(flag(exactTitleOwnedByTarget))," +
+      "\"exactTitleNormalLayerMatched\":\(flag(exactTitleOwnedAtNormalLayer))" +
+      "}"
+  }
+}
+private func windowOwnershipEvidence(pid: Int32, token: String) -> WindowProofEvidence {
+  var evidence = WindowProofEvidence()
+  guard pid > 1, validToken(token) else { return evidence }
+  evidence.screenRecordingGranted = CGPreflightScreenCaptureAccess()
   guard let rows = CGWindowListCopyWindowInfo(
     [.optionAll, .excludeDesktopElements],
-    kCGNullWindowID) as? [[String: Any]] else { return false }
-  let hits = rows.filter {
-    ($0[kCGWindowName as String] as? String) == fixtureTitle(token)
+    kCGNullWindowID) as? [[String: Any]] else { return evidence }
+  evidence.metadataAvailable = true
+  let title = fixtureTitle(token)
+  for row in rows {
+    let owner = (row[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value
+    let layer = (row[kCGWindowLayer as String] as? NSNumber)?.intValue
+    let name = row[kCGWindowName as String] as? String
+    if owner == pid {
+      evidence.ownedWindowCount += 1
+      if layer == 0 { evidence.ownedNormalWindowSeen = true }
+      if name != nil { evidence.ownedWindowNameVisible = true }
+    }
+    if name == title {
+      evidence.exactTitleCount += 1
+      if owner == pid {
+        evidence.exactTitleOwnedByTarget = true
+        if layer == 0 { evidence.exactTitleOwnedAtNormalLayer = true }
+      }
+    }
   }
-  guard hits.count == 1, let row = hits.first else { return false }
-  guard let owner = row[kCGWindowOwnerPID as String] as? NSNumber,
-        let layer = row[kCGWindowLayer as String] as? NSNumber else {
-    return false
-  }
-  return owner.int32Value == pid && layer.intValue == 0
+  evidence.verified = evidence.exactTitleCount == 1 &&
+    evidence.exactTitleOwnedByTarget &&
+    evidence.exactTitleOwnedAtNormalLayer
+  return evidence
 }
 
 final class ProofDelegate: NSObject, NSApplicationDelegate {
@@ -66,9 +111,13 @@ if args == ["--state"] {
   print("{\"frontmost\":\"\(name.replacingOccurrences(of: "\"", with: ""))\",\"mouseX\":\(mouse.x),\"mouseY\":\(mouse.y)}")
 } else if args.count == 3 && args[0] == "--prove-window" {
   let pid = Int32(args[1]) ?? 0
-  let verified = windowOwnershipProved(pid: pid, token: args[2])
-  print("{\"verified\":\(verified ? "true" : "false")}")
-  if !verified { exit(1) }
+  let evidence = windowOwnershipEvidence(pid: pid, token: args[2])
+  print("{\"verified\":\(evidence.verified ? "true" : "false")}")
+  if !evidence.verified { exit(1) }
+} else if args.count == 3 && args[0] == "--diagnose-window" {
+  let pid = Int32(args[1]) ?? 0
+  let evidence = windowOwnershipEvidence(pid: pid, token: args[2])
+  print(evidence.safeJSON())
 } else if args.count == 2 && args[0] == "--run" && validToken(args[1]) {
   let app = NSApplication.shared
   let delegate = ProofDelegate(title: fixtureTitle(args[1]))
