@@ -65,3 +65,24 @@ A single-writer test avoids using the **ops** conversation's window-text authori
 Only the already-running Alice watcher sees this request. Only when the latest assistant turn is idle, it sends a fixed user-role handshake to its own strictly validated AliceAI Project Chat, recording `press_intent` before entering the send path. If the user-role receipt is uncertain, the watcher never retries sending and only checks whether the exact receipt is present; on verified receipt the request becomes `confirmed`. The fixed text asks AliceAI ChatGPT to emit exactly one `openclaw-gui-readonly-probe` structured task. The coordinator then processes and reports that task, using its existing per-conversation feedback journal; no additional browser writer is created.
 
 Run a separate read-only status, Alice LaunchAgent log inspection, and DOM observer after the task request. Do not claim handshake success merely from a `confirmed` user-role message; require the exact `[IOANT-MAC-OPS RESULT alice-coordinator-verify-20261027-103]` *in Alice Chat* and verify action/status. This candidate adds no launchctl installation, PID manipulation, SSH, BDS or world operation.
+
+## 2026-10-27 — Local role-directed DAG pilot (source candidate)
+
+Browser-independent progress after AliceAI Chrome Relay reported \`visible=7\`, \`chatgpt=2\`, \`matchingAlice=0\` while extension verification separately said \`ready/connected\`. Native host inspect was \`blocked/native_host_unavailable\`; Browser Doctor exited 0. The one-shot Alice handshake remains **requested** (not press_intent/confirmed), and Alice Chat delivery has NOT been verified. Keep both running Workers, their bindings, and the handshake untouched. A separate browser observation surface refused ChatGPT page content by host security policy; do not route around that restriction with raw CDP, Mac Worker browser commands or an alternative page-reading tool.
+
+The separate local workflow pilot uses the existing \`stage2/workflow-engine.mjs\` reducer and private \`stage2/workflow-store.mjs\` for durable events, revision checks and protected file writes. New code:
+- \`stage2/local-agent-workflow.mjs\`: seven **logical** roles (requirements analyst, systems risk analyst, technical architect, software developer, tester, code reviewer, acceptance reviewer). DAG: requirements → risk+architecture (parallel) → implementation → testing → code review → acceptance. \`proposeLocalDispatch\` outputs only candidate assignments and rejects missing or ambiguous bindings. It does not claim a lease or run a job.
+- \`stage2/local-agent-workflow-cli.mjs\`: \`preview alice-ai\`, \`status alice-ai\`, \`bootstrap alice-ai\`, with corresponding \`openclaw-workflow\` scope only. It cannot accept commands, role/payload overrides, URLs, paths or model-written task specs. \`preview\` is stateless/read-only. \`bootstrap\` creates a **new fixed** per-project private workflow with 21 events (7 workers, 7 bindings, 7 tasks), refusing overwrite of any preexisting ledger. Existing reducer enforces the receipt → independent acceptance barrier.
+- These worker/Agent labels are workflow *proposals*, NOT real provisioned OpenClaw Agents, secure workload credentials, live processes, tool permissions, successful model reasoning, or browser messages. No installed worker is scheduled from this pilot. A later separately reviewed dispatch adapter must attest actual worker identity and capability, enforce durable lease claims and attest test/review evidence before executing anything.
+
+Mac deployment gate: full \`node --test\` from a verified archive and protected \`project-update-verify\`. Afterwards read-only preview:
+\`\`\`bash
+cd "$HOME/Library/Application Support/ioant-openclaw-ops/runtime" &&
+node stage2/local-agent-workflow-cli.mjs preview alice-ai
+\`\`\`
+Only after explicit task approval, create a private inert ledger:
+\`\`\`bash
+cd "$HOME/Library/Application Support/ioant-openclaw-ops/runtime" &&
+bash scripts/dev-env.sh exec node stage2/local-agent-workflow-cli.mjs bootstrap alice-ai
+\`\`\`
+This new standalone CLI requires no Gateway, Chrome, AliceAI, safe-watcher or Minecraft service restart. Logs from operator smoke tests should be exported to Desktop; data ledger remains owner-private on LunaDrive. Do not imply that a DAG bootstrap executes Agents.
