@@ -38,7 +38,7 @@ test('empty log tail never proves stale owner or permission problems',()=>{
  assert.equal(r.staleOwnerVerified,false);
 });
 test('oversized or non-text log tail returns safe inconclusive category',()=>{
- for(const v of [null,5,'x'.repeat(300001)]){
+ for(const v of [null,5,'x'.repeat(450001)]){
   const r=classifyPassiveLogTail(v);
   assert.equal(r.state,'inconclusive');
   assert.equal(r.reason,'log_tail_unavailable_or_oversized');
@@ -114,4 +114,26 @@ test('passive audit contains no direct CUA node invoke, kill, release or GUI fal
  assert.match(source,/ownerReleaseAttempted:false/);
  assert.match(source,/nodeDisconnectAttempted:false/);
  assert.match(source,/rawGatewayLogsEmitted:false/);
+});
+
+test('JSON log expansion between old and CLI buffer cap is accepted safely',()=>{
+ const raw='{"type":"log","message":"unrelated"}\n'.repeat(10000)+
+  '{"type":"log","message":"COMPUTER_HOST_BUSY: another provider execution owns this computer"}\n';
+ assert.ok(raw.length>300000&&raw.length<450000);
+ const r=classifyPassiveLogTail(raw);
+ assert.equal(r.state,'observed');
+ assert.equal(r.outputSizeBand,'between_300k_and_450k');
+ assert.equal(r.exactComputerHostBusyCodeObserved,true);
+ assert.equal(r.hostBusyOwnershipPhraseObserved,true);
+ assert.equal(r.currentOwnerVerified,false);
+ assert.equal(r.staleOwnerVerified,false);
+ assert.equal(r.safeToReleaseOwner,false);
+ assert.equal(JSON.stringify(r).includes('unrelated'),false);
+});
+test('over existing CLI buffer cap is still rejected with only a safe size band',()=>{
+ const r=classifyPassiveLogTail('PRIVATE_WINDOW_NAME'.repeat(30000));
+ assert.equal(r.state,'inconclusive');
+ assert.equal(r.reason,'log_tail_unavailable_or_oversized');
+ assert.equal(r.outputSizeBand,'exceeded_450k');
+ assert.equal(JSON.stringify(r).includes('PRIVATE_WINDOW_NAME'),false);
 });
