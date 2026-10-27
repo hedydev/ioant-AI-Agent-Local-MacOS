@@ -580,7 +580,7 @@ async function main(){
           state.feedbackPending={id:bad.id,action:'invalid-task-feedback',
             reloadRequired:false,phase:'prepared',feedback};
           await atomicState(stateFile,state); // Persist before typing or pressing Enter.
-          recordDiagnosticEvent('invalid_task_feedback_pending',{taskId:bad.id,reason:bad.reason});
+          recordDiagnosticEvent('invalid_task_feedback_pending',{taskId:bad.id,code:bad.reason});
           try{
             await sendToChat(nowTarget,opts.url,feedback,receipt,{
               beforePress:async()=>{
@@ -596,7 +596,7 @@ async function main(){
           state.lastTaskId=bad.id;
           state.feedbackPending=null;
           await atomicState(stateFile,state);
-          recordDiagnosticEvent('invalid_task_feedback_confirmed',{taskId:bad.id,reason:bad.reason});
+          recordDiagnosticEvent('invalid_task_feedback_confirmed',{taskId:bad.id,code:bad.reason});
           console.log('[loop] Invalid task rejected and correction receipt confirmed in exact chat.');
           stable=0;previousFingerprint='';
         }

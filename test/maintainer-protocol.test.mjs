@@ -51,9 +51,9 @@ test('existing watcher does not accept model-supplied Chrome commands or auto re
  const protocol=readFileSync(resolve(root,'stage2/protocol.mjs'),'utf8');
  assert.ok(protocol.includes('openclaw-maintainer-health'));
  assert.match(watcher,/const a=extractWatchedAction\(page\)/);
- assert.match(watcher,/import \{extractWatchedAction\} from '\.\/task-observation\.mjs';/);
+ assert.match(watcher,/import \{extractWatchedAction,invalidTaskResponse\} from '\.\/task-observation\.mjs';/);
  const adapter=readFileSync(resolve(root,'stage2/task-observation.mjs'),'utf8');
- assert.match(adapter,/import \{extractAction\} from '\.\/protocol\.mjs';/);
+ assert.match(adapter,/import \{extractAction,PROTOCOL,isKnownAction\} from '\.\/protocol\.mjs';/);
  assert.match(adapter,/e\.message===MALFORMED/);
  assert.match(adapter,/throw e;/);
  assert.doesNotMatch(watcher,/openclaw-maintainer-health.*(?:repair|restart|install)/);

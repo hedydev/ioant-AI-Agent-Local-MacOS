@@ -23,6 +23,7 @@ const EVENTS=new Set([
  'initialization_reconciled','initialization_uncertain','receipt_unconfirmed','lab_probe_claimed',
   'openclaw_dev_create_claimed','dev_discussion_claimed','task_seen','action_started',
  'action_finished','report_saved','feedback_pending','feedback_confirmed',
+ 'invalid_task_feedback_pending','invalid_task_feedback_confirmed',
  'watch_heartbeat','watch_stopped','worker_error','log_capacity_reached'
 ]);
 const META_KEYS=new Set(['action','taskId','status','code','elapsedMs','exitCode','profile','mode']);
