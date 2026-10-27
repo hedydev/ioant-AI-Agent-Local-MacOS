@@ -5,7 +5,7 @@
 // the stored owner matched or has actually been released.
 import {randomUUID} from 'node:crypto';
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
-const readActions=new Set(['list_windows','get_cursor_position','get_window_state']);
+const readActions=new Set(['list_windows','get_cursor_position','get_window_state','list_apps']);
 const validRef=x=>typeof x==='string'&&x.length>0&&x.length<=1024;
 const nativeInvoke=(nodeId,payload)=>[
  'nodes','invoke','--node',nodeId,'--command','computer.act',
@@ -22,6 +22,16 @@ export function scopedReadRequest(nodeId,executionId,action,params={}){
   payload.includeScreenshot=false;
  }
  return nativeInvoke(nodeId,payload);
+}
+// Native rejects at the admission boundary cannot have opened the
+// newly requested execution. Suppress a redundant close on clear denial;
+// unknown failures are NOT treated as proof that no own lease was opened.
+export function knownPreAdmissionNativeFailure(err){
+ const chunks=[err?.stdout,err?.stderr]
+  .filter(x=>typeof x==='string').map(x=>x.slice(0,14000));
+ const raw=chunks.join('\n');
+ return /\b(?:COMPUTER_HOST_BUSY|COMPUTER_UNSUPPORTED_ACTION|COMPUTER_DISABLED|NODE_NOT_FOUND|NODE_DISCONNECTED|ACCESSIBILITY_REQUIRED)\b/.test(raw)||
+  /\b(?:command denied by policy|command not allowed|approval required|not authorized|forbidden|insufficient scope|operator\.write required)\b/i.test(raw);
 }
 export function scopedCloseRequest(nodeId,executionId){
  if(!validRef(nodeId)||!uuid.test(executionId))
