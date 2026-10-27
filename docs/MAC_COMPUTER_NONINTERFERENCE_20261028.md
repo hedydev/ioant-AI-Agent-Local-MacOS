@@ -105,3 +105,31 @@ Sources:
 
 No user-facing system configuration was modified; CUA was not selected,
 Chrome was not opened or read, and no input was performed.
+
+## 2026-10-28 — 152B receipt and v2 provider ID correction
+
+The watcher is loaded in launchd (PID 23189 at 152B) and the two focused
+browser circuit tests passed 12/12. A service PID plus green tests is not
+yet a real prolonged Chrome disconnection acceptance.
+
+151B live native descriptor: `descriptorSchemaValid=true`,
+`backgroundDeliveryAdvertised=true`, `listAppsAdvertised=true`,
+`provider=unknown`, `agentCursorAdvertised=false`. No input occurred.
+OpenClaw's documented canonical CUA ID may be `cua-computer`; our older
+allowlist had omitted it. The allowlist now recognizes that ID and
+`peekaboo-computer` (legacy `peekaboo` remains recognized).
+
+Importantly, Peekaboo can implement specific background window/element
+operations as well. The policy now accepts either *known and verified*
+provider ONLY if per-action background execution has independently passed;
+provider identity or delivery advertisement alone grants no input.
+
+Next field audit MUST use the metadata-only
+`node scripts/openclaw-computer-provider-readiness.mjs` (after version-pinned
+deployment), not the combined readiness script that can attempt `list_apps`.
+No code path should manipulate actual Chrome/ChatGPT UI through Computer Use
+as a substitute for denied browser access. No independent second macOS cursor
+has been established; true concurrent desktop isolation requires separate
+session/desktop or verified no-focus-steal window action.
+
+Official documentation: https://docs.openclaw.ai/nodes/computer-use
