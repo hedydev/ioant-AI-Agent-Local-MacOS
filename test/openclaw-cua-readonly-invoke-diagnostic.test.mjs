@@ -250,3 +250,24 @@ test('cursor-only success remains observation-only, not background execution pro
  assert.equal(r.windowListRead.state,'skipped');
  assert.equal(r.nativeInputAttempted,false);
 });
+
+test('default diagnostic never lists windows after Gateway operator scope denial',async()=>{
+ let calls=0;
+ const run=async args=>{
+  if(args[1]==='status')return status();
+  calls++;
+  if(JSON.parse(args[7]).action!=='get_cursor_position')
+   throw Error('window action should have been blocked');
+  throw Object.assign(Error('scope needed'),{code:1,
+   stdout:JSON.stringify({error:{
+    code:'INSUFFICIENT_SCOPE',message:'operator.write required'
+   }})});
+ };
+ const r=await inspectCUAInvokeReads({
+  allowedRuntime:async()=>true,uuid:()=>UUID,call:run
+ });
+ assert.equal(calls,1);
+ assert.equal(r.cursorRead.category,'operator_scope_missing');
+ assert.equal(r.windowListRead.state,'skipped');
+ assert.equal(r.nativeInputAttempted,false);
+});
