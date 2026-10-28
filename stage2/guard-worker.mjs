@@ -213,10 +213,11 @@ async function main(args){
    console.log(JSON.stringify(report));process.exitCode=1;return;
   }
   const saved=await persistIncidents(report);
-  console.log(JSON.stringify({audit:AUDIT,schemaVersion:1,
-   state:'scanned',readOnlyHost:true,browserAccess:false,
-   incidentTicketsQueued:saved.newIncidents,chatMessagesSent:0,
-   services:report.services}));
+  // Scheduled runs are silent when healthy. Avoid unbounded launchd logs.
+  if(saved.newIncidents>0)
+   console.log(JSON.stringify({audit:AUDIT,schemaVersion:1,
+    state:'incident_queued',readOnlyHost:true,browserAccess:false,
+    incidentTicketsQueued:saved.newIncidents,chatMessagesSent:0}));
   return;
  }
  if(args.length===3&&args[0]==='handoff-check'){
