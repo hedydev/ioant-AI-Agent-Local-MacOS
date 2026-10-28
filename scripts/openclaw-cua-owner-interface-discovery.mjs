@@ -25,6 +25,28 @@ export function sourcePatternSignals(source){
   result[name]=typeof source==='string'&&pattern.test(source);
  return Object.freeze(result);
 }
+// Per-file co-location hints only. Never expose source or path information.
+// A token near a status/owner keyword is not a callable API contract.
+export function sourceOwnerCohesion(source){
+ const f=sourcePatternSignals(source);
+ const str=typeof source==='string'?source:'';
+ const owner=f.ownerRegistry;
+ return Object.freeze({
+  registryWithClose:owner&&f.closeExecution,
+  registryWithBusy:owner&&f.hostBusy,
+  closeWithBusy:f.closeExecution&&f.hostBusy,
+  registryWithStatusWords:owner&&
+   /(?:inspect|status|query|read|get)(?:.{0,32})(?:execution|owner|lease)/i.test(str),
+  registryWithMutationWords:owner&&
+   /(?:release|clear|delete|revoke|terminate)(?:.{0,32})(?:execution|owner|lease)/i.test(str),
+  closeWithOwnerState:f.closeExecution&&
+   /(?:owner|lease|executionId|execution_id)/i.test(str),
+  candidateStatusAction:/(?:__get_execution_status|__query_execution_owner|getExecutionOwnerStatus|queryComputerExecutionStatus)/.test(str)
+ });
+}
+const cohortKeys=['registryWithClose','registryWithBusy','closeWithBusy',
+ 'registryWithStatusWords','registryWithMutationWords','closeWithOwnerState',
+ 'candidateStatusAction'];
 function installRoots(){
  const home=homedir();
  const candidates=[];
@@ -40,7 +62,7 @@ function installRoots(){
  return [...new Set(candidates)];
 }
 export function summarizeOwnerInterfaceScan({filesInspected,rootsFound,hitCounts,
- truncated=false}){
+ cohortCounts={},truncated=false}){
  const counts={};
  for(const key of Object.keys(PATTERNS)){
   const n=hitCounts?.[key];
@@ -49,6 +71,9 @@ export function summarizeOwnerInterfaceScan({filesInspected,rootsFound,hitCounts
  return Object.freeze({
   rootsFound,filesInspected,scanTruncated:truncated,
   patternHitFiles:counts,
+  ownerSourceCoLocation:Object.freeze(Object.fromEntries(cohortKeys.map(k=>
+   [k,Number.isSafeInteger(cohortCounts?.[k])&&cohortCounts[k]>=0?
+    Math.min(cohortCounts[k],MAX_FILES):0]))),
   // Text patterns are not a callable, independently authenticated API.
   interfaceVerified:false,ownerReleaseVerified:false
  });
@@ -57,6 +82,7 @@ function scanInstalledSources(roots){
  const queue=roots.map(dir=>({dir,depth:0}));
  const visited=new Set(),counts=Object.fromEntries(
   Object.keys(PATTERNS).map(x=>[x,0]));
+ const cohort=Object.fromEntries(cohortKeys.map(k=>[k,0]));
  const excluded=new Set(['.git','docs','test','tests','cache']);
  let inspected=0;
  while(queue.length&&inspected<MAX_FILES){
@@ -84,10 +110,12 @@ function scanInstalledSources(roots){
    try{body=readFileSync(p,'utf8')}catch{continue}
    const signals=sourcePatternSignals(body);
    for(const key of Object.keys(counts))if(signals[key])counts[key]++;
+   const second=sourceOwnerCohesion(body);
+   for(const key of cohortKeys)if(second[key])cohort[key]++;
   }
  }
  return summarizeOwnerInterfaceScan({filesInspected:inspected,
-  rootsFound:roots.length,hitCounts:counts,
+  rootsFound:roots.length,hitCounts:counts,cohortCounts:cohort,
   truncated:inspected===MAX_FILES||queue.length>0});
 }
 export async function inspectOwnerInterface({
