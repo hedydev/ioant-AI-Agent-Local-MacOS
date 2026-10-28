@@ -662,23 +662,22 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
   // independent title/PID, initial-value, provider and focus gates pass.
   // Never pass browser tools, raw window inventory or unrelated app metadata.
   if(typeof verifiedFixtureChallenge==='function'){
-   if(!unchanged||!fresh||!element.valueMatchesInitial||
+   // The lengthy native read is read-only. Normal user pointer motion
+   // during it is not evidence of a CUA-induced pointer movement. The
+   // callback must take two fresh adjacent state samples immediately
+   // before writing, then compare a post-action sample to that witness.
+   if(!fresh||!element.valueMatchesInitial||
        !caps.actions.includes('set_value'))
     return finish({...base,launchedFixture:true,state:'blocked',
      reason:!fresh?'provider_generation_changed':
-      !unchanged?'foreground_or_pointer_changed':
-       'initial_field_value_not_confirmed',
-     ...(unchanged?{}:{
-      interferenceStage:'post_native_read',
-      interferenceSignals:postReadSignals,
-      launchSignals}),
+      'initial_field_value_not_confirmed',
      mutatingActionAttempted:false,fixtureWindowMatched:true});
    phase='verified_fixture_challenge';
    const challenge=await verifiedFixtureChallenge(Object.freeze({
     nodeId:chosen.id,executionId,windowRef:match.windowRef,
     elementRef:element.elementRef,observationId:element.observationId,
     token,expectedGeneration:generation,run,
-    readState:state,baseline:Object.freeze({...before}),
+    readState:state,baseline:Object.freeze({...after}),
     verifyOwnedWindow:()=>ownerProof(binary,child.pid,token),
     fixtureIsAlive:()=>child.exitCode===null,
     getCurrentNode:async()=>{
@@ -716,6 +715,8 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
     fixtureWindowMatched:true,fixtureElementMatched:true,
     fixtureSelfAttested:true,independentOSPidVerified:true,
     prewriteChecks,
+    readPhaseFrontmostUnchanged:postReadSignals.frontmostUnchanged,
+    readPhasePointerUnchanged:postReadSignals.pointerUnchanged,
     ...Object.fromEntries(criteria.map(k=>[k,challenge?.[k]===true]))});
   }
   return finish({...base,launchedFixture:true,state:unchanged&&fresh&&element.valueMatchesInitial?
