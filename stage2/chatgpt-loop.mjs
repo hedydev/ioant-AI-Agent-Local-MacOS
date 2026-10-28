@@ -585,10 +585,14 @@ async function main(){
       // A pending ordinary task receipt ALWAYS takes priority over this block.
       // The source service plist, ticket scope and digest are validated before
       // the existing, locally authorized browser sender may be called.
-      if(!isolatedProjectScope&&safeGuardSlot){
-        if(state.guardNotice){
-          if(!validateGuardOutboxState(state))
-            throw Error('Untrusted pending Guard notice state; no send.');
+      if(!isolatedProjectScope){
+        if(state.guardNotice&&!validateGuardOutboxState(state))
+          throw Error('Untrusted pending Guard notice state; no send.');
+        // Once Enter may have been pressed, receipt reconciliation has
+        // priority over ANY new assistant task. Prepared notices yield to a
+        // fresh task and never preempt it.
+        if(state.guardNotice&&
+           (safeGuardSlot||state.guardNotice.phase==='press_intent')){
           const receipt=receiptForGuardTicket(state.guardNotice.ticket);
           if(page.users.some(msg=>msg.startsWith(receipt))){
             state=completeGuardNotice(state);
@@ -623,7 +627,7 @@ async function main(){
           await new Promise(r=>setTimeout(r,opts.interval*1000));
           continue;
         }
-        try{
+        if(safeGuardSlot&&!state.guardNotice)try{
           const ticket=await nextGuardNotice({chatUrl:opts.url,state});
           if(ticket){
             state=prepareGuardNotice(state,ticket);
