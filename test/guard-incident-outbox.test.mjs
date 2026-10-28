@@ -141,3 +141,26 @@ test('Guard notice cannot preempt a new or ambiguous ChatGPT task',()=>{
  assert.match(s,/if\(safeGuardSlot&&!state\.guardNotice\)try/);
  assert.equal((s.match(/const a=extractWatchedAction\(page\)/g)||[]).length,1);
 });
+
+test('mixed Alice and Ops journal rows do not suppress an Ops incident',()=>{
+ const alice=fixture({projectKey:'alice-ai',conversationId:
+  '6ade11a5-f0c0-83ec-add1-8a0cff00c938'});
+ const ops=fixture();
+ assert.equal(validGuardTicket(alice),true);
+ assert.equal(selectGuardTicket([alice,ops],{conversationId:id,state:{}})?.key,ops.key);
+ assert.equal(selectGuardTicket([alice],{conversationId:id,state:{}}),null);
+});
+test('Ops sender never delivers or stages an Alice-only incident',()=>{
+ const alice=fixture({projectKey:'alice-ai',conversationId:
+  '6ade11a5-f0c0-83ec-add1-8a0cff00c938'});
+ assert.throws(()=>guardIncidentMessage(alice),/invalid_guard_ticket/);
+ assert.throws(()=>prepareGuardNotice({},alice),/invalid_guard_ticket/);
+ assert.equal(validateGuardOutboxState({
+  guardNotice:{ticket:alice,phase:'prepared'}}),false);
+});
+test('altered other-Project ticket still invalidates the shared journal',()=>{
+ const alice=fixture({projectKey:'alice-ai',conversationId:
+  '6ade11a5-f0c0-83ec-add1-8a0cff00c938'});
+ assert.throws(()=>selectGuardTicket([fixture(),{...alice,key:'0'.repeat(24)}],
+  {conversationId:id,state:{}}),/guard_journal_untrusted/);
+});
