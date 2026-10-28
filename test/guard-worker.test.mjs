@@ -12,9 +12,9 @@ import {renderAliceCoordinatorPlist,aliceCoordinatorManifest}
 const base={identityVerified:true,serviceState:'running',
  privateState:'observed',pendingPhase:'none',recentLogCode:null,
  recentLogAgeSeconds:null};
-const oldUrl='https://chatgpt.com/g/g-p-testproject/c/12345678-aaaa-bbbb-cccc-0123456789ab';
-const newUrl='https://chatgpt.com/g/g-p-testproject/c/12345678-aaaa-bbbb-cccc-0123456789ac';
-const alien='https://chatgpt.com/g/g-p-otherproject/c/12345678-aaaa-bbbb-cccc-0123456789ad';
+const oldUrl='https://chatgpt.com/g/g-p-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/c/12345678-aaaa-bbbb-cccc-0123456789ab';
+const newUrl='https://chatgpt.com/g/g-p-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/c/12345678-aaaa-bbbb-cccc-0123456789ac';
+const alien='https://chatgpt.com/g/g-p-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/c/12345678-aaaa-bbbb-cccc-0123456789ad';
 test('healthy running worker without pending receipt has no incident',()=>{
  const r=classifyGuardObservation(base);
  assert.deepEqual(r.incidentCodes,[]);
