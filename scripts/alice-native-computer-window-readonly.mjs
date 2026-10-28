@@ -25,6 +25,37 @@ const base=()=>({audit:AUDIT,schemaVersion:1,readOnly:true,
  browserRelayUsed:false,browserDomRead:false,chatTextReleased:false,
  screenshotTaken:false,tabSwitched:false,computerInput:false,
  chatMessageSent:false,workflowMutated:false});
+// Inspect role/label metadata in memory, discarding all label/value contents.
+// Counts are only UI-readiness hints, never permission to type or send.
+// The v2 contract exposes elementRef/role/label/bounds in window observation.
+export function summarizeNativeAXElements(raw){
+ const nodes=walkNativePayload(raw);
+ const refs=new Set(),editable=new Set(),composerHints=new Set(),buttons=new Set();
+ for(const el of nodes){
+  if(!el||typeof el!=='object'||Array.isArray(el)||
+     typeof el.elementRef!=='string'||el.elementRef.length<3||
+     el.elementRef.length>1024||typeof el.role!=='string')continue;
+  const ref=el.elementRef;
+  const role=el.role.toLowerCase().replace(/[\\s_-]/g,'');
+  refs.add(ref);
+  if(role==='button'||role==='axbutton')buttons.add(ref);
+  if(['textarea','textfield','textbox','textentryarea','edittext',
+       'axtextarea','axtextfield','textinput','searchfield','searchbox']
+      .includes(role)){
+   editable.add(ref);
+   const label=typeof el.label==='string'?el.label.trim():'';
+   if(/^(?:ask anything|message chatgpt|message aliceai|提问任何问题|询问任何问题|发送消息|输入消息)$/i.test(label))
+    composerHints.add(ref);
+  }
+ }
+ return Object.freeze({
+  accessibleElementCount:Math.min(refs.size,1800),
+  editableElementCount:Math.min(editable.size,1800),
+  possibleComposerLabelHints:Math.min(composerHints.size,1800),
+  buttonElementCount:Math.min(buttons.size,1800),
+  composerIdentityVerified:false
+ });
+}
 export function summarizeNativeWindowOnly(raw,targetActive){
  const envelope=raw?.result??raw;
  const nodes=walkNativePayload(raw);
@@ -37,6 +68,7 @@ export function summarizeNativeWindowOnly(raw,targetActive){
    targetActive?'active_target_window_observed':'containing_window_only_target_tab_inactive',
   aliceTabActive:targetActive===true,
   windowObservationVerified:raw?.ok===true&&obs.size===1,
+  ...(raw?.ok===true&&obs.size===1?summarizeNativeAXElements(raw):{}),
   alicePageVerified:false,chatDeliveryAuthorized:false
  };
 }
@@ -77,7 +109,15 @@ export async function inspectAliceNativeWindow({run,osRead,uuid=randomUUID}={}){
   phase='native_window_state';
   const observed=cli(makeReadOnlyNativeArgs(node,id,'get_window_state',
    {windowRef:match.windowRef}),30000);
-  return {...result,...summarizeNativeWindowOnly(observed,active)};
+  // Prevent an OS tab/window swap between the independent identity check
+  // and native accessibility observation. Never use stale refs after this.
+  phase='post_observation_os_attestation';
+  const after=verifyChromeTarget(readOS());
+  if(!after||after.title!==target.title||
+      after.targetActive!==target.targetActive)
+   return {...result,state:'inconclusive',reason:'active_tab_identity_changed'};
+  return {...result,activeTabIdentityRechecked:true,
+   ...summarizeNativeWindowOnly(observed,active)};
  }catch(e){
   const classified=phase==='native_window_state'?
    classifyNativeBrowserError(e):null;
