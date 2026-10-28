@@ -8,6 +8,8 @@ import {homedir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {lstat,readFile,mkdir,mkdtemp,writeFile,rename,realpath,rm} from 'node:fs/promises';
+import {buildScopedReceiptProbe,classifyScopedReceipt}
+ from '../stage2/chatgpt-upload-scoped-receipt.mjs';
 const exec=promisify(execFile),HOME=homedir();
 const ROOT=resolve(fileURLToPath(new URL('..',import.meta.url)));
 const RUNTIME=join(HOME,'Library','Application Support','ioant-openclaw-ops','runtime');
@@ -81,6 +83,13 @@ async function proof(id){
  if(!doc||doc.exact!==true)throw reject('exact_page_not_proven');
  return doc;
 }
+// Delivery confirmation is only valid for one unique user message whose own
+// bounded container includes the matching synthetic attachment. Full-page
+// filename presence, global labels or separate user turns never qualify.
+async function scopedDeliveryReceipt(id){
+ const raw=await cli(['--json','evaluate','--target-id',id,'--fn',buildScopedReceiptProbe()]);
+ return classifyScopedReceipt(raw);
+}
 async function fixture(){
  const st=await lstat(SOURCE);
  if(!st.isFile()||st.isSymbolicLink()||st.nlink!==1||
@@ -151,8 +160,10 @@ export async function run({mode='inspect',allowedRuntime=async()=>process.platfo
   await state('press_intent');phase='send';pressed=true;
   await cli(['press','--target-id',id,'Enter']);
   phase='receipt';
-  for(let i=0;i<6;i++){
-   if((await proof(id)).receipt){
+  for(let i=0;i<8;i++){
+   let confirmed=false;
+   try{confirmed=(await scopedDeliveryReceipt(id)).state==='confirmed'}catch{}
+   if(confirmed){
     await state('confirmed');
     return {...BASE,state:'observed',reason:'attachment_and_user_message_verified',
      uploadTriggered:true,messageSent:true,receiptVerified:true};
