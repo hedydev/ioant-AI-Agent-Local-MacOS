@@ -231,3 +231,41 @@ Mac-deployed or accepted** until the protected `project-update-verify`
 returns full 0-failure test evidence. A successful test is still not a
 live Computer Use send or desktop background-write proof. Do not repeat
 Alice Coordinator's previously requested single-use handshake.
+
+## 2026-10-29 0518 Mac live Stage C receipt: exact tab is inactive
+
+Live Worker receipt `openclaw-native-cua-stage-c-live-20261029-0518`:
+`Status: passed`, script returned
+`audit=IOANT_ALICE_NATIVE_STAGE_C_PREFLIGHT`,
+`state=blocked`,
+`reason=alice_tab_inactive_in_own_chrome_window`,
+`nextGate=select_alice_tab_in_own_window`,
+`aliceTabActive=false`,
+`providerReadAdvertised=true`,
+`backgroundSetValueAdvertised=true`,
+`computerActInvoked=false`, `tabSwitched=false`, `desktopInput=false`,
+`chatMessageSent=false`.
+
+This is **a successful fail-closed diagnosis**: the native CUA v2
+capability descriptors are present, and the exact Alice Project Chat tab
+is OS-attested, but it is **not the selected tab in its Chrome window**.
+AX on the current Chrome window would describe a different page; it
+cannot prove the inactive Alice draft is empty, a composer identity, or
+a unique send action. Do not run native AX composer identification or
+send/press while this gate is blocked.
+
+Operator-controlled one-time arrangement: move the existing Alice tab
+to its own Chrome window using normal Chrome UI, leaving Alice selected
+**within that dedicated window**. That window may be behind another app
+or Chrome window; no need to keep it frontmost. This is an optional
+human-performed layout change, **not authority for the Worker to
+activate a tab, open a duplicate chat, take focus, or inject browser
+automation**. Keep existing Coordinator pending handshake unchanged.
+
+After the operator has arranged the window, re-run the existing
+`scripts/alice-native-stage-c-preflight.mjs` as a **new unique-ID**
+read-only task. Only a new live `ready_for_native_ax_readonly` permits
+the separate existing `scripts/alice-native-computer-window-readonly.mjs`
+read-only native AX diagnostic. No success or chat-delivery claims
+until the actual receipt exists. Do not reinstall extensions or
+revisit Chrome MCP/TCC as a substitute.
