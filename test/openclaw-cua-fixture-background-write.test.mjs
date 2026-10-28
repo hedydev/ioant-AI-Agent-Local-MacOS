@@ -124,9 +124,11 @@ test('provider generation changed => no write or read',async()=>{
  assert.equal(out.providerGenerationStable,false);
  assert.deepEqual(stats(),{calls:0,marked:0});
 });
-test('foreground/pointer changed => no write or read',async()=>{
+test('foreground changes between immediate prewrite samples => no write or read',async()=>{
+ let samples=0;
  const {base,stats}=fakeContext({readState:async()=>({
-  frontmost:'different-app',mouseX:105,mouseY:210
+  frontmost:++samples===1?'current-app':'different-app',
+  mouseX:105,mouseY:210
  })});
  const out=await verifiedFixtureBackgroundWrite(base);
  assert.equal(out.writeIssued,false);
