@@ -701,6 +701,7 @@ async function main(){
              || (task.action==='openclaw-dev-create' && opts.enableOpenClawDevCreate)
              || (task.action==='openclaw-dev-prewrite-reconcile' && opts.enableOpenClawDevCreate)
              || (task.action==='openclaw-gui-readonly-probe' && opts.enableGuiReadonly)
+             || (task.action==='openclaw-native-cua-readonly' && opts.enableGuiReadonly)
              || task.action==='mac-terminal'
              || task.action==='mac-window-text'
              || task.action==='alice-owner-review-preview';
@@ -777,7 +778,8 @@ async function main(){
               enableSelfUpdate:opts.enableSelfUpdate,enableOpenClawProvision:opts.enableOpenClawProvision,
               terminalTask:task,terminalChatUrl:opts.url,
               enableOpenClawAgentCreate:opts.enableOpenClawAgentCreate,
-               enableOpenClawDevCreate:opts.enableOpenClawDevCreate});
+               enableOpenClawDevCreate:opts.enableOpenClawDevCreate,
+               enableGuiReadonly:opts.enableGuiReadonly});
           }
           recordDiagnosticEvent('action_finished',{taskId:task.id,action:task.known?task.action:'unknown',status:result.status,...(Number.isInteger(result.exitCode)?{exitCode:result.exitCode}:{}),...(Number.isInteger(result.elapsedMs)?{elapsedMs:result.elapsedMs}:{})});
           await writeReport(workDir,task,result);
