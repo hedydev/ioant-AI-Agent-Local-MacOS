@@ -679,7 +679,8 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
    // independent post-action predicates. Return booleans only, not references.
    const criteria=['writeIssued','nativeReadbackMatched','fixtureStillOwned',
     'providerGenerationStable','focusAndPointerUnchanged'];
-   const passed=criteria.every(k=>challenge?.[k]===true);
+   const passed=verifiedChallengeWriteAttempted===true&&
+    criteria.every(k=>challenge?.[k]===true);
    return finish({...base,launchedFixture:true,
     state:passed?'observed':'inconclusive',
     reason:passed?'fixture_background_write_verified':
