@@ -159,16 +159,15 @@ async function persistIncidents(report){
   const old=await verifiedText(JOURNAL,2*1024*1024);
   known=new Set(old.trim().split('\n').filter(Boolean).map(s=>JSON.parse(s).key));
  }catch(e){if(e?.code!=='ENOENT')throw e}
- const day=new Date().toISOString().slice(0,10);
  const pending=[];
  for(const svc of report.services??[]){
   if(!svc.conversationId||svc.identityVerified!==true)continue;
   for(const code of svc.incidentCodes){
-   const key=incidentKey(svc,code,day);
+   const observedAt=new Date().toISOString();
+   const key=incidentKey(svc,code,observedAt.slice(0,10));
    if(known.has(key))continue;
    pending.push({key,projectKey:svc.projectKey,
-    conversationId:svc.conversationId,code,
-    observedAt:new Date().toISOString(),
+    conversationId:svc.conversationId,code,observedAt,
     delivery:'queued',messageSent:false});
    known.add(key);
   }
