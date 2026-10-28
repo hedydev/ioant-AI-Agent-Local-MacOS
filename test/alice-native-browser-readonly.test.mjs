@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {chromeAppleScript,verifyChromeTarget,selectNativeWindow,summarizeBrowserState}
+import {CHROME_WIRE,chromeAppleScript,verifyChromeTarget,selectNativeWindow,summarizeBrowserState}
  from '../scripts/alice-native-browser-readonly.mjs';
 
 const CHAT='https://chatgpt.com/g/g-p-6acaef839af081919426a885b3209f54-ai-mc-alice/c/6ade11a5-f0c0-83ec-add1-8a0cff00c938';
 const ref='cua:v2:window:confirmed';
-const tab=(url=CHAT,title='AliceAI Chat',active=true)=>'1\t1\t'+(active?'1':'0')+'\t'+title+'\t'+url;
+const tab=(url=CHAT,title='AliceAI Chat',active=true)=>['1','1',active?'1':'0',title,url].join(CHROME_WIRE);
 const windows=(items)=>({ok:true,details:{windows:items}});
 
 test('OS Chrome attestation requires one exact Alice Project conversation in a known window',()=>{
@@ -14,11 +14,11 @@ test('OS Chrome attestation requires one exact Alice Project conversation in a k
   {title:'Other active tab',targetActive:false});
  assert.equal(verifyChromeTarget(tab(CHAT+'?utm_source=chatgpt.com'))?.title,'AliceAI Chat');
  assert.equal(verifyChromeTarget(tab(CHAT+'?token=not-approved')),null);
- assert.equal(verifyChromeTarget('2\t1\tAliceAI Chat\t'+CHAT),null);
- assert.equal(verifyChromeTarget('1\t0\t0\tAliceAI Chat\t'+CHAT),null);
- assert.equal(verifyChromeTarget('1\t1\t2\tAliceAI Chat\t'+CHAT),null);
- assert.equal(verifyChromeTarget('1\t1\tAliceAI Chat\t'+CHAT),null);
- assert.equal(verifyChromeTarget('1\t1\t1\t\t'+CHAT),null);
+ assert.equal(verifyChromeTarget(['2','1','0','AliceAI Chat',CHAT].join(CHROME_WIRE)),null);
+ assert.equal(verifyChromeTarget(['1','0','0','AliceAI Chat',CHAT].join(CHROME_WIRE)),null);
+ assert.equal(verifyChromeTarget(['1','1','2','AliceAI Chat',CHAT].join(CHROME_WIRE)),null);
+ assert.equal(verifyChromeTarget(['1','1','AliceAI Chat',CHAT].join(CHROME_WIRE)),null);
+ assert.equal(verifyChromeTarget(['1','1','1','',CHAT].join(CHROME_WIRE)),null);
  assert.equal(verifyChromeTarget(tab(CHAT.replace('6ade11a5','7ade11a5'))),null);
  assert.equal(verifyChromeTarget(tab(CHAT.replace('6acaef83','7acaef83'))),null);
 });
@@ -79,7 +79,7 @@ test('Chrome OS read uses only tab URL and active title, no navigation or activa
  assert.match(src,/set nm to title of tab activeIdx of w as text/);
  assert.match(src,/set u to URL of t as text/);
  assert.doesNotMatch(src,/set active tab|activate|execute javascript|reload|close window|make new/);
- assert.match(src,/return \(n as text\) & tab & \(a as text\) & tab & \(b as text\) & tab & nm & tab & uri/);
+ assert.match(src,/return \(n as text\).*CHROME_WIRE/);
 });
 
 test('background Alice tab never requires UI activation in AppleScript',()=>{
@@ -93,10 +93,25 @@ test('background Alice tab never requires UI activation in AppleScript',()=>{
  });
 });
 test('background-window identity requires unique OS tab and native title',()=>{
- assert.equal(verifyChromeTarget('2\t2\t0\tCurrent tab\t'+CHAT),null);
- assert.equal(verifyChromeTarget('1\t1\t0\tCurrent tab\t'+CHAT+'?unexpected=1'),null);
+ assert.equal(verifyChromeTarget(['2','2','0','Current tab',CHAT].join(CHROME_WIRE)),null);
+ assert.equal(verifyChromeTarget(['1','1','0','Current tab',CHAT+'?unexpected=1'].join(CHROME_WIRE)),null);
  assert.equal(selectNativeWindow(windows([
   {windowRef:ref,title:'Different tab'},
   {windowRef:'cua:v2:window:other',title:'Current tab'}
  ]),'Current tab').windowRef,'cua:v2:window:other');
+});
+
+test('Chrome AppleScript uses an explicit text delimiter, never Chrome tab terminology',()=>{
+ const src=chromeAppleScript();
+ assert.equal((src.split(CHROME_WIRE).length-1),4);
+ assert.doesNotMatch(src,/ & tab & /);
+ assert.match(src,/return \(n as text\) & "/);
+ assert.deepEqual(verifyChromeTarget(tab(CHAT,'Unrelated active tab',false)),{
+  title:'Unrelated active tab',targetActive:false
+ });
+});
+test('wire rejects delimiter injection and legacy tab payload fail closed',()=>{
+ assert.equal(verifyChromeTarget(tab(CHAT,'Injected '+CHROME_WIRE+' title')),null);
+ assert.equal(verifyChromeTarget(['1','1','0','Normal',CHAT].join('\t')),null);
+ assert.equal(verifyChromeTarget(tab(CHAT).replace(CHROME_WIRE,'')),null);
 });
