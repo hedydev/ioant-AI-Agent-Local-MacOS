@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Phase 205C: owner-scoped native browser discovery for ONE pre-registered AliceAI Chat.
 // No Chrome Relay dependency, browser mutation, screenshot or message send.
-// Fail closed if the OS-attested active Alice tab cannot be uniquely matched
-// to a CUA window. Never output window titles, URLs, refs, page data or node IDs.
+// Fail closed unless exactly one OS-attested Alice tab belongs to a uniquely
+// identified CUA Chrome window. The Alice tab may be inactive; never activate it.
+// Never output window titles, URLs, refs, page data or node IDs.
 import {execFileSync} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {homedir} from 'node:os';
@@ -31,31 +32,35 @@ function invoke(node,id,action,params={}){
 }
 export function verifyChromeTarget(report){
  const rows=String(report).trim().split('\t');
- if(rows.length!==4||rows[0]!=='1'||rows[1]!=='1'||!cleanText(rows[2]))return null;
+ // Exactly one target tab, in exactly one Chrome window. The third field
+ // reports whether that tab is active, NOT a precondition for observing it.
+ if(rows.length!==5||rows[0]!=='1'||rows[1]!=='1'||
+    !['0','1'].includes(rows[2])||!cleanText(rows[3]))return null;
  try{
-  const u=parseProjectChatUrl(rows[3],{allowTracking:true});
+  const u=parseProjectChatUrl(rows[4],{allowTracking:true});
   if(u.projectId!==EXPECTED.projectId||u.conversationId!==EXPECTED.conversationId)return null;
-  return {title:rows[2]};
+  return {title:rows[3],targetActive:rows[2]==='1'};
  }catch{return null}
 }
 export function chromeAppleScript(){
  // Chrome's tab object does NOT have an "index" property (-1728).
  // Use the enumerated 1-based tab number and the window's active tab index.
- // Read the *active tab title* (Chrome's window.name is not authoritative).
+ // Read the active tab title *of the target tab's parent window*, even if
+ // Alice is not the active tab. Chrome's window.name is not authoritative.
  // No tab activation/navigation, and no page contents are read.
  return 'tell application "Google Chrome"\n'+
-  'set n to 0\nset a to 0\nset nm to ""\nset uri to ""\n'+
+  'set n to 0\nset a to 0\nset b to 0\nset nm to ""\nset uri to ""\n'+
   'repeat with w in windows\n'+
   'set activeIdx to active tab index of w\n'+
   'repeat with j from 1 to (count of tabs of w)\n'+
   'set t to tab j of w\n'+
   'set u to URL of t as text\n'+
   'if u contains "/c/6ade11a5-f0c0-83ec-add1-8a0cff00c938" then\n'+
-  'set n to n + 1\n'+
-  'if j is activeIdx then\n'+
-  'set a to a + 1\nset nm to title of t as text\nset uri to u\n'+
-  'end if\nend if\nend repeat\nend repeat\n'+
-  'return (n as text) & tab & (a as text) & tab & nm & tab & uri\nend tell';
+  'set n to n + 1\nset a to a + 1\n'+
+  'if j is activeIdx then set b to b + 1\n'+
+  'set nm to title of tab activeIdx of w as text\nset uri to u\n'+
+  'end if\nend repeat\nend repeat\n'+
+  'return (n as text) & tab & (a as text) & tab & (b as text) & tab & nm & tab & uri\nend tell';
 }
 const normalize=s=>s.normalize('NFKC').replace(/\s+/g,' ').trim();
 export function selectNativeWindow(raw,chromeTitle){
@@ -119,7 +124,7 @@ export async function observeAliceNativeBrowser({run=cli,osRead=()=>execFileSync
  let phase='chrome_os_metadata';
  try{
   const target=verifyChromeTarget(osRead());
-  if(!target)return {...base,state:'inconclusive',reason:'os_active_target_unverified'};
+  if(!target)return {...base,state:'inconclusive',reason:'os_target_window_unverified'};
   phase='native_provider_preflight';
   const status=run(['nodes','status','--json'],18000);
   const selection=chooseConnectedMacNode(status);
@@ -148,7 +153,8 @@ export async function observeAliceNativeBrowser({run=cli,osRead=()=>execFileSync
   const summary=summarizeBrowserState(response);
   return {...base,state:summary.state,reason:summary.state==='target_page_verified'?
    'native_browser_page_reference_verified':'browser_page_identity_unverified',
-   browserRefObserved:summary.browserRefObserved,exactPageMatches:summary.exactPageMatches};
+   browserRefObserved:summary.browserRefObserved,exactPageMatches:summary.exactPageMatches,
+   targetWasActive:target.targetActive};
  }catch(e){
   return {...base,state:'inconclusive',
    reason:phase==='chrome_os_metadata'?'chrome_os_metadata_unavailable':'native_browser_observation_unavailable',
