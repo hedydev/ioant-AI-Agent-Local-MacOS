@@ -75,6 +75,24 @@ export function classifyNativeBrowserError(error){
   ...nativeBrowserErrorBoundary(error)
  });
 }
+export function nativeBrowserAccessDisposition(failure){
+ // A consent refusal is an authorization boundary, not a transient transport
+ // failure. Never infer consent from an OS Chrome title, a CUA windowRef or a
+ // successful close. Never retry or attempt browser_prepare on this signal.
+ const signals=Array.isArray(failure?.browserRefusalSignals)?
+  failure.browserRefusalSignals:[];
+ if(signals.includes('browser_consent_required')||
+    signals.includes('existing_profile_unsupported')||
+    signals.includes('browser_requires_setup')){
+  const reason=signals.includes('browser_consent_required')?
+   'browser_consent_required':signals.includes('existing_profile_unsupported')?
+   'existing_profile_unsupported':'browser_requires_setup';
+  return Object.freeze({state:'blocked',reason,
+   retryAllowed:false,operatorBrowserAuthorizationRequired:true});
+ }
+ return Object.freeze({state:'inconclusive',
+  reason:'native_browser_observation_unavailable',retryAllowed:false});
+}
 function cli(args,timeout=25000){
  return JSON.parse(execFileSync(CLI,args,{cwd:RUNTIME,timeout,maxBuffer:8*1024*1024,encoding:'utf8',stdio:['ignore','pipe','pipe']}));
 }
@@ -216,20 +234,25 @@ export async function observeAliceNativeBrowser({run=cli,osRead=()=>execFileSync
    compatibleWindowRecords:selected.compatibleCount,targetWasActive:target.targetActive};
   phase='native_browser_state';
   const response=native('get_browser_state',{windowRef:selected.windowRef});
-  if(response?.ok!==true)return {...base,state:'inconclusive',
-   reason:'native_browser_state_refused',targetWasActive:target.targetActive,
-   ...classifyNativeBrowserError({stdout:JSON.stringify({
-    ok:response?.ok,error:response?.error,code:response?.code})})};
+  if(response?.ok!==true){
+   const diagnosis=classifyNativeBrowserError({stdout:JSON.stringify({
+    ok:response?.ok,error:response?.error,code:response?.code})});
+   const disposition=nativeBrowserAccessDisposition(diagnosis);
+   return {...base,...diagnosis,...disposition,phase,targetWasActive:target.targetActive};
+  }
   const summary=summarizeBrowserState(response);
   return {...base,state:summary.state,reason:summary.state==='target_page_verified'?
    'native_browser_page_reference_verified':'browser_page_identity_unverified',
    browserRefObserved:summary.browserRefObserved,exactPageMatches:summary.exactPageMatches,
    targetWasActive:target.targetActive};
  }catch(e){
-  return {...base,state:'inconclusive',
-   reason:phase==='chrome_os_metadata'?'chrome_os_metadata_unavailable':'native_browser_observation_unavailable',
-   phase,preAdmissionDenied:knownPreAdmissionNativeFailure(e),
-   ...(phase==='native_browser_state'?classifyNativeBrowserError(e):{})};
+  const atBrowser=phase==='native_browser_state';
+  const diagnosis=atBrowser?classifyNativeBrowserError(e):{};
+  const disposition=atBrowser?nativeBrowserAccessDisposition(diagnosis):{
+   state:'inconclusive',reason:phase==='chrome_os_metadata'?
+    'chrome_os_metadata_unavailable':'native_browser_observation_unavailable'};
+  return {...base,...diagnosis,...disposition,
+   phase,preAdmissionDenied:knownPreAdmissionNativeFailure(e)};
  }finally{
   if(firstAttempted&&own&&node){
    closeAttempted=true;
