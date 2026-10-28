@@ -24,6 +24,7 @@ import {validateIsolatedProjectScope,sameIsolatedProjectChat,isolatedProjectAllo
 import {enqueueZeroTabNotice,maintainerReceipt,maintainerNoticeMessage,markMaintainerPressIntent,completeMaintainerNotice,pendingMaintainerPhase} from './maintainer-outbox.mjs';
 import { isBoundDevDiscussion } from './development-agent-route.mjs';
 import { recordDiagnosticEvent, diagnosticCode } from './diagnostic-log.mjs';
+import {initialWatcherState,persistInitialWatcherState} from './watch-state-bootstrap.mjs';
 import {nextGuardNotice,prepareGuardNotice,markGuardPressIntent,
  completeGuardNotice,receiptForGuardTicket,guardIncidentMessage,
  validateGuardOutboxState} from './guard-incident-outbox.mjs';
@@ -322,8 +323,17 @@ async function atomicState(file,state){
   await writeFile(temp,JSON.stringify(state,null,2)+'\n',{mode:0o600,flag:'wx'});
   await rename(temp,file);
 }
-async function loadState(file){
-  try{return JSON.parse(await readFile(file,'utf8'))}catch(err){if(err.code==='ENOENT')return {lastTaskId:null,feedbackPending:null,initSent:false};throw err}
+async function loadState(file,{initializeMissing=false}={}){
+  try{return JSON.parse(await readFile(file,'utf8'))}
+  catch(err){
+    if(err.code!=='ENOENT')throw err;
+    const first=initialWatcherState();
+    // The watcher already holds its exact-conversation lock. A missing
+    // state file must be durably witnessed before any Browser action.
+    // --once is a strictly read-only inspection and never writes state.
+    if(initializeMissing)await persistInitialWatcherState(file,first);
+    return first;
+  }
 }
 async function writeReport(dir,task,result){
   // launchd workers cannot assume TCC access to Desktop. This flag is
@@ -407,7 +417,7 @@ async function main(){
     +(opts.enableOpenClawAgentCreate?' / openclaw-alice-create (private text-only Agent once)':'')+(opts.enableOpenClawDevCreate?' / openclaw-dev-create / openclaw-dev-prewrite-reconcile (incident-064 only)':'')+(opts.enableGuiReadonly?' / openclaw-gui-readonly-probe (exact tab, no page text or actions)':'')+(opts.devAgent?' / openclaw-agent-dev-discuss (bound to '+opts.devAgent+', no tools)':' / AI discussion disabled (requires --dev-agent)')+'. Ctrl-C stops.');
   try{
     recordDiagnosticEvent('worker_start',{mode:opts.mode,profile});
-    state=await loadState(stateFile); // Must be within finally so a read failure does not leak lock.
+    state=await loadState(stateFile,{initializeMissing:opts.mode==='watch'}); // Exact-Chat lock held; --once remains read-only.
     // Independent Project owner verification: only the registered Project Chat
     // receives maintenance notices. Unknown or other chats stay unchanged.
     let maintainerRoute=null,consecutiveZeroTabs=0;
