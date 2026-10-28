@@ -861,3 +861,49 @@ under strict SSRF. Manual user navigation/login and later agent
 navigation are separate gates. Do not disable SSRF, restart the
 Gateway, toggle ClashX TUN, change daily Chrome or migrate Alice
 Coordinator merely to hide the original error.
+
+## 2026-10-29 0542: stale managed-browser proxy endpoint confirmed
+
+The exact Mac Worker receipt `openclaw-alice-proxy-port-check-20261029-0542`
+reported:
+`browserRunning=true`, `configProxyLocal=true`,
+`processProxyLocal=true`, `systemHttpsProxyLocal=true`,
+`configProcessPortMatch=true`,
+`processSystemPortMatch=false`,
+`processProxyListening=false`,
+`systemProxyListening=true`. Port/address values were redacted,
+and no settings or SSRF policy were changed. These are strong
+local-layer evidence that `alice-ai` Chromium is using the same
+**non-listening loopback proxy endpoint** specified in OpenClaw's
+global browser flags, whereas macOS system HTTPS Proxy points to a
+different **listening** loopback endpoint. The user screenshot
+showed `ERR_PROXY_CONNECTION_FAILED` while the correct AliceAI
+Chat address appeared in the address bar. A local TCP listener does
+not independently verify ChatGPT forwarding, proxy protocol,
+authentication, or end-to-end TLS connectivity.
+
+The official browser configuration docs identify
+`browser.extraArgs` as **global** managed Chromium launch flags.
+The field is not a proven per-profile setting. Altering it may
+change other OpenClaw-managed browser instances on their next launch.
+Do not blindly replace or discard unrelated launch flags, user
+profiles or credentials. Make a verified backup and a targeted,
+reversible patch only after checking other running managed profiles
+and whether the actual **system HTTPS proxy** can reach
+`https://chatgpt.com/`. Reference:
+https://docs.openclaw.ai/gateway/config-browser-ui-desktop .
+If a targeted repair is authorized/verified, close/relaunch only the
+owner-proven `alice-ai` browser where possible, and confirm its new
+process flag matches the listening endpoint; do not discard its
+persisted isolated profile or login state.
+
+**Distinct security gate remains:** even with a healthy local
+proxy, OpenClaw strict Browser SSRF rejects managed-browser
+*automated* navigation through an explicit proxy. Repairing Chrome's
+`ERR_PROXY_CONNECTION_FAILED` enables **human manual sign-in**;
+it does **not** prove or grant the later Codex-style autonomous
+Browser navigation. Preserve strict SSRF and separately develop a
+policy-enforcing egress approach/native CUA authorization and exact
+Coordinator sole-writer handshake. No broad ClashX Meta or
+Tailscale/global-network modifications are authorized by this
+diagnosis.
