@@ -30,12 +30,20 @@ export function evaluateChatContinuity({projectKey,binding,manifest,
  if(!OK_SERVICE.has(service.serviceState))
   return issue('blocked','worker_state_unverified');
  if(settlement?.verified!==true)
-  return issue('blocked','conversation_state_unverified');
+  return issue('blocked',settlement?.reason==='state_file_absent'?
+   'state_checkpoint_missing':'conversation_state_unverified',
+   {projectKey,checkpointRequired:settlement?.reason==='state_file_absent',
+    missingEvidence:['owned_watcher_state_checkpoint']});
+ if(projectKey==='alice-ai'&&
+    !['none','requested','press_intent','confirmed'].includes(settlement.handshake))
+  return issue('blocked','alice_handshake_unverified',
+   {projectKey,missingEvidence:['alice_handshake_mailbox']});
  const pending=Object.freeze({
   taskFeedback:settlement.taskFeedback===true,
   guardNotice:settlement.guardNotice===true,
   maintainerNotice:settlement.maintainerNotice===true,
-  initialization:settlement.initialization===true
+  initialization:settlement.initialization===true,
+  aliceHandshake:['requested','press_intent'].includes(settlement.handshake)
  });
  const base={
   projectKey,projectId:installed.projectId,
