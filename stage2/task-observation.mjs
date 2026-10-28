@@ -3,6 +3,7 @@
 import {createHash} from 'node:crypto';
 import {extractAction,PROTOCOL,isKnownAction} from './protocol.mjs';
 const MALFORMED='Malformed structured task (strict action-specific fields).';
+const AMBIGUOUS='More than one executable task in latest assistant turn; refuse ambiguity.';
 const VALID_ID=/^[a-zA-Z0-9][a-zA-Z0-9_-]{3,79}$/;
 const FIELD_REASONS=Object.freeze({
  terminal_command_too_long:'mac-terminal command exceeds 2048 characters or 4096 bytes',
@@ -40,6 +41,11 @@ export function invalidTaskResponse(meta){
 export function extractWatchedAction(page){
  try{return extractAction(page)}
  catch(e){
+  // Multiple independently valid instructions from the same assistant turn
+  // are never prioritized or executed. Unlike unknown parsing/provenance
+  // errors, this particular refusal is safely recoverable by a new turn.
+  if(e instanceof Error&&e.message===AMBIGUOUS)
+   return Object.freeze({status:'rejected_ambiguous_task'});
   if(e instanceof Error&&e.message===MALFORMED){
    const report=malformedTaskMeta(page);
    return report?{status:'rejected_invalid_task',report}:{status:'rejected_invalid_task'};
