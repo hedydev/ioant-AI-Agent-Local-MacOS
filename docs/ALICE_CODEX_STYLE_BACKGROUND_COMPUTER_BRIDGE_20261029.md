@@ -212,3 +212,17 @@ The execution close attempt was acknowledged but `ownerReleaseVerified=false` an
 Next candidate: `scripts/alice-native-ax-semantic-readiness.mjs`, a pure privacy-bounded native accessibility classifier, attached only to the previously OS-verified AliceAI Chat Chrome window, with active-tab identity rechecked *after* the window observation. It reports per editable element only role kind, boolean prompt/search hints and bounded associated send-button structural signals, not input values, ChatGPT history, labels, coordinates, refs or raw AX trees. It always reports `composerIdentityVerified=false` and `chatDeliveryAuthorized=false`; a prompt hint and a nearby/send-named button do not establish owner identity or a correct write target. This uses no Browser Relay, screenshot, click, foreground input or browser DOM. The already deployed 205C-43 AX observation yielded three editables and zero exact-label prompt hints. This new classifier may still return no unique semantic candidate; that is a valid inconclusive result. Do not guess coordinates or hardcode the second candidate.
 
 Prior successful deployed source `8865048dbd3fd1a7233347424ea3cbe48490b953`: 1067/1067 tests passed. This source candidate adds four semantic-classifier unit tests and should reach **1071**, subject to protected deployment validation. Do not restart the existing Coordinator, replay handshake, accept requirements ledger, or send a ChatGPT message in this phase.
+
+## 205C-51 real compact composer evidence (2026-10-29)
+
+The real Mac compact replay reported `state=native_window_observed`, `aliceTabActive=true`, `identityRechecked=true`, with **three** editables and `uniquePromptHint=true`:
+- candidate #1: `text_field`, `prompt=false`, `search=true`, no parent/ancestors/send linkage;
+- candidate #2: `text_area`, `prompt=true`, `search=false`, no parent/ancestors/send linkage;
+- candidate #3: `text_field`, `prompt=false`, `search=false`, no parent/ancestors/send linkage;
+- `sendButtonCount=0` among named Send buttons.
+
+Thus a single likely composer has emerged, but `composerIdentityVerified=false` and `chatDeliveryAuthorized=false` remain correct. No evidence has yet established a connected send button, that a native `set_value` will dispatch React input events, or that Chrome element background writes work as safely as on the disposable AppKit fixture. No chat input or send was attempted.
+
+Next purely read-only refinement: emit which **AX property name** provided candidate #2's prompt signal (e.g. `identifier` vs `placeholder`), a boolean for an exact known composer identifier, and bounded counts for unnamed icon-only buttons, buttons with bounds, broader native send/submit identifiers, and button geometry close to the editor. Raw labels, values, coordinates, refs, and untrusted page text stay private. Geometry is only supporting diagnostic evidence, NEVER a click target or proof of a send control. A named send button may not exist while the compose box is empty; do not infer that it does. The code does not change `composerIdentityVerified` or trigger any `computer.act` mutation.
+
+This is a source candidate adding three new tests to the 1071-test deployed runtime; expected total **1074** after protected `project-update-verify`. Exact-chat sole-writer permission, independent native execution ownership release, unique send control, and actual chat receipt gates are still outstanding. No Coordinator restart, browser consent escalation, screenshots or DOM fallback.
