@@ -1363,3 +1363,74 @@ Next approved operations (two separate Worker requests):
 Use that report to decide if CUA Driver readiness / private socket
 health warrants further investigation; avoid repeating
 `list_windows` until a concrete cause is identified.
+
+
+## 2026-10-28 — 185C native background *read* passed; 186A write-only fixture candidate
+
+185C real Mac Worker result (one-shot, 6.371 s):
+- \`IOANT_CUA_FIXTURE_PREPARATION state=prepared reused=true\`.
+- \`IOANT_CUA_FIXTURE_NATIVE_READONLY state=observed\`,
+  \`reason=fixture_background_observation_passed\`.
+- Own disposable AppKit window and exact editable element matched through
+  native CUA \`list_windows\` and \`get_window_state\`.
+- Independent OS PID metadata verified; fixture child self-attested.
+  Provider generation remained stable, foreground bundle identity and
+  mouse coordinates did not change.
+- No screenshot, keyboard, pointer, browser or computer input.
+- Own UUID close: \`attempted=true\`, \`acknowledged=true\`,
+  \`ownerReleaseVerified=false\`. Acknowledgment is **not** independently
+  verified resource release; never close other executions.
+- The previous blocker was the macOS console being locked. Read-only
+  console identity check later reported one console, current UID matched,
+  login done, and CGSSessionScreenIsLocked absent (normal unlocked
+  state under the official macOS availability implementation).
+- Browser-feedback delivery briefly deferred; user supplied a receipt
+  marker; Watcher printed \`Previously executed feedback confirmed;
+  no task replay\` then idle. This is receipt recovery, not proof that
+  unattended browser feedback delivery is fully fixed.
+
+### 186A proposal — one scoped background mutation, no browser
+
+New script: \`scripts/openclaw-cua-fixture-background-write.mjs\`.
+
+The existing observer still has a **strictly read-only CLI default**.
+An explicit callback from the separately reviewed write script may run
+only AFTER all exact synthetic target/nonce, process/window,
+fresh element observation, live CUA provider generation, advertised
+\`set_value\` + background delivery, and frontmost/cursor gates passed.
+All checks are relative to the disposable fixture child spawned in this
+execution, not another application's window or any screenshot.
+
+The callback allows exactly one \`computer.act set_value\`:
+\`deliveryMode=background\`, exact matching owned \`windowRef\`,
+\`elementRef\`, \`observationId\`, same UUID and synthetic
+\`IOANT-FIXTURE-BACKGROUND-<fresh nonce>\` value. This is not a user
+string or arbitrary terminal command. A new targeted \`get_window_state\`
+must report the exact synthetic value with a **fresh** observation ID.
+Afterward, the observer checks owner PID, fixture child liveness,
+node generation, frontmost bundle and physical pointer again.
+
+The write-attempt marker is recorded just before dispatch, even when
+the native call errors or times out. There is **no retry** and **no
+foreground fallback**, no browser API, no screenshots or system input
+events. Reuse the exact existing own-UUID close in \`finally\`;
+the result cannot assert \`ownerReleaseVerified=true\`.
+
+The 12 new deterministic tests check the strict synthetic payload,
+ref/nonce validation, readback, pre-write identity/provider/focus/liveness
+refusals, native refusal without retry, and separation of original
+read-only entrypoint. The pure tests were exercised outside Mac (12/12).
+**Do not claim full Mac CI or real write succeeds until
+\`project-update-verify\` passes and then one authorized live run.**
+
+Sequence:
+1. Deploy the reviewed new source via \`project-update-verify\` and
+   require all tests pass. On fail, do not execute.
+2. The Mac Worker executes exactly the pinned runtime HEAD and
+   \`node scripts/openclaw-cua-fixture-prep.mjs &&
+   node scripts/openclaw-cua-fixture-background-write.mjs\`.
+3. Observe only safe synthetic result fields. If \`state=observed\`,
+   \`nativeReadbackMatched=true\`, \`focusAndPointerUnchanged=true\`,
+   and closure acknowledgment holds, consider test fixture background
+   text write proven. Still require separate consent/targeting
+   before controlling other apps or chat.
