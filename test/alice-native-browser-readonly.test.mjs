@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {verifyChromeTarget,selectNativeWindow,summarizeBrowserState}
+import {chromeAppleScript,verifyChromeTarget,selectNativeWindow,summarizeBrowserState}
  from '../scripts/alice-native-browser-readonly.mjs';
 
 const CHAT='https://chatgpt.com/g/g-p-6acaef839af081919426a885b3209f54-ai-mc-alice/c/6ade11a5-f0c0-83ec-add1-8a0cff00c938';
@@ -58,4 +58,20 @@ test('native browser state rejects ambiguous refs even when URL matches',()=>{
   browserRef:'cua:v2:browser:only',
   pages:[{pageRef:'cua:v2:page:alice',url:CHAT}]
  }})}]}).state,'target_page_verified');
+});
+
+test('Chrome AppleScript uses numeric enumeration, not unsupported tab.index property',()=>{
+ const src=chromeAppleScript();
+ assert.match(src,/repeat with j from 1 to \(count of tabs of w\)/);
+ assert.match(src,/set activeIdx to active tab index of w/);
+ assert.match(src,/set t to tab j of w/);
+ assert.match(src,/if j is activeIdx then/);
+ assert.doesNotMatch(src,/index of t|name of w/);
+});
+test('Chrome OS read uses only tab URL and active title, no navigation or activation',()=>{
+ const src=chromeAppleScript();
+ assert.match(src,/set nm to title of t as text/);
+ assert.match(src,/set u to URL of t as text/);
+ assert.doesNotMatch(src,/set active tab|activate|execute javascript|reload|close window|make new/);
+ assert.match(src,/return \(n as text\) & tab & \(a as text\) & tab & nm & tab & uri/);
 });
