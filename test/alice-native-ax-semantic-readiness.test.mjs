@@ -231,3 +231,44 @@ test('conflicting value fields and missing native value remain write protected',
  assert.equal(missing.editorValueOriginEvidence.nativeValueFieldPresent,false);
  assert.equal(missing.editorValueOriginEvidence.safeToOverwrite,false);
 });
+
+test('independent native text count zero with matching prompt value is a hint only',()=>{
+ const r=assessUniqueNativeComposerControls({elements:[
+  {elementRef:'composer:one',role:'AXTextArea',label:'Ask anything',
+   value:'Ask anything',numberOfCharacters:0}
+ ]});
+ const x=r.editorNativeTextOccupancyEvidence;
+ assert.equal(x.independentTextLengthAttributePresent,true);
+ assert.equal(x.textLengthState,'zero_reported');
+ assert.equal(x.lengthZeroWhileValueMatchesPrompt,true);
+ assert.equal(x.emptyComposerVerified,false);
+ assert.equal(x.safeToOverwrite,false);
+ assert.equal(r.chatDeliveryAuthorized,false);
+ assert.doesNotMatch(JSON.stringify(r),/Ask anything|composer:one/);
+});
+test('nonzero native text count never authorizes overwriting an existing draft',()=>{
+ const r=assessUniqueNativeComposerControls({elements:[
+  {elementRef:'composer:one',role:'text area',placeholder:'Ask anything',
+   value:'Sensitive private draft',characterCount:24}
+ ]});
+ const x=r.editorNativeTextOccupancyEvidence;
+ assert.equal(x.textLengthState,'nonzero_reported');
+ assert.equal(x.lengthZeroWhileValueMatchesPrompt,false);
+ assert.equal(x.safeToOverwrite,false);
+ assert.doesNotMatch(JSON.stringify(r),/Sensitive private draft|24/);
+});
+test('missing, conflicting, and invalid AX text lengths all fail closed',()=>{
+ for(const fields of [{},{numberOfCharacters:0,textLength:5},
+  {numberOfCharacters:'0',textLength:-1},
+  {numberOfCharacters:Number.MAX_SAFE_INTEGER}]){
+  const r=assessUniqueNativeComposerControls({elements:[
+   {elementRef:'composer:one',role:'text area',label:'Ask anything',
+    value:'Ask anything',...fields}
+  ]});
+  const x=r.editorNativeTextOccupancyEvidence;
+  assert.equal(x.safeToOverwrite,false);
+  assert.equal(x.emptyComposerVerified,false);
+  assert.equal(r.chatDeliveryAuthorized,false);
+  if(fields.textLength===5)assert.equal(x.textLengthState,'conflicting');
+ }
+});
