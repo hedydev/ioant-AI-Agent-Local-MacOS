@@ -45,6 +45,16 @@ export async function executeStep(plan) {
 }
 
 export async function runAction(action, repoRoot, options={}) {
+  if(action==='openclaw-native-cua-readonly'){
+    // An explicit existing local GUI read-only grant is required.
+    // No user-provided native action, app, window, coords, shell or params.
+    if(options.enableGuiReadonly!==true)
+      return {status:'approval_required',reason:'Native CUA read requires the existing --enable-gui-readonly Mac watcher opt-in.'};
+    return runFixedPlan({bin:process.execPath,
+      args:['scripts/openclaw-native-cua-agent-readonly.mjs'],
+      cwd:resolve(repoRoot),timeout:85000,
+      reportAudit:'IOANT_NATIVE_CUA_AGENT_READONLY'});
+  }
   if(action==='mac-terminal')
     return runMacTerminal(options.terminalTask,{conversationUrl:options.terminalChatUrl});
   if(action==='mac-window-text')
