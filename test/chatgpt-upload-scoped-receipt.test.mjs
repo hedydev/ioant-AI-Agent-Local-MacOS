@@ -99,3 +99,21 @@ test('diagnostic runtime guard makes no browser call',async()=>{
  assert.equal(r.state,'blocked');
  assert.equal(calls,0);
 });
+
+test('pasted status log mentioning marker and filename is not an attachment',()=>{
+ const r=sample([message(TAG+' : basename='+FILE)]);
+ assert.equal(r.state,'inconclusive');
+ assert.equal(r.attachmentScoped,false);
+});
+test('a filename accessibility title inside the text bubble is not an attachment',()=>{
+ const mention=el({self:TAG,selectors:[ROLE],children:[el({title:FILE})]});
+ const r=sample([el({children:[mention]})]);
+ assert.equal(r.state,'inconclusive');
+ assert.equal(r.attachmentScoped,false);
+});
+test('spoofed structural evidence without an external file attribute never confirms',()=>{
+ const bogus={exact:true,main:true,markerCount:1,roleFamily:0,
+  attached:true,inAttribute:false,depth:1,roleCount:1};
+ const r=classifyScopedReceipt(PREFIX+JSON.stringify(bogus));
+ assert.equal(r.state,'inconclusive');
+});
