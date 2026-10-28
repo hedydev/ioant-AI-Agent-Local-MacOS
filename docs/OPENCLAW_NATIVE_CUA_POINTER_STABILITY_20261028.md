@@ -61,3 +61,76 @@ Do not automatically re-run the fixture background write. It requires
 fresh owned-window proof, stable foreground/pointer state, generation
 matching and separate verification that any native invocation has no
 unknown outstanding execution owner.
+
+
+## Field results: 203D-1, 203D-2, 203E and 203F — accepted
+
+203D-1 private Runtime self-update passed **955/955 tests**, 0 failed, at
+Git revision \`3ae8fb578cb2fa8e1aa67dd16ddab7c1dadb0d34\`.
+
+203D-2 task \`openclaw-cua-pointer-stability-probe-20261028-203d2\`
+returned \`state=observed\`, \`sampleCount=12\`,
+\`frontmostChangeSteps=0\`, \`pointerChangeSteps=0\`,
+\`subpixelChangeSteps=0\`, \`largestStepBand=none\`,
+\`strictlyStable=true\`. No fixture GUI was launched and no
+\`computer.act\` was invoked. This proved stability during one
+launch-free sample window only.
+
+203E task \`openclaw-native-cua-fixture-readonly-20261028-203e\`
+returned \`state=observed\`,
+\`reason=fixture_background_observation_passed\`; fixture launched,
+fresh CUA native window/element match, self-attested target,
+independent WindowServer PID, stable provider generation and
+\`focusAndPointerUnchanged=true\`. No mutation occurred.
+Its own scoped \`__close_execution\` request was acknowledged, but
+\`ownerReleaseVerified=false\`.
+
+203F task \`openclaw-native-cua-background-write-20261028-203f\`
+exited 0 (12,175ms), audit \`IOANT_CUA_FIXTURE_BACKGROUND_WRITE\`,
+\`state=observed\`, \`reason=fixture_background_write_verified\`.
+The verified, fixed AppKit fixture was the **only** mutation target.
+The native \`computer.act\` \`set_value\` used
+\`deliveryMode=background\` with fresh window, element, observation,
+execution and nonce identity. It returned:
+
+- \`performedComputerInput=true\`,
+  \`mutatingActionAttempted=true\`,
+  \`backgroundDeliveryRequested=true\`, \`writeIssued=true\`.
+- \`fixtureWindowMatched\`, \`fixtureElementMatched\`,
+  \`fixtureSelfAttested\`, \`independentOSPidVerified\` all true.
+- Five independent prewrite checks all true: fixture process alive,
+  independently validated owner, unchanged provider generation and
+  capability set, unchanged frontmost app and pointer.
+- \`nativeReadbackMatched=true\`, \`fixtureStillOwned=true\`,
+  \`providerGenerationStable=true\`,
+  \`focusAndPointerUnchanged=true\`.
+- No browser access, ChatGPT content read, screenshots or global
+  pointer/keyboard events were performed.
+- \`ownExecutionClosure.attempted=true\`,
+  \`acknowledged=true\`, **\`ownerReleaseVerified=false\`**.
+  \`existingComputerOwnerReleased=false\`.
+
+**Accepted:** the current native CUA provider can perform an independent,
+verified background element write without visibly altering the shared
+foreground/pointer state, and independently read back that synthetic
+value in the same scoped test execution.
+
+**Historical comparison:** a successful native fixture background write
+was already observed in 187B and a separate subsequent read-only
+native reacquisition in 191B, documented in
+\`docs/MAC_CUA_NATIVE_OBSERVATION_20261028.md\`. 203F is a
+**repeat acceptance**, not the first historical success.
+
+**Limits:** this is not general third-party app authorization, arbitrary
+screen or mouse control, and not a proof of effective execution-owner
+release. Do not clear the owner, bypass permission guards, weaken focus
+or pointer equality, automatically retry a write or target Chrome or
+ChatGPT via native CUA.
+
+Next: one independent read-only \`get_cursor_position\` invocation with
+its own fresh execution ID, via the existing
+\`scripts/openclaw-native-computer-readonly-smoke.mjs\`, to verify
+that a follow-on CUA request can be admitted after 203F. A successful
+subsequent read confirms *that particular later admission*, not the
+general release of the provider's ownership registry. A failure is
+not permission to force-close existing executions or restart services.
