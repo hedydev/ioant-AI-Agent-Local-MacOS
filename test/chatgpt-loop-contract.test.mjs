@@ -24,3 +24,14 @@ test('only fixed argv in project worker; browser commands never from ChatGPT con
   assert.match(loop,/state\.lastTaskId/);
   assert.match(loop,/await exactTab\(opts\.url\)/);
 });
+
+test('multi-task assistant turns do not kill Watcher and never dispatch either task',()=>{
+  assert.match(loop,/a\.status==='rejected_ambiguous_task'/);
+  assert.match(loop,/previousFingerprint='';/);
+  assert.match(loop,/ambiguous_task_refused/);
+  const section=loop.slice(loop.indexOf("if(a.status==='rejected_ambiguous_task')"),
+    loop.indexOf("if(a.status==='task'&&a.task.id!==state.lastTaskId)"));
+  assert.ok(section.length>100);
+  assert.match(section,/continue;/);
+  assert.doesNotMatch(section,/runAction\(|sendToChat\(|process\.exitCode/);
+});
