@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CHROME_WIRE,chromeAppleScript,verifyChromeTarget,chromeOSWireEvidence,selectNativeWindow,summarizeBrowserState}
+import {CHROME_WIRE,chromeAppleScript,verifyChromeTarget,chromeOSWireEvidence,selectNativeWindow,summarizeBrowserState,classifyNativeBrowserError}
  from '../scripts/alice-native-browser-readonly.mjs';
 
 const CHAT='https://chatgpt.com/g/g-p-6acaef839af081919426a885b3209f54-ai-mc-alice/c/6ade11a5-f0c0-83ec-add1-8a0cff00c938';
@@ -127,4 +127,30 @@ test('failed Chrome OS wire returns only bounded counts and booleans',()=>{
   targetActiveCount:0,windowTitlePresent:true,exactProjectConversationVerified:true});
  assert.doesNotMatch(JSON.stringify(valid),/Sensitive|chatgpt.com|6ade11a5/);
  assert.equal(chromeOSWireEvidence('malformed').wireFields,1);
+});
+
+test('native browser CLI refusal exposes only allowlisted error class and code',()=>{
+ const err=Object.assign(new Error('opaque local native error'),{
+  code:1,stdout:JSON.stringify({ok:false,error:{code:'COMPUTER_INVALID_REQUEST',
+   message:'Cannot inspect private https://chatgpt.com/private-conversation'}}),
+  stderr:'Native invocation failed for /Users/private/sensitive'});
+ const result=classifyNativeBrowserError(err);
+ assert.equal(result.failureCategory,'invalid_native_params');
+ assert.equal(result.nativeCode,'COMPUTER_INVALID_REQUEST');
+ assert.equal(result.cliExitCode,1);
+ assert.equal(result.stdoutPresent,true);
+ assert.equal(result.stderrPresent,true);
+ assert.equal(result.structuredErrorBody,true);
+ assert.doesNotMatch(JSON.stringify(result),/private|https|sensitive|Users\/|conversation/);
+});
+test('native browser failure safely distinguishes JSON decoding and uncertain refusal',()=>{
+ const malformed=classifyNativeBrowserError(new SyntaxError('unexpected token in secret source'));
+ assert.equal(malformed.localFailureSubtype,'invalid_json');
+ assert.equal(malformed.failureCategory,'unclassified');
+ assert.equal(malformed.stdoutPresent,false);
+ const busy=classifyNativeBrowserError({code:1,
+  stdout:'',stderr:'COMPUTER_HOST_BUSY another computer execution owns this computer'});
+ assert.equal(busy.failureCategory,'computer_execution_occupied');
+ assert.equal(busy.nativeCode,'COMPUTER_HOST_BUSY');
+ assert.deepEqual(Object.keys(busy).sort().includes('stderr'),false);
 });
