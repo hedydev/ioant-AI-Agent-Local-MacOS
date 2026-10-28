@@ -11,7 +11,7 @@ export function buildScopedReceiptProbe({chatUrl=CHAT,marker=TAG,filename=FILE}=
  if(chatUrl!==CHAT||typeof marker!=='string'||
   !/^[A-Z0-9_-]{10,96}$/.test(marker)||
   typeof filename!=='string'||filename.length<1||filename.length>180||
-  /[\\\\/\\x00-\\x1f]/.test(filename))throw Error('invalid_scoped_receipt_identity');
+  filename.includes('/')||filename.includes('\\')||/[\u0000-\u001f]/.test(filename))throw Error('invalid_scoped_receipt_identity');
  const constants='const URL='+JSON.stringify(chatUrl)+
   ',TAG='+JSON.stringify(marker)+',FILE='+JSON.stringify(filename)+
   ',PREFIX='+JSON.stringify(PREFIX)+';';
