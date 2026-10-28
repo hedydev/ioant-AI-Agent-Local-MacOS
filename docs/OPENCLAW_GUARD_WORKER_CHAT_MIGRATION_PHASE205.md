@@ -126,3 +126,82 @@ Only after clean field verification should a separate approved task
 install the independent periodic Guard service. Guard installation
 is not part of \`project-update-verify\` and is not implied by a
 GitHub commit.
+
+
+## 205A-3 installed service live receipt
+
+The operator's 205A-3 result showed
+\`IOANT_GUARD_SERVICE state=installed, reason=guard_scheduled\`, followed
+by a separate status call \`state=running, registered=true,
+startIntervalSeconds=60, periodic=true\`; observed PID 39257 is
+point-in-time only. No browser message or worker restart was performed.
+This validates LaunchAgent installation and initial process status;
+it is not yet a two-interval liveness or incident-queue acceptance.
+
+## 205B-1 candidate: exact-Chat incident notification when owner Worker is alive
+
+- \`stage2/guard-incident-outbox.mjs\`: reads the owner-private Guard
+  incident journal (bounded, symlink-protected), validates every entry,
+  independently recomputes the deterministic ticket digest,
+  requires a strictly recognized installed **main Ops Worker plist**
+  with the exact same ChatGPT Project and conversation as the
+  running Watcher. An outdated repository \`chat-projects.json\` is
+  never considered sufficient evidence of the current Chat binding.
+- Only \`openclaw-workflow\` incidents for the exact bound conversation
+  qualify. AliceAI's isolated coordinator remains read-only; no
+  cross-project reporting through the Ops Worker's browser.
+- Only allowlisted incident codes and fixed sanitized text are
+  forwarded, never a raw error, shell output, browser content,
+  credentials or state-file details.
+- \`stage2/chatgpt-loop.mjs\` integrates the outbox with the
+  **existing single-chat lock and browser send routine**. The
+  ordinary pending task receipt has higher priority; an unexecuted,
+  ambiguous or generating assistant turn is never preempted.
+  The Guard can only request a notice during a safe idle/already-
+  handled assistant-turn slot.
+- A new \`state.guardNotice\` is saved before using Browser. The
+  existing sender writes \`press_intent\` durably BEFORE Enter.
+  On a failed/uncertain press, subsequent attempts are **read-only
+  receipt checks**, not another Enter. The verified exact
+  user-role bubble receipt is
+  \`[IOANT-GUARD-INCIDENT <24-hex-ticket-key>]\`.
+- \`state.guardDeliveredKeys\` retains bounded per-Chat proof that a
+  ticket was delivered; a completed ticket is never selected again.
+  Exhaustion or invalid state blocks future Guard notices rather
+  than deleting proof or accepting unknown IDs.
+- Test suite \`test/guard-incident-outbox.test.mjs\` has **16**
+  regression cases covering authenticity, cross-Chat restrictions,
+  journal trust, state transitions, no replays, exact matching,
+  source-code guard and not preempting existing tasks.
+
+The Guard's own scheduled LaunchAgent still **does not send Browser
+messages**. The recipient is the trusted already-running Ops Watcher
+after its own task feedback is clear. A crash of that Watcher means
+only that the Guard can queue the event locally; it does not magically
+give Guard independent Browser delivery permission.
+
+205B-1 remains a **candidate** until a new full Mac test-gated
+\`project-update-verify\` succeeds. Prior observed deployment was
+985/985; 16 new tests imply expected 1001/1001, subject to the Mac
+test runner's authoritative count. Deployed code alone is not proof
+of a live incident notice or of correctly handling an uncertain
+Browser delivery. Do not deliberately crash production Watchers
+or manufacture errors on the real user desktop to test 205B.
+Use controlled mock-browser tests and an explicitly consented
+synthetic incident only after dry-run acceptance.
+
+## Still outstanding
+
+205B-2: independently authorized *Guard messenger takeover* when the
+bound Worker is definitely stopped, using exact conversation identity,
+a globally exclusive Chat writer lease, verified Relay availability,
+durable press intent, no task replay, and conservative failure
+handling. This is not implemented and must not be approximated by
+unrestricted native CUA/browser control.
+
+205C: same-project Chat migration using the pre-existing
+\`chat-handoff.mjs\`, \`handoff-journal.mjs\` and
+\`ops-rebind.mjs\` with signed-off work summary, user-approved new
+Chat, independent exact Chat DOM witness, receipt proof and old
+Worker stop. Never claim that merely refreshing a stuck page has
+created a new conversation or reset its context limit.
