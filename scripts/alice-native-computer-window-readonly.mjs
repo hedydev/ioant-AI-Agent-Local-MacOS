@@ -56,6 +56,66 @@ export function summarizeNativeAXElements(raw){
   composerIdentityVerified:false
  });
 }
+// Ephemeral native AX structure hints only. Never expose labels, values,
+// references, coordinates or a claim that any field is the ChatGPT composer.
+const EDITABLE_ROLES=new Set(['textarea','textfield','textbox','textentryarea',
+ 'edittext','axtextarea','axtextfield','textinput','searchfield','searchbox']);
+const CLASSIC_COMPOSER=/^(?:ask anything|message chatgpt|message aliceai|提问任何问题|询问任何问题|发送消息|输入消息)$/i;
+function axRole(raw){
+ return typeof raw==='string'?raw.toLowerCase().replace(/[^a-z0-9]/g,''):'';
+}
+function semanticClass(raw){
+ if(typeof raw!=='string'||raw.trim()==='')return 'missing';
+ return CLASSIC_COMPOSER.test(raw.trim())?'known_chat_ui':'other_unreleased';
+}
+function coarseBox(el){
+ const b=[el?.bounds,el?.frame,el?.rect,el?.boundingBox]
+  .find(x=>x&&typeof x==='object'&&!Array.isArray(x));
+ if(!b)return null;
+ const y=b.y??b.top??b.origin?.y;
+ const width=b.width??b.size?.width;
+ if(!Number.isFinite(y)||!Number.isFinite(width)||width<0)return null;
+ return {y,width};
+}
+export function summarizeNativeEditableCandidates(raw){
+ const rows=new Map();
+ for(const el of walkNativePayload(raw)){
+  if(!el||typeof el!=='object'||Array.isArray(el)||
+     typeof el.elementRef!=='string'||el.elementRef.length<3||
+     el.elementRef.length>1024||!EDITABLE_ROLES.has(axRole(el.role)))continue;
+  if(rows.has(el.elementRef))continue;
+  const b=coarseBox(el);
+  const labels=[el.label,el.accessibilityLabel,el.placeholder,
+    el.placeholderValue,el.description].filter(x=>typeof x==='string');
+  rows.set(el.elementRef,{
+   kind:axRole(el.role).includes('search')?'search_field':
+    axRole(el.role).includes('area')?'text_area':'text_field',
+   metadataClass:labels.some(x=>semanticClass(x)==='known_chat_ui')?
+    'known_chat_ui':labels.length?'other_unreleased':'missing',
+   geometry:b,
+   enabled:el.enabled===true?'yes':el.enabled===false?'no':'unknown',
+   focused:el.focused===true?'yes':el.focused===false?'no':'unknown'
+  });
+ }
+ const all=[...rows.values()].slice(0,12);
+ const sorted=[...all].filter(x=>x.geometry).sort((a,b)=>a.geometry.y-b.geometry.y);
+ return Object.freeze({
+  candidateCount:rows.size,
+  diagnosticsTruncated:rows.size>12,
+  candidates:all.map((x,i)=>Object.freeze({
+   ordinal:i+1,roleKind:x.kind,uiLabelClass:x.metadataClass,
+   positionWithinEditables:x.geometry&&sorted.length>1?
+    (sorted.indexOf(x)===0?'highest':
+      sorted.indexOf(x)===sorted.length-1?'lowest':'middle'):
+    x.geometry?'single_position':'unknown',
+   widthClass:!x.geometry?'unknown':x.geometry.width>=500?'wide':
+    x.geometry.width>=200?'medium':'narrow',
+   enabled:x.enabled,focused:x.focused
+  })),
+  composerIdentityVerified:false,
+  chatDeliveryAuthorized:false
+ });
+}
 export function summarizeNativeWindowOnly(raw,targetActive){
  const envelope=raw?.result??raw;
  const nodes=walkNativePayload(raw);
@@ -117,7 +177,9 @@ export async function inspectAliceNativeWindow({run,osRead,uuid=randomUUID}={}){
       after.targetActive!==target.targetActive)
    return {...result,state:'inconclusive',reason:'active_tab_identity_changed'};
   return {...result,activeTabIdentityRechecked:true,
-   ...summarizeNativeWindowOnly(observed,active)};
+   ...summarizeNativeWindowOnly(observed,active),
+   ...(active===true&&observed?.ok===true?
+      {editableStructure:summarizeNativeEditableCandidates(observed)}:{})};
  }catch(e){
   const classified=phase==='native_window_state'?
    classifyNativeBrowserError(e):null;
