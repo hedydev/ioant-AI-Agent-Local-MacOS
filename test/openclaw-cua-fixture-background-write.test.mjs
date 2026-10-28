@@ -22,7 +22,7 @@ const ctx={
 const post=(value=EXPECTED,observationId='obs-after')=>({
  result:{data:{observationId,elements:[
   {label,elementRef:'owned-element',value},
-  {label:'Some unrelated user's field',elementRef:'unrelated',value:'PRIVATE'}
+  {label:'Some unrelated user field',elementRef:'unrelated',value:'PRIVATE'}
  ]}}
 });
 function fakeContext(overrides={}){
