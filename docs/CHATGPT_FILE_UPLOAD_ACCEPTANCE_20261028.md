@@ -98,3 +98,39 @@ deletion, browser navigation, or upload of another file.
    per-file user approval, strict root/path/type/size and symlink validation,
    staging and cleanup, exact-chat locking, idempotent send state, and
    independent receiver confirmation. Treat uploading as disclosure.
+
+## 197–198B: receiver DOM topology independently observed
+
+- 197: exact-chat interactive snapshot: filenameVisible=true, markerVisible=false.
+  The interactive snapshot alone cannot inspect noninteractive message text.
+- 198A: full private Runtime self-update passed 911/911 tests.
+  Revision: d4292f063d7465b46e0bb5bf675e7025bef34a74.
+- 198B: read-only fixed-marker DOM inspection reported state=observed,
+  roleCounts=[0,5,5,5], markerRole=true, sameRole=false, parent=true,
+  markerMain=true, filenameMain=true, filenameAttr=true.
+  No upload, typing, clicking, screenshots or raw chat text occurred.
+
+The marker is present in the user-message role, while its file name is rendered
+outside that narrow role node but under a nearby ancestor. Requiring BOTH
+strings within the same role node explains the sender-side false negative.
+This does not establish that any main-wide filename+marker pairing is safe.
+
+## Strict scoped receipt repair (pending live acceptance)
+
+- Pure bounded verifier: stage2/chatgpt-upload-scoped-receipt.mjs.
+- Read-only historical receipt probe:
+  scripts/openclaw-chatgpt-upload-scoped-receipt-readonly.mjs.
+- Regression coverage: test/chatgpt-upload-scoped-receipt.test.mjs.
+- The sender's receipt polling now uses the scoped verifier, retaining
+  exact-chat preflight, fixture-only upload and the durable press-intent guard.
+- Confirmation requires exactly one user-role marker and the expected file
+  name in its own bounded message container within four ancestor levels,
+  with exactly one user-role unit inside that candidate container.
+  A common ancestor spanning multiple messages is explicitly rejected,
+  as are duplicate markers, wrong URLs, missing file name, and invalid
+  browser evidence.
+- Browser proof returns bounded Boolean/integer fields, not chat text/DOM.
+- Must still verify the new strict classifier against the already-delivered
+  message using the read-only probe. Do NOT resend file or press Enter.
+- The historical 196C Worker result remains inconclusive and must not
+  be retroactively described as a successful sender confirmation.
