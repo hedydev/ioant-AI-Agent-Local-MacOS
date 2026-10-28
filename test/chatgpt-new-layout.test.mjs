@@ -76,3 +76,12 @@ test('new role=assistant fallback is separately role-tagged; old layout still pr
  assert.equal(extractAction(oldResult).task.id,'role-0001');
  assert.equal(oldResult.receiptEvidence.assistantSource,'legacy');
 });
+
+test('Guard incident user receipt is detected from exact user role without leaking message body',()=>{
+ const receipt='[IOANT-GUARD-INCIDENT '+ 'a'.repeat(24)+']';
+ const user=element('You said:\n'+receipt+'\nPRIVATE_DIAGNOSTIC',
+  {'[data-user-message-bubble="true"]':element(receipt+'\nPRIVATE_DIAGNOSTIC')});
+ const result=view({'[data-content-search-unit-key$=":user"]':[user]});
+ assert.deepEqual(result.users,[receipt]);
+ assert.doesNotMatch(JSON.stringify(result),/PRIVATE_DIAGNOSTIC/);
+});
