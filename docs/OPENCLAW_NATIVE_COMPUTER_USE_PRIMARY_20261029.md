@@ -197,3 +197,37 @@ Historical detail:
 - [Background bridge design](./ALICE_CODEX_STYLE_BACKGROUND_COMPUTER_BRIDGE_20261029.md)
 - [Current Alice handoff](./OPENCLAW_ALICE_CURRENT_HANDOFF_20261029_205C78.md)
 - [Chrome MCP/TCC detour evidence](./OPENCLAW_REBIND_AND_CHROME_PASSIVE_20261029.md)
+
+## 2026-10-29 Stage C implementation — exact background tab / CUA read gate (candidate)
+
+After the 0515 CLI extension installation loop was explicitly deemed **out of scope**,
+the native Mac task was resumed from the accepted 205C-48 fixture background
+write and 205C-67 execution-lease transition.
+
+New candidate `scripts/alice-native-stage-c-preflight.mjs` provides a single,
+read-only Stage C check on the **existing installed Mac runtime**:
+- Use the existing, verified OS Chrome URL/title metadata-only probe for
+  the exact AliceAI Project + Chat (never inspect page DOM or tab content).
+- Verify the paired native `cua-computer` v2 node and *advertised*
+  `list_windows` / `get_window_state` plus background `set_value`
+  capability metadata. A single provider status snapshot does **not** prove
+  generation stability, own execution release, or actual input authorization.
+- If Alice tab is **not selected within its own Chrome window**, return
+  `blocked / select_alice_tab_in_own_window` WITHOUT calling
+  `computer.act`. This is not an instruction to bring Chrome to the
+  foreground, click, switch tabs programmatically or override another tab's
+  composer. The owner may choose manually to leave Alice selected in a
+  separate background Chrome window; no automatic change is permitted.
+- Only when exact Alice tab is selected and native CUA read commands
+  advertised, return `ready_for_native_ax_readonly`, which authorizes
+  **zero** writes. The next separate, user-approved read-only action is
+  the already implemented `scripts/alice-native-computer-window-readonly.mjs`.
+- Output only fixed flags, enums and counts; no ChatGPT messages, Chrome
+  URLs/titles, node IDs, opaque CUA refs, snapshots or local user content.
+
+Added six mocked regression tests of active/inactive tabs, wrong targets,
+CUA capability availability, failures and privacy. This candidate is **not
+Mac-deployed or accepted** until the protected `project-update-verify`
+returns full 0-failure test evidence. A successful test is still not a
+live Computer Use send or desktop background-write proof. Do not repeat
+Alice Coordinator's previously requested single-use handshake.
