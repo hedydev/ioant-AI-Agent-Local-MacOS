@@ -907,3 +907,66 @@ policy-enforcing egress approach/native CUA authorization and exact
 Coordinator sole-writer handshake. No broad ClashX Meta or
 Tailscale/global-network modifications are authorized by this
 diagnosis.
+
+## 2026-10-29 0543: current system proxy forwards to ChatGPT; scoped repair planned
+
+The Worker receipt `openclaw-alice-proxy-forward-check-20261029-0543`
+returned exit 0 in 615ms, `systemHttpsLocal=true`,
+`proxyForwardVerified=true`, `httpResponseReceived=true`,
+`curlExit=0`, `httpCodeClass=4xx`, with no config, credentials
+or SSRF changes. This confirms the **current macOS HTTPS loopback
+proxy can establish a forwarding connection and receive an HTTP
+response from chatgpt.com**. A 4xx response is not an authenticated
+ChatGPT page, nor proof that Cloudflare/application login succeeded.
+Combined with 0542, the managed `alice-ai` browser inherited a
+stale **global** Chromium `--proxy-server` port that is no longer
+listening, whereas the current system HTTPS proxy port is listening
+and forwards.
+
+Official current OpenClaw CLI documents:
+- `openclaw config set browser.extraArgs <json> --strict-json --dry-run`
+  validates an authored patch with no write.
+- `--expect-current-json <old-json>` guards a later **single-path**
+  conditional write against stale configuration; this is not combined
+  with `--dry-run`.
+- `browser.extraArgs` is global for managed Chromium, so a change
+  may affect other managed profiles when they next launch. Profile
+  and default launch settings hot-reload, and owned browsers may
+  be replaced; do not claim unchanged process state from a config
+  write alone. Sources:
+  https://docs.openclaw.ai/cli/config and
+  https://docs.openclaw.ai/gateway/config-browser-ui-desktop .
+
+### Candidate Stage F1/F2 fix
+
+`scripts/alice-stale-proxy-repair.mjs plan` is read-only:
+attests headed `alice-ai` status/CDP/process, refuses unrecognized
+non-local/protocol or multiple explicit proxy flags, examines all
+other managed profiles and refuses if any are running/unverifiable,
+compares one stale loopback HTTP proxy flag to current *listening*
+system HTTPS proxy loopback port, confirms exact Chrome PID's
+proxy flag and executes a strict-json **dry run**. It outputs only
+bounded flags/counts, never ports, raw URLs, launch arguments or
+proxy subscription credentials.
+
+Only after a successful real `plan` receipt, separately invoke
+`scripts/alice-stale-proxy-repair.mjs apply` as an explicit
+reviewed task. It re-runs **all** preconditions, saves the original
+authored `browser.extraArgs` privately in
+`~/Library/Application Support/ioant-openclaw-ops/private-recovery`
+(permission 0600), then conditionally changes **only that config
+path**. Readback verifies the intended array and publishes
+`scoped_config_updated` if confirmed. Failure after a write is
+reported `inconclusive` rather than a fabricated rollback/success.
+It does not restart browsers, Gateway, system proxy, Tailscale,
+Chrome, native CUA or Coordinator, and never navigates ChatGPT.
+Any later restart must be **owner-scoped to alice-ai**, preserve its
+persistent profile, and re-attest new Chromium process proxy
+flags and actual manual navigation.
+
+The global launch-flag change does not fix strict Browser SSRF
+rejection of *automated* proxy-routed navigation. Keep
+`browser.ssrfPolicy.dangerouslyAllowPrivateNetwork` unset,
+retain one-writer Alice Coordinator and independently review
+a truly policy-enforcing egress/native-CUA workflow before
+agent-initiated navigation or chat send.
