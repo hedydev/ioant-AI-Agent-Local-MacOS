@@ -647,7 +647,8 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
   // independent title/PID, initial-value, provider and focus gates pass.
   // Never pass browser tools, raw window inventory or unrelated app metadata.
   if(typeof verifiedFixtureChallenge==='function'){
-   if(!unchanged||!fresh||!element.valueMatchesInitial)
+   if(!unchanged||!fresh||!element.valueMatchesInitial||
+       !caps.actions.includes('set_value'))
     return finish({...base,launchedFixture:true,state:'blocked',
      reason:!fresh?'provider_generation_changed':
       !unchanged?'foreground_or_pointer_changed':
@@ -666,7 +667,11 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
      const n=chooseConnectedMacNode(doc);
      const row=(doc.result??doc).nodes.find(x=>x&&(x.nodeId===n.id||x.id===n.id));
      return n.id===chosen.id&&
-      row?.computerUse?.provider?.generation===generation;
+      row?.computerUse?.provider?.generation===generation&&
+      Array.isArray(row?.computerUse?.actions)&&
+      row.computerUse.actions.includes('set_value')&&
+      Array.isArray(row.computerUse.deliveryModes)&&
+      row.computerUse.deliveryModes.includes('background');
     },
     markWriteAttempted:()=>{verifiedChallengeWriteAttempted=true;}
    }));
