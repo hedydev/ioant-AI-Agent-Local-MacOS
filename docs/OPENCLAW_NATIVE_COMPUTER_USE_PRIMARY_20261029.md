@@ -341,3 +341,63 @@ https://docs.openclaw.ai/nodes/computer-use .
 
 Source candidate and docs commit are **not a Mac deployment**; require
 `project-update-verify` and a real exact Worker receipt first.
+
+## 2026-10-29 0524 live: managed Alice browser started, navigation SSRF blocked
+
+Mac Worker receipt `openclaw-alice-managed-browser-start-20261029-0524`
+returned exit 1. The first chained `start` step reported
+`browser [alice-ai] running: true`. The subsequent
+`browser --browser-profile alice-ai open <exact Alice Chat URL>`
+was **refused**:
+`Navigation blocked: strict browser SSRF policy cannot be enforced while this browser profile is proxy-routed`.
+The final chained `status` step did not execute because of `&&`.
+**Do not label the entire managed-browser startup a failure or claim the
+target page was opened or the user logged in.** The existing `alice-ai`
+profile, CDP port 18801 and headed mode `headless:false` were previously
+verified. There is no evidence of Coordinator, Gateway, Mac app, or daily
+Chrome modification from this receipt.
+
+Current OpenClaw documentation states:
+- Browser navigation and browser launch are separate acceptance stages;
+  navigation SSRF blocks may occur after a successful launch.
+- Managed Chromium does **not** automatically inherit Gateway/provider
+  `HTTP_PROXY`/`HTTPS_PROXY`/`ALL_PROXY` as browser proxy routing.
+  Explicit managed-browser Chrome proxy flags such as
+  `--proxy-server=...` or `--proxy-pac-url=...` (often in
+  `browser.extraArgs`) activate proxy routing. Under strict SSRF,
+  routing the browser through an unverified proxy can hide its actual
+  network destination from OpenClaw.
+- **Do not set `browser.ssrfPolicy.dangerouslyAllowPrivateNetwork:true`
+  as a shortcut**, turn off strict SSRF, reset browser profile, shut down
+  ClashX Meta, or make broad Gateway/browser changes. With a managed
+  proxy there may be legitimate network requirements; a safer targeted
+  configuration must be evidenced and separately reviewed first.
+- A non-proxied browser may not reach the desired host under the local
+  network. Do not assume removing proxy flags restores ChatGPT access.
+- Configuration of `browser.ssrfPolicy` can replace Browser control
+  service, interrupt owned managed Chrome/tabs. Do not mutate it without
+  a reviewed rollback/impact plan.
+- A browser-only proxy routing error does **not** demonstrate failure
+  of native CUA v2 `computer.act`, and must not redirect the work back to
+  Chrome extension installation or TCC.
+
+New **read-only** candidate:
+`scripts/alice-browser-proxy-cause-readonly.mjs` inspects only
+sanitized effective `config get browser --json`, exact
+`alice-ai` status and, if owner CDP port 18801 is corroborated,
+the related Chromium process command-line **in memory only**.
+It publishes booleans/enums for proxy flags and SSRF opt-in state,
+never endpoints, paths, cookie/credentials, raw process arguments or
+config. Added nine mocked tests. It does not start/stop/navigate the
+browser, modify profile or security policy, or invoke native CUA.
+A result lacking explicit flag attribution is **inconclusive**, not
+authority to modify proxies or security settings.
+
+Protected `project-update-verify` and **real live Mac receipt** are
+required before making a targeted network decision. The separate Alice
+Coordinator and exactly-once requested handshake remain unchanged.
+
+Official references:
+- https://docs.openclaw.ai/tools/browser/configuration
+- https://docs.openclaw.ai/tools/browser/troubleshooting
+- https://docs.openclaw.ai/gateway/security/browser-control
