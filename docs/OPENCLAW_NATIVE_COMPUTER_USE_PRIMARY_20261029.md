@@ -642,3 +642,45 @@ investigate launch/session visibility under the existing
 open the URL in a window not yet evidenced. Any future native
 `list_windows` observation needs a separately scoped execution
 and reliable WindowServer/windowRef binding.
+
+## 2026-10-29 0535 live: dedicated browser GUI window owner attested
+
+Mac Worker receipt `openclaw-alice-managed-window-owner-live-20261029-0535`:
+`Status=passed`, exit 0; audit
+`IOANT_ALICE_MANAGED_WINDOW_OWNER_READONLY`.
+`ownedNormalWindowCount=13`, `ownedOnScreenWindowCount=1`,
+`windowOwnerAttested=true`; `exactChatTabMatches=0`,
+`exactChatTabUniquelyObserved=false`;
+`nativeReadAdvertised=true`, `backgroundSetValueAdvertised=true`,
+`targetPageActiveInOwnedWindowVerified=false`;
+`state=await_operator_manual_navigation`,
+`reason=managed_window_exists_target_chat_absent`.
+No native `computer.act` was invoked; no browser navigation,
+window-title read, screenshot, focus/input, credentials, config,
+network, SSRF or Coordinator modifications; no chat send.
+
+**Interpretation:** the headed `alice-ai` managed Chromium PID owns
+macOS GUI windows including **one on-screen normal window**. Thirteen
+normal WindowServer records do **not** imply thirteen displayed browser
+windows or thirteen conversations. The target ChatGPT Project Chat is
+**absent** from this isolated profile, so exact chat identity,
+login state, target active tab, CUA AX composer and send authorization
+remain unverified.
+
+**Immediate human gate:** the operator should use that *already
+running, visible* dedicated browser window to manually open the
+registered AliceAI chat URL and sign in if needed. The user already
+explicitly accepted doing the login personally. Do not make the
+Worker navigate via native CUA as a hidden fallback around strict
+proxy-routed Browser SSRF refusal. Do not ask the operator to keep
+the browser foreground after login. Only after that human navigation
+should a **new unique Worker task** rerun
+`scripts/alice-managed-window-owner-readonly.mjs` and validate one
+exact registered AliceAI Chat tab. A GUI ownership result alone
+does not establish `windowRef` or computer-act write permission.
+Preserve Coordinator single writer and pending exactly-once receipt.
+
+The Stage E2a artifact and nine tests were protected-deployed with
+`project-update-verify` at `ef25bb7b2f64a8d2ddc8525751b344b38f38854e`
+in `0534`; Mac tests 1152 total, 1152 passed, 0 failed;
+`reloadRequired=true` is a request, not independent reload proof.
