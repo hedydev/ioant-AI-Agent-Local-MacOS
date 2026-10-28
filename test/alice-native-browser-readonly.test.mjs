@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CHROME_WIRE,chromeAppleScript,verifyChromeTarget,selectNativeWindow,summarizeBrowserState}
+import {CHROME_WIRE,chromeAppleScript,verifyChromeTarget,chromeOSWireEvidence,selectNativeWindow,summarizeBrowserState}
  from '../scripts/alice-native-browser-readonly.mjs';
 
 const CHAT='https://chatgpt.com/g/g-p-6acaef839af081919426a885b3209f54-ai-mc-alice/c/6ade11a5-f0c0-83ec-add1-8a0cff00c938';
@@ -115,4 +115,16 @@ test('wire rejects delimiter injection and legacy tab payload fail closed',()=>{
  assert.equal(verifyChromeTarget(tab(CHAT,'Injected '+CHROME_WIRE+' title')),null);
  assert.equal(verifyChromeTarget(['1','1','0','Normal',CHAT].join('\t')),null);
  assert.equal(verifyChromeTarget(tab(CHAT).replace(CHROME_WIRE,'')),null);
+});
+
+test('failed Chrome OS wire returns only bounded counts and booleans',()=>{
+ const empty=['0','0','0','',''].join(CHROME_WIRE);
+ const r=chromeOSWireEvidence(empty);
+ assert.deepEqual(r,{wireFields:5,targetTabs:0,containingWindowMatches:0,
+  targetActiveCount:0,windowTitlePresent:false,exactProjectConversationVerified:false});
+ const valid=chromeOSWireEvidence(tab(CHAT,'Sensitive Chrome Title',false));
+ assert.deepEqual(valid,{wireFields:5,targetTabs:1,containingWindowMatches:1,
+  targetActiveCount:0,windowTitlePresent:true,exactProjectConversationVerified:true});
+ assert.doesNotMatch(JSON.stringify(valid),/Sensitive|chatgpt.com|6ade11a5/);
+ assert.equal(chromeOSWireEvidence('malformed').wireFields,1);
 });
