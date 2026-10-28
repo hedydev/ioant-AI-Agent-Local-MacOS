@@ -597,3 +597,48 @@ Mac Worker task ID. Only `ready_for_native_window_observation`
 allows the **separate read-only** E2 managed-process and native-window
 owner attestation. Existing Alice Coordinator is still the sole chat
 writer and has no delivery permission from these checks.
+
+## 2026-10-29 0533: managed-browser chat tab still absent; inspect owned GUI window next
+
+The Mac Worker receipt `openclaw-alice-managed-native-readiness-recheck-20261029-0533`
+finished exit 0 in 5240ms with
+`state=await_operator_manual_navigation`,
+`reason=dedicated_browser_does_not_yet_have_exact_chat`,
+`exactChatTabMatches=0`,
+`browserOwnedAndReady=true`, `headless=false` and
+`cdpReady=true`. No navigation, native computer invocation, screenshot,
+chat content read, desktop input or message send. **This is not proof
+that ChatGPT login failed**, only that the exact AliceAI project chat
+is absent from the dedicated profile's tab inventory. Repeating the
+same Stage E1 scan without a new action will not change the result.
+
+The next independent admission check is **Stage E2a**:
+`scripts/alice-managed-window-owner-readonly.mjs`. It checks the
+already-running `alice-ai` managed Chromium `status.pid`
+alongside local macOS `CGWindowListCopyWindowInfo` records filtered
+to **that exact PID** and normal window layer. It returns only bounded
+counts of owned normal windows and on-screen windows, plus the existing
+privacy-bounded exact-chat tab count and paired native CUA capability
+advertisement. It never outputs raw process identifiers, titles,
+window references, URLs or screen pixels and never opens pages,
+changes focus, invokes `computer.act`, alters browser/proxy/SSRF,
+or sends a message. Nine mocked tests cover absent GUI windows,
+normal/on-screen ownership, wrong PID, duplicate exact tabs, failure
+sanitization and non-mutation. A positive GUI-owner result does
+**not** yet attest a unique native CUA `windowRef` or composer,
+and does not authorize a send.
+
+If the managed browser really owns an on-screen window and the
+exact target page is absent, the operator may manually open the
+precisely registered AliceAI Project Chat in **that window**, sign in
+if prompted and retain the page. A manual operator navigation is not
+OpenClaw Browser automation permission. Prior strict Browser SSRF
+refusal remains unresolved. Do not secretly route automated
+navigation through Mac CUA to bypass that browser policy.
+
+If zero owned normal windows are found, the next task is to
+investigate launch/session visibility under the existing
+`alice-ai` configuration, not to ask the operator to repeatedly
+open the URL in a window not yet evidenced. Any future native
+`list_windows` observation needs a separately scoped execution
+and reliable WindowServer/windowRef binding.
