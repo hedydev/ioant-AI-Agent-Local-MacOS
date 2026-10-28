@@ -146,10 +146,11 @@ export async function observeAliceNativeBrowser({run=cli,osRead=()=>execFileSync
   const selected=selectNativeWindow(list,target.title);
   if(selected.state!=='matched')return {...base,state:'inconclusive',
    reason:selected.reason,nativeWindowRecords:selected.nativeWindowRecords,
-   compatibleWindowRecords:selected.compatibleCount};
+   compatibleWindowRecords:selected.compatibleCount,targetWasActive:target.targetActive};
   phase='native_browser_state';
   const response=native('get_browser_state',{windowRef:selected.windowRef});
-  if(response?.ok!==true)return {...base,state:'inconclusive',reason:'native_browser_state_refused'};
+  if(response?.ok!==true)return {...base,state:'inconclusive',reason:'native_browser_state_refused',
+   targetWasActive:target.targetActive};
   const summary=summarizeBrowserState(response);
   return {...base,state:summary.state,reason:summary.state==='target_page_verified'?
    'native_browser_page_reference_verified':'browser_page_identity_unverified',
