@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CHROME_WIRE,chromeAppleScript,verifyChromeTarget,chromeOSWireEvidence,selectNativeWindow,summarizeBrowserState,classifyNativeBrowserError}
+import {CHROME_WIRE,chromeAppleScript,verifyChromeTarget,chromeOSWireEvidence,selectNativeWindow,summarizeBrowserState,classifyNativeBrowserError,nativeBrowserErrorBoundary}
  from '../scripts/alice-native-browser-readonly.mjs';
 
 const CHAT='https://chatgpt.com/g/g-p-6acaef839af081919426a885b3209f54-ai-mc-alice/c/6ade11a5-f0c0-83ec-add1-8a0cff00c938';
@@ -153,4 +153,27 @@ test('native browser failure safely distinguishes JSON decoding and uncertain re
  assert.equal(busy.failureCategory,'computer_execution_occupied');
  assert.equal(busy.nativeCode,'COMPUTER_HOST_BUSY');
  assert.deepEqual(Object.keys(busy).sort().includes('stderr'),false);
+});
+
+test('get_browser_state setup refusal is recognized without exposing browser content',()=>{
+ const stdout=JSON.stringify({ok:false,error:{type:'cli_error',
+  code:'UNLISTED_NATIVE_REASON',message:'browser_requires_setup for https://chatgpt.com/g/secret'}});
+ const e={status:1,stdout,stderr:'Cannot attach profile at /Users/private/Chrome'};
+ const x=classifyNativeBrowserError(e);
+ assert.deepEqual(x.browserRefusalSignals,['browser_requires_setup']);
+ assert.equal(x.processExitStatus,1);
+ assert.equal(x.cliEnvelopeErrorFieldType,'object');
+ assert.equal(x.cliEnvelopeRootKeys.includes('error'),true);
+ assert.equal(x.cliEnvelopeErrorKeys.includes('message'),true);
+ assert.doesNotMatch(JSON.stringify(x),/chatgpt.com|\/Users|private|secret|UNLISTED_NATIVE_REASON/);
+});
+test('browser specific refusals remain separate from provider and owner errors',()=>{
+ const consent=nativeBrowserErrorBoundary({stdout:JSON.stringify({error:{
+  message:'browser_consent_required',type:'cli_error'}})});
+ assert.deepEqual(consent.browserRefusalSignals,['browser_consent_required']);
+ const busy=nativeBrowserErrorBoundary({status:1,stdout:JSON.stringify({error:{
+  message:'COMPUTER_HOST_BUSY',type:'cli_error'}})});
+ assert.deepEqual(busy.browserRefusalSignals,[]);
+ assert.equal(busy.processExitStatus,1);
+ assert.deepEqual(nativeBrowserErrorBoundary({stdout:'other private text'}).browserRefusalSignals,[]);
 });
