@@ -21,6 +21,10 @@ const CLI=join(homedir(),'.openclaw','bin','openclaw');
 const CHAT='https://chatgpt.com/g/g-p-6acaef839af081919426a885b3209f54-ai-mc-alice/c/6ade11a5-f0c0-83ec-add1-8a0cff00c938';
 const EXPECTED=parseProjectChatUrl(CHAT);
 const AUDIT='IOANT_ALICE_NATIVE_BROWSER_READONLY';
+// An explicit text boundary: inside tell application "Google Chrome", the
+// bare AppleScript word 'tab' can be resolved in Chrome's scripting vocabulary.
+// Never rely on it as a literal separator. A collision in title data fails closed.
+export const CHROME_WIRE='|IOANT-ALICE-205C25-WIRE|';
 const cleanText=v=>typeof v==='string'&&v.length>0&&v.length<512&&!/[\r\n\t]/.test(v);
 const safeRef=v=>typeof v==='string'&&v.length>=3&&v.length<=1024;
 function cli(args,timeout=25000){
@@ -31,7 +35,7 @@ function invoke(node,id,action,params={}){
   '--params',JSON.stringify({action,executionId:id,...params}),'--json'],30000);
 }
 export function verifyChromeTarget(report){
- const rows=String(report).trim().split('\t');
+ const rows=String(report).trim().split(CHROME_WIRE);
  // Exactly one target tab, in exactly one Chrome window. The third field
  // reports whether that tab is active, NOT a precondition for observing it.
  if(rows.length!==5||rows[0]!=='1'||rows[1]!=='1'||
@@ -60,7 +64,7 @@ export function chromeAppleScript(){
   'if j is activeIdx then set b to b + 1\n'+
   'set nm to title of tab activeIdx of w as text\nset uri to u\n'+
   'end if\nend repeat\nend repeat\n'+
-  'return (n as text) & tab & (a as text) & tab & (b as text) & tab & nm & tab & uri\nend tell';
+  'return (n as text) & "'+CHROME_WIRE+'" & (a as text) & "'+CHROME_WIRE+'" & (b as text) & "'+CHROME_WIRE+'" & nm & "'+CHROME_WIRE+'" & uri\nend tell';
 }
 const normalize=s=>s.normalize('NFKC').replace(/\s+/g,' ').trim();
 export function selectNativeWindow(raw,chromeTitle){
