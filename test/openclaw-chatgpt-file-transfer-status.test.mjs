@@ -55,7 +55,7 @@ test('runtime denial blocks before reading file or journal',async()=>{
 test('no browser/send/delete APIs in status script',()=>{
  const source=readFileSync(resolve(import.meta.dirname,
   '../scripts/openclaw-chatgpt-file-transfer-status.mjs'),'utf8');
- assert.doesNotMatch(source,/browser.{0,20}(click|upload|press|type|navigate)/);
+ assert.doesNotMatch(source,/(?:cli\(\[|exec\(|GenUI\.|browser\.(?:click|upload|press|type|navigate))/);
  assert.doesNotMatch(source,/writeFile|rename|rm\(|unlink|mkdir|execFile/);
  assert.match(source,/O_NOFOLLOW/);
  assert.match(source,/no_matching_private_record/);
