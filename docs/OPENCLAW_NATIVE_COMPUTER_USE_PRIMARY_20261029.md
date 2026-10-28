@@ -445,3 +445,38 @@ Separate user-approved outcome remains a persistent headed `alice-ai`
 profile with **operator-performed manual ChatGPT sign-in**. No user
 login has yet been observed, and the Coordinator/Chat handshake
 remains untouched.
+
+## 2026-10-29 0528 Mac network routing receipt
+
+`openclaw-alice-system-routing-readonly-20261029-0528` succeeded
+in 67ms: `httpSystemProxyEnabled=true`,
+`httpsSystemProxyEnabled=true`,
+`socksSystemProxyEnabled=true`, `pacEnabled=false`,
+`autoDiscoveryEnabled=false`, `ipv4RouteInterfaceClass=physical`,
+`utunInterfaceCount=6`, `clashTunOwnershipVerified=false`.
+The output was read-only and secret-free. Do **not** infer that TUN
+is enabled or disabled from the physical default route or number of
+`utun` adapters. On macOS, Tailscale and multiple unrelated VPN
+and Network Extension services may create `utun` interfaces.
+The next gate is to identify whether the **actual ClashX Meta app**
+supports/enables TUN and whether its active Mihomo routing and DNS
+configuration is effective. Do not capture or print proxy nodes,
+subscription URLs or credentials.
+
+Public upstream references:
+- https://github.com/MetaCubeX/ClashX.Meta/issues/213 documents a
+  reported UI/privileged-helper TUN mismatch in v1.4.43, so a
+  preference bit alone is not live network-path proof.
+- https://docs.openclaw.ai/tools/browser/configuration explains that
+  globally explicit `browser.extraArgs` proxy routing is blocked
+  under strict SSRF, and that full egress control requires owner-side
+  isolation or a policy-enforcing proxy.
+
+Do not switch ClashX Meta TUN, global System Proxy or Gateway
+browser flags yet. **Transparent forwarding is not itself an SSRF
+security guarantee**. Any planned transition needs both:
+(1) a demonstrated browser route to ChatGPT while strict SSRF
+remains enabled, and (2) documented containment/rollback for daily
+Chrome, Tailscale, Gateway, other managed browser profiles and DNS.
+Do not simply remove `--proxy-server` while macOS System Proxy
+remains enabled and declare SSRF enforcement restored.
