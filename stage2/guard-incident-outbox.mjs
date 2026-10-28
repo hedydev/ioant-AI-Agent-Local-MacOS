@@ -13,6 +13,7 @@ const CODES=new Set(['watcher_stopped','feedback_unconfirmed',
  'recent_watcher_stop','relay_unavailable','service_unverifiable',
  'private_state_unavailable']);
 const PROJECT='openclaw-workflow';
+const TRUSTED_PROJECTS=new Set([PROJECT,'alice-ai']);
 const MAX_SEEN=256,MAX_ROWS=4096,MAX_BYTES=2*1024*1024;
 const HOME=homedir();
 const JOURNAL=join(HOME,'Library','Application Support',
@@ -35,7 +36,7 @@ function expectedKey(ticket){
 export function validGuardTicket(x){
  return object(x)&&keysMatch(x,['key','projectKey','conversationId',
   'code','observedAt','delivery','messageSent'])&&
- TOKEN.test(x.key??'')&&x.projectKey===PROJECT&&
+ TOKEN.test(x.key??'')&&TRUSTED_PROJECTS.has(x.projectKey)&&
  /^[A-Za-z0-9-]{15,100}$/.test(x.conversationId??'')&&
  CODES.has(x.code)&&validDate(x.observedAt)&&
  x.delivery==='queued'&&x.messageSent===false&&
@@ -44,7 +45,8 @@ export function validGuardTicket(x){
 export const receiptForGuardTicket=ticket=>
  '[IOANT-GUARD-INCIDENT '+ticket.key+']';
 export function guardIncidentMessage(ticket){
- if(!validGuardTicket(ticket))throw Error('invalid_guard_ticket');
+ if(!validGuardTicket(ticket)||ticket.projectKey!==PROJECT)
+  throw Error('invalid_guard_ticket');
  // No raw stack traces, shell output, file paths, chat content or secrets.
  return receiptForGuardTicket(ticket)+'\n'+
   'Audit: IOANT_GUARD_INCIDENT_NOTICE\n'+
@@ -64,7 +66,8 @@ export function validateGuardOutboxState(state){
  if(notice!==null&&notice!==undefined){
   if(!object(notice)||!keysMatch(notice,['ticket','phase'])||
      !['prepared','press_intent'].includes(notice.phase)||
-     !validGuardTicket(notice.ticket)||ids.includes(notice.ticket.key))
+     (!validGuardTicket(notice.ticket)||notice.ticket.projectKey!==PROJECT)||
+     ids.includes(notice.ticket.key))
    return false;
  }
  return true;
@@ -82,7 +85,8 @@ export function selectGuardTicket(rows,{conversationId,state}){
 export function prepareGuardNotice(state,ticket){
  if(!validateGuardOutboxState(state)||state.guardNotice)
   throw Error('guard_notice_already_pending');
- if(!validGuardTicket(ticket))throw Error('invalid_guard_ticket');
+ if(!validGuardTicket(ticket)||ticket.projectKey!==PROJECT)
+  throw Error('invalid_guard_ticket');
  return {...state,guardNotice:{ticket,phase:'prepared'}};
 }
 export function markGuardPressIntent(state){
