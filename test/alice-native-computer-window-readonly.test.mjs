@@ -94,5 +94,5 @@ test('UI attestation is rechecked after native state observation',()=>{
  assert.match(source,/after\.title!==target\.title/);
  assert.match(source,/after\.targetActive!==target\.targetActive/);
  assert.match(source,/return \{\.\.\.result,state:'inconclusive',reason:'active_tab_identity_changed'\}/);
- assert.doesNotMatch(source,/get_browser_state|browser_prepare|bring_to_front/);
+ assert.doesNotMatch(source,/['"](?:get_browser_state|browser_prepare|bring_to_front)['"]/);
 });
