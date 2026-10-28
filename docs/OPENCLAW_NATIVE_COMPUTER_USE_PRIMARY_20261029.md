@@ -1136,3 +1136,61 @@ CUA windowRef/AX read-only gate; chat delivery still unauthorized.
 
 This is independent of the fully verified 0548 stale proxy
 repair. Strict Browser SSRF under proxy routing remains enforced.
+
+## 2026-10-29 0551: native CDP finds exact Alice chat but CLI only lists blank tab
+
+The read-only differential receipt `openclaw-alice-cli-cdp-compare-20261029-0551`
+passed: verified `profileMatched=true`, `running=true`,
+OpenClaw CLI inventory `count=1` with `blank=1`,
+`exact=0`; direct local Chromium
+`http://127.0.0.1:18801/json/list` inventory `count=5`,
+with `exact=1`, `chatgpt=1`, `blank=1`, `other=3`.
+No raw URLs or content were emitted, no browser mutation, and
+strict SSRF remained unchanged.
+
+**Conclusion:** user-supplied screenshot/statement and native CDP
+metadata agree that the registered AliceAI Project Chat target is
+opened in a Chromium instance exposed at the managed CDP port.
+The existing CLI tab enumerator does **not** return the same target
+inventory and cannot remain the sole prerequisite for CUA readiness.
+This does not yet prove that the exact URL is a CDP `type=page`,
+that the CDP endpoint is owned by the managed Chromium PID rather
+than just at the configured port, or that the native macOS window
+corresponds to that exact tab. Do not infer authentication,
+composer AX identity or chat-delivery authorization.
+
+### Stage E3: strict CDP-to-native window admission
+
+New `scripts/alice-managed-cdp-window-readonly.mjs` is a
+**read-only** differential and native-window admission check. It:
+1. Requires the known `alice-ai` OpenClaw profile, driver, headed
+   Chromium engine, running/CDP-ready state, known port 18801
+   and valid process PID.
+2. Attests `--remote-debugging-port=18801` in that very PID's
+   `ps` command (never outputting the process arguments).
+3. Compares CLI tabs against bounded direct **loopback** CDP
+   `GET /json/list` target metadata, requiring exactly one
+   `type=page` with the exact registered Alice project/chat URL.
+   Non-page CDP targets cannot pass the admission gate. HTTP
+   response size/timeout and target count are bounded.
+4. Reuses the existing native WindowServer owner check for that
+   managed PID and `cua-computer` v2 *advertised* native read
+   capabilities. It does **not** use the blank CLI tabs for target
+   identity after the directly owned CDP page is attested.
+5. Re-checks the managed browser PID afterward to block churn.
+   Only then returns `ready_for_native_window_ref_readonly`.
+   This allows proceeding to **another** native AX/windowRef
+   read-only step, not directly to sending or editing messages.
+
+All audit fields expose only counts/flags/state, never raw URLs,
+tab ids, titles, source page content, cookies or credentials.
+The script does not open or navigate URLs, use CDP WebSockets,
+execute page JavaScript, capture a screenshot, focus ChatGPT,
+invoke `computer.act`, alter the proxy/SSRF, or send a chat message.
+
+The **actual visible ChatGPT page is now operator-confirmed**; do
+not ask the human to reopen it again because the known CLI
+inventory is incomplete. Complete E3 validation first, then
+independently attest native windowRef and AX composer identity.
+Preserve the Alice Coordinator as sole authorized sender and
+wait for its separate handshake/permission gate before a send.
