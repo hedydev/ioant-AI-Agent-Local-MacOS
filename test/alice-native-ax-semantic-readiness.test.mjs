@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {assessAliceNativeAXSemantics} from
+import {assessAliceNativeAXSemantics,assessUniqueNativeComposerControls} from
  '../scripts/alice-native-ax-semantic-readiness.mjs';
 
 test('native AX signal distinguishes known prompt/search and associated send hints',()=>{
@@ -118,4 +118,67 @@ test('no prompt identifier and coarse button proximity cannot grant composer ide
  assert.equal(r.nativeButtonsBroaderSendHintCount,1);
  assert.equal(r.candidates[0].nearbyNativeButtonsWithBounds,1);
  assert.equal(r.composerIdentityVerified,false);
+});
+
+test('one generic-labelled editor with one anonymous nearby icon is classified without assuming Send',()=>{
+ const data={ok:true,result:{details:{elements:[
+  {elementRef:'ref:search',role:'text field',label:'Search',
+   bounds:{x:100,y:50,width:300,height:35}},
+  {elementRef:'ref:composer',role:'text area',label:'Ask anything',value:'',
+   bounds:{x:120,y:500,width:400,height:100}},
+  {elementRef:'ref:icon',role:'button',
+   bounds:{x:495,y:550,width:32,height:32},actions:['AXPress']},
+  {elementRef:'ref:other',role:'button',label:'Delete conversation',
+   bounds:{x:300,y:40,width:40,height:30}}
+ ]}}};
+ const r=assessUniqueNativeComposerControls(data);
+ assert.equal(r.evidenceState,'unique_prompt_hint_with_nearby_controls');
+ assert.equal(r.editorRoleKind,'text_area');
+ assert.equal(r.editorValueState,'empty');
+ assert.equal(r.controlCount,1);
+ assert.equal(r.controls[0].hasAccessibleName,false);
+ assert.equal(r.controls[0].actionMetadataProvided,true);
+ assert.equal(r.controls[0].pressActionHint,true);
+ assert.equal(r.controls[0].sendSemanticHint,false);
+ assert.equal(r.controls[0].positionClass,'lower_trailing');
+ assert.equal(r.uniqueNativeControlIdentified,false);
+ assert.equal(r.chatDeliveryAuthorized,false);
+ assert.doesNotMatch(JSON.stringify(r),
+  /ref:search|ref:composer|ref:icon|Ask anything|Delete conversation|495|550/);
+});
+test('pre-existing draft never supplies a false empty-composer signal',()=>{
+ const r=assessUniqueNativeComposerControls({elements:[
+  {elementRef:'ref:composer',role:'AXTextArea',label:'Ask anything',
+   value:'Existing private draft'},
+  {elementRef:'ref:unknown',role:'button',label:'Talk',
+   bounds:{x:200,y:300,width:20,height:20}}
+ ]});
+ assert.equal(r.editorValueState,'nonempty');
+ assert.equal(r.controlCount,0);
+ assert.equal(r.chatDeliveryAuthorized,false);
+ assert.doesNotMatch(JSON.stringify(r),/Existing private draft|ref:/);
+});
+test('ambiguous and missing prompts fail closed without selecting an editable',()=>{
+ const make=labels=>({elements:labels.map((label,i)=>({
+  elementRef:'ref:'+i,role:'text area',label}))});
+ for(const labels of [['Nothing'],['Ask anything','Message ChatGPT']]){
+  const r=assessUniqueNativeComposerControls(make(labels));
+  assert.equal(r.evidenceState,'no_unique_semantic_composer');
+  assert.equal(r.controlCount,0);
+  assert.equal(r.uniqueNativeControlIdentified,false);
+  assert.equal(r.composerIdentityVerified,false);
+ }
+});
+test('absence of native action metadata and value is explicitly unknown, never an inferred button action',()=>{
+ const r=assessUniqueNativeComposerControls({elements:[
+  {elementRef:'ref:composer',role:'AXTextArea',placeholder:'Ask anything',
+   bounds:{x:0,y:0,width:400,height:50}},
+  {elementRef:'ref:button',role:'AXButton',label:'Talk',
+   bounds:{x:300,y:0,width:20,height:30}}
+ ]});
+ assert.equal(r.editorValueState,'unknown');
+ assert.equal(r.controls[0].pressActionHint,false);
+ assert.equal(r.controls[0].actionMetadataProvided,false);
+ assert.equal(r.controls[0].sendSemanticHint,false);
+ assert.equal(r.chatDeliveryAuthorized,false);
 });
