@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {summarizeNativeWindowOnly,summarizeNativeAXElements} from
+import {summarizeNativeWindowOnly,summarizeNativeAXElements,summarizeNativeEditableCandidates} from
  '../scripts/alice-native-computer-window-readonly.mjs';
 
 test('native Computer window observation is distinct from browser DOM authority',()=>{
@@ -95,4 +95,41 @@ test('UI attestation is rechecked after native state observation',()=>{
  assert.match(source,/after\.targetActive!==target\.targetActive/);
  assert.match(source,/return \{\.\.\.result,state:'inconclusive',reason:'active_tab_identity_changed'\}/);
  assert.doesNotMatch(source,/['"](?:get_browser_state|browser_prepare|bring_to_front)['"]/);
+});
+
+test('three native editable candidates expose only role and relative geometry',()=>{
+ const raw={ok:true,details:{elements:[
+  {elementRef:'ref:one',role:'text field',label:'Address',bounds:{y:30,width:300}},
+  {elementRef:'ref:two',role:'search field',bounds:{y:220,width:240}},
+  {elementRef:'ref:three',role:'AXTextArea',placeholder:'Ask anything',
+   bounds:{y:650,width:600},enabled:true}
+ ]}};
+ const r=summarizeNativeEditableCandidates(raw);
+ assert.equal(r.candidateCount,3);
+ assert.equal(r.candidates[0].positionWithinEditables,'highest');
+ assert.equal(r.candidates[1].positionWithinEditables,'middle');
+ assert.equal(r.candidates[2].positionWithinEditables,'lowest');
+ assert.equal(r.candidates[2].uiLabelClass,'known_chat_ui');
+ assert.equal(r.composerIdentityVerified,false);
+ assert.equal(r.chatDeliveryAuthorized,false);
+ assert.doesNotMatch(JSON.stringify(r),/ref:one|ref:two|ref:three|Address|Ask anything/);
+});
+test('unknown metadata and geometry never imply a verified composer',()=>{
+ const raw={ok:true,details:{elements:[
+  {elementRef:'ref:one',role:'text field',label:'Unrecognized control'},
+  {elementRef:'ref:two',role:'AXTextArea'},
+  {elementRef:'ref:three',role:'button',label:'Send'}
+ ]}};
+ const r=summarizeNativeEditableCandidates(raw);
+ assert.equal(r.candidateCount,2);
+ assert.equal(r.candidates[0].uiLabelClass,'other_unreleased');
+ assert.equal(r.candidates[1].uiLabelClass,'missing');
+ assert.equal(r.candidates[1].positionWithinEditables,'unknown');
+ assert.equal(r.composerIdentityVerified,false);
+});
+test('structural diagnostics remain gated by exact active tab identity',()=>{
+ const source=readFileSync(new URL('../scripts/alice-native-computer-window-readonly.mjs',import.meta.url),'utf8');
+ assert.match(source,/after\.targetActive!==target\.targetActive/);
+ assert.match(source,/active===true&&observed\?\.ok===true/);
+ assert.match(source,/summarizeNativeEditableCandidates\(observed\)/);
 });
