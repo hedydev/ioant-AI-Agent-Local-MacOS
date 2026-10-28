@@ -15,7 +15,7 @@ export function classifyGuardObservation(x){
  const log=x?.recentLogCode;
  const incidents=[];
  if(!identity||status==='unknown')incidents.push('service_unverifiable');
- else if(status==='stopped')incidents.push('watcher_stopped');
+ else if(status==='stopped'||status==='unloaded')incidents.push('watcher_stopped');
  if(x?.privateState==='unavailable')incidents.push('private_state_unavailable');
  if(pending!=='none'&&age!==null&&age>=DURATIONS.feedback)
   incidents.push('feedback_unconfirmed');
