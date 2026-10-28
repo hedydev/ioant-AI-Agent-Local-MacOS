@@ -203,6 +203,18 @@ async function main(args){
  if(args.length===1&&args[0]==='scan'){
   console.log(JSON.stringify(await scanGuard()));return;
  }
+ if(args.length===1&&args[0]==='once'){
+  const report=await scanGuard();
+  if(report.state!=='observed'){
+   console.log(JSON.stringify(report));process.exitCode=1;return;
+  }
+  const saved=await persistIncidents(report);
+  console.log(JSON.stringify({audit:AUDIT,schemaVersion:1,
+   state:'scanned',readOnlyHost:true,browserAccess:false,
+   incidentTicketsQueued:saved.newIncidents,chatMessagesSent:0,
+   services:report.services}));
+  return;
+ }
  if(args.length===2&&args[0]==='handoff-check'){
   console.log(JSON.stringify(await handoffCheck(args[1])));return;
  }
@@ -221,7 +233,7 @@ async function main(args){
   }
  }
  console.log(JSON.stringify({audit:AUDIT,schemaVersion:1,state:'blocked',
-  reason:'usage_scan_watch_or_handoff_check'}));
+  reason:'usage_scan_once_watch_or_handoff_check'}));
  process.exitCode=2;
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
