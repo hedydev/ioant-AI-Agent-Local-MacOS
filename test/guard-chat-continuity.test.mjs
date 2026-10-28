@@ -16,7 +16,7 @@ const baseline=(projectKey='openclaw-workflow')=>{
   service:{projectKey,conversationId,serviceState:'running',
    identityVerified:true,feedbackPending:false,incidentCodes:[]},
   settlement:{verified:true,taskFeedback:false,guardNotice:false,
-   maintainerNotice:false,initialization:false}};
+   maintainerNotice:false,initialization:false,handshake:'none'}};
 };
 test('actual main Chat binding is preferred over historical registry entry',()=>{
  const r=evaluateChatContinuity(baseline());
@@ -102,7 +102,46 @@ test('separate CLI reads installed plist and state, never performs migration',()
  const method=src.slice(p,q);
  assert.match(method,/safeServiceIdentity\(projectKey,plist\)/);
  assert.match(method,/readHandoffSettlement\(binding.chatUrl\)/);
+ assert.match(method,/readHandshake\(\{cache:CACHE,volume:'\/Volumes\/LunaDrive'\}\)/);
  assert.match(method,/evaluateChatContinuity/);
  assert.match(src,/args\[0\]==='handoff-readiness'/);
  assert.doesNotMatch(method,/browser|bootout|rebind|restart|launchctl|sendToChat/);
+});
+
+test('Alice state file absence is an explicit blocking checkpoint requirement',()=>{
+ const base=baseline('alice-ai');
+ const out=evaluateChatContinuity({...base,
+  settlement:{verified:false,reason:'state_file_absent'}});
+ assert.equal(out.state,'blocked');
+ assert.equal(out.reason,'state_checkpoint_missing');
+ assert.equal(out.checkpointRequired,true);
+ assert.equal(out.changedBinding,false);
+});
+test('Alice mailbox unknown cannot be mistaken for a cleared handshake',()=>{
+ const base=baseline('alice-ai');
+ for(const handshake of [undefined,null,'corrupt','pending']){
+  const r=evaluateChatContinuity({...base,
+   settlement:{...base.settlement,handshake}});
+  assert.equal(r.state,'blocked');
+  assert.equal(r.reason,'alice_handshake_unverified');
+ }
+});
+test('Alice pending handshake remains a hard handoff barrier',()=>{
+ const base=baseline('alice-ai');
+ for(const handshake of ['requested','press_intent']){
+  const r=evaluateChatContinuity({...base,
+   settlement:{...base.settlement,handshake}});
+  assert.equal(r.state,'blocked');
+  assert.equal(r.reason,'unresolved_chat_delivery');
+  assert.equal(r.pending.aliceHandshake,true);
+ }
+});
+test('Alice confirmed handshake can be inspected but never authorizes migration',()=>{
+ const base=baseline('alice-ai');
+ const out=evaluateChatContinuity({...base,
+  settlement:{...base.settlement,handshake:'confirmed'}});
+ assert.equal(out.state,'candidate');
+ assert.equal(out.pending.aliceHandshake,false);
+ assert.equal(out.changedBinding,false);
+ assert.equal(out.missingEvidence.includes('new_chat_receipt'),true);
 });
