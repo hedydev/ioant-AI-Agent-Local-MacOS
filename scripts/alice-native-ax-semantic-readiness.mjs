@@ -92,6 +92,32 @@ function privateEditorValueOriginEvidence(x){
   editorIdentityVerified:false
  });
 }
+// A native driver may expose an independent text-length attribute even
+// when AXValue mirrors the prompt label. Record only zero/nonzero/unknown;
+ // do not infer an empty composer or expose a draft length.
+function privateNativeTextOccupancyEvidence(x){
+ const names=['numberOfCharacters','AXNumberOfCharacters',
+  'characterCount','textLength','axTextLength'];
+ const raw=names.map(k=>x?.[k]).filter(v=>
+  Number.isSafeInteger(v)&&v>=0&&v<=1_000_000);
+ const states=[...new Set(raw.map(n=>n===0?'zero':'nonzero'))];
+ const lengthState=states.length===0?'unavailable':
+  states.length>1?'conflicting':states[0]+'_reported';
+ const value=typeof x?.value==='string'?x.value:
+  typeof x?.stringValue==='string'?x.stringValue:null;
+ const normalize=v=>typeof v==='string'?v.normalize('NFKC').trim():null;
+ const mirror=value!==null&&normalize(value)!==''&&
+  [x?.label,x?.accessibilityLabel,x?.placeholder,x?.placeholderValue]
+   .some(v=>typeof v==='string'&&normalize(v)!==''&&
+     normalize(v)===normalize(value));
+ return Object.freeze({
+  independentTextLengthAttributePresent:raw.length>0,
+  textLengthState:lengthState,
+  lengthZeroWhileValueMatchesPrompt:lengthState==='zero_reported'&&mirror,
+  // A count may describe a different AX subtree or be stale.
+  emptyComposerVerified:false,safeToOverwrite:false
+ });
+}
 function nativePressEvidence(x){
  const fields=[x?.actions,x?.supportedActions,x?.accessibilityActions,
   x?.actionNames];
@@ -150,6 +176,7 @@ export function assessUniqueNativeComposerControls(raw){
   editorRoleKind:role(editor.role).includes('area')?'text_area':'text_field',
   editorValueState:privateEditorValueClass(editor),
   editorValueOriginEvidence:privateEditorValueOriginEvidence(editor),
+  editorNativeTextOccupancyEvidence:privateNativeTextOccupancyEvidence(editor),
   editorEnabled:tri(editor.enabled),
   editorVisible:tri(editor.visible),
   controlCount:closeButtons.length,
