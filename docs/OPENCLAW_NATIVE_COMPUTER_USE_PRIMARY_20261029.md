@@ -401,3 +401,47 @@ Official references:
 - https://docs.openclaw.ai/tools/browser/configuration
 - https://docs.openclaw.ai/tools/browser/troubleshooting
 - https://docs.openclaw.ai/gateway/security/browser-control
+
+## 2026-10-29 0527 live: direct-network probe did not establish connectivity
+
+The exact Worker receipt `openclaw-alice-direct-egress-probe-20261029-0527`
+ran a one-time `curl` to `https://chatgpt.com/` with proxy
+environment variables removed and `--noproxy '*'`, `--proxy ''`.
+It returned `curlExit=28` (timeout), `httpCode=000`, and
+`httpResponseReceived=false` in 6029 ms. The probe did not change
+browser config or SSRF. This is **not** proof that *all possible*
+direct-network paths are unavailable; it only demonstrates that the
+specific non-proxied probe did not obtain an HTTP response. Do not
+remove `browser.extraArgs` and assume ChatGPT will become reachable.
+
+Read-only 0526 also confirmed `globalExplicitProxyFlag=true`,
+`processExplicitProxyFlag=true`, `profileExplicitProxyFlag=false`,
+`privateNetworkSSRFOptIn=unset`, headed `alice-ai` process running,
+and CDP ready. The browser refused navigation in 0524 under strict
+SSRF, as documented at
+https://docs.openclaw.ai/tools/browser/configuration .
+The official strict browser policy rejects explicit Chrome proxy
+routing by design unless more permissive access is intentionally
+chosen. Do not enable `dangerouslyAllowPrivateNetwork` just to
+bypass this refusal. `allowedHostnames` does not independently
+prove an explicit proxy can enforce destination binding, and a generic
+forward proxy is not automatically a strict SSRF security boundary.
+
+Next gate: **read-only** inspection of system proxy configuration,
+default IPv4 egress interface, and scoped TUN/network-route
+availability. Do not output proxy hosts/ports, secrets, DNS answers,
+or Chrome contents. A `utun` interface alone does not prove a
+ClashX Meta TUN path; Tailscale and other system services also use
+`utun`. Before any TUN/network-mode change, inspect the expected
+impact on existing Tailscale routes, local endpoints, daily Chrome,
+Gateway and other managed browser profiles and prepare rollback.
+A transparent, owner-side egress mechanism may let Chrome omit
+`--proxy-server` while retaining OpenClaw URL/DNS SSRF checks,
+but **must be validated** for policy enforcement, DNS rebinding and
+routing; do not claim transparency automatically implies SSRF
+safety.
+
+Separate user-approved outcome remains a persistent headed `alice-ai`
+profile with **operator-performed manual ChatGPT sign-in**. No user
+login has yet been observed, and the Coordinator/Chat handshake
+remains untouched.
