@@ -685,6 +685,24 @@ async function main(){
         await new Promise(r=>setTimeout(r,opts.interval*1000));
         continue;
       }
+      // An assistant turn containing two or more executable JSON blocks is
+      // rejected as a whole. Do not pick an action, send a receipt or exit.
+      // A later unambiguous assistant turn can resume normal dispatch.
+      if(a.status==='rejected_ambiguous_task'){
+        stable=0;previousFingerprint='';
+        if(lastVisibleStatus!=='ambiguous_task'){
+          console.log('[loop] Multiple executable tasks refused; no action executed. Watch remains active until a new single-task turn.');
+          recordDiagnosticEvent('ambiguous_task_refused',{code:'multiple_tasks'});
+          lastVisibleStatus='ambiguous_task';
+        }
+        if(Date.now()-lastHeartbeat>=120000){
+          recordDiagnosticEvent('watch_heartbeat',{status:'ambiguous_task'});
+          console.log('[loop] Watch heartbeat: ambiguous_task; monitoring the exact ChatGPT conversation.');
+          lastHeartbeat=Date.now();
+        }
+        await new Promise(resolve=>setTimeout(resolve,opts.interval*1000));
+        continue;
+      }
       if(a.status==='task'&&a.task.id!==state.lastTaskId){
         if(a.fingerprint===previousFingerprint)stable++; else {previousFingerprint=a.fingerprint;stable=1;}
         if(stable>=2){
