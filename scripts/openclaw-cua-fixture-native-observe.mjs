@@ -28,6 +28,19 @@ const safeNonce=x=>typeof x==='string'&&/^[a-f0-9]{24}$/.test(x);
 const nonceTitle=x=>`${TITLE} [${x}]`;
 const AUDIT='IOANT_CUA_FIXTURE_NATIVE_READONLY';
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+// Privacy-preserving noninterference comparison: only boolean equality,
+// never expose app bundle IDs, cursor positions or raw NSWorkspace state.
+export function focusPointerComparison(before,after){
+ const frontmostUnchanged=typeof before?.frontmost==='string'&&
+  typeof after?.frontmost==='string'&&
+  before.frontmost===after.frontmost;
+ const pointerUnchanged=Number.isFinite(before?.mouseX)&&
+  Number.isFinite(before?.mouseY)&&
+  Number.isFinite(after?.mouseX)&&
+  Number.isFinite(after?.mouseY)&&
+  before.mouseX===after.mouseX&&before.mouseY===after.mouseY;
+ return Object.freeze({frontmostUnchanged,pointerUnchanged});
+}
 const plainObj=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
 const safeRef=x=>typeof x==='string'&&x.length>=1&&x.length<=1024;
 // Real node transports can embed the JSON body as content[].text or
@@ -588,10 +601,12 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
     nativeReadAttempted:false,fixtureSelfAttested:false});
   await wait(100);
   after=await state();
-  unchanged=after.frontmost===before.frontmost&&
-    after.mouseX===before.mouseX&&after.mouseY===before.mouseY;
+  const launchSignals=focusPointerComparison(before,after);
+  unchanged=launchSignals.frontmostUnchanged&&launchSignals.pointerUnchanged;
   if(!unchanged)return {...base,launchedFixture:true,state:'blocked',
    reason:'foreground_or_pointer_changed_on_launch',
+   interferenceStage:'fixture_launch',
+   interferenceSignals:launchSignals,
    focusAndPointerUnchanged:false};
   // The dedicated child has now proved its own NSWindow title, window
   // number, owner PID/layer and nonforeground state via its private stdout.
@@ -640,8 +655,8 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
   const node2=(refresh.result??refresh).nodes.find(x=>x&&(x.nodeId===current.id||x.id===current.id));
   const fresh=current.id===chosen.id&&node2?.computerUse?.provider?.generation===generation;
   after=await state();
-  unchanged=after.frontmost===before.frontmost&&after.mouseX===before.mouseX&&
-    after.mouseY===before.mouseY;
+  const postReadSignals=focusPointerComparison(before,after);
+  unchanged=postReadSignals.frontmostUnchanged&&postReadSignals.pointerUnchanged;
   // The ordinary CLI remains strictly read-only. A separately reviewed,
   // explicit fixture-only proof may use this bounded injection seam AFTER all
   // independent title/PID, initial-value, provider and focus gates pass.
@@ -653,6 +668,10 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
      reason:!fresh?'provider_generation_changed':
       !unchanged?'foreground_or_pointer_changed':
        'initial_field_value_not_confirmed',
+     ...(unchanged?{}:{
+      interferenceStage:'post_native_read',
+      interferenceSignals:postReadSignals,
+      launchSignals}),
      mutatingActionAttempted:false,fixtureWindowMatched:true});
    phase='verified_fixture_challenge';
    const challenge=await verifiedFixtureChallenge(Object.freeze({
