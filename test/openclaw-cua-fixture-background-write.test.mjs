@@ -189,7 +189,7 @@ test('composed proof passes only a callback to the verified observer',async()=>{
 test('read-only CLI default and fixture-only write path remain separate',()=>{
  assert.match(observer,/verifiedFixtureChallenge=null/);
  assert.match(observer,/if\(typeof verifiedFixtureChallenge==='function'\)/);
- assert.match(observer,/!unchanged\|\|!fresh\|\|!element\.valueMatchesInitial/);
+ assert.match(observer,/if\(!fresh\|\|!element\.valueMatchesInitial/);
  assert.match(observer,/independentOSPidVerified:true/);
  assert.match(observer,/shouldCloseOwnFixtureExecution/);
  assert.match(observer,/scopedCloseRequest\(leasedNodeId,leasedExecutionId\)/);
@@ -203,12 +203,15 @@ test('read-only CLI default and fixture-only write path remain separate',()=>{
 
 
 test('read-only prewrite samples every gate independently even if first fails',async()=>{
+ let samples=0;
  const p=await inspectFixtureWritePreflight({
-  baseline:{frontmost:'app-a',mouseX:1,mouseY:2},
   fixtureIsAlive:()=>false,
   verifyOwnedWindow:async()=>false,
   getCurrentNode:async()=>false,
-  readState:async()=>({frontmost:'app-b',mouseX:1,mouseY:3})
+  readState:async()=>{samples++;return {
+   frontmost:samples===1?'app-a':'app-b',
+   mouseX:1,mouseY:samples===1?2:3
+  }}
  });
  assert.deepEqual(p,{fixtureProcessAlive:false,
   fixtureOwnerProofValid:false,
@@ -233,9 +236,11 @@ test('unexpected prewrite read error closes gate without leaking errors or sendi
  });
  assert.doesNotMatch(JSON.stringify(r),/PRIVATE|SECRET|WINDOW_NAME|ADDRESS|COORDINATES/);
 });
-test('pointer-only movement is independently detected and blocks mutation',async()=>{
+test('cursor movement inside immediate prewrite sampling blocks mutation',async()=>{
+ let samples=0;
  const {base,stats}=fakeContext({
-  readState:async()=>({frontmost:'com.example.current',mouseX:106,mouseY:210})
+  readState:async()=>({frontmost:'com.example.current',
+   mouseX:++samples===1?105:106,mouseY:210})
  });
  const result=await verifiedFixtureBackgroundWrite(base);
  assert.equal(result.prewriteChecks.frontmostUnchanged,true);
@@ -248,4 +253,28 @@ test('native observer outputs only a fixed prewrite boolean schema',()=>{
  assert.match(observer,/Object\.values\(prewriteChecks\)\.every\(v=>v===true\)/);
  assert.doesNotMatch(observer,/console\.log\(before\)|console\.log\(after\)/);
  assert.doesNotMatch(script,/console\.log\(baseline\)|console\.log\(after\)/);
+});
+
+test('prior user activity is not misclassified as Computer input during long read',async()=>{
+ const {base,stats}=fakeContext({
+  baseline:{frontmost:'earlier-app',mouseX:10,mouseY:20},
+  readState:async()=>({frontmost:'new-app',mouseX:400,mouseY:500})
+ });
+ const result=await verifiedFixtureBackgroundWrite(base);
+ assert.equal(result.writeIssued,true);
+ assert.equal(result.nativeReadbackMatched,true);
+ assert.equal(result.focusAndPointerUnchanged,true);
+ assert.deepEqual(stats(),{calls:2,marked:1});
+});
+test('pointer moves after one background write: do not claim noninterference or replay',async()=>{
+ let samples=0;
+ const {base,stats}=fakeContext({
+  readState:async()=>({frontmost:'com.example.current',
+   mouseX:++samples<3?105:106,mouseY:210})
+ });
+ const result=await verifiedFixtureBackgroundWrite(base);
+ assert.equal(result.writeIssued,true);
+ assert.equal(result.nativeReadbackMatched,true);
+ assert.equal(result.focusAndPointerUnchanged,false);
+ assert.deepEqual(stats(),{calls:2,marked:1});
 });
