@@ -31,13 +31,13 @@ const safeRef=v=>typeof v==='string'&&v.length>=3&&v.length<=1024;
 const SAFE_CATEGORY=/^[a-z][a-z0-9_]{1,70}$/;
 const SAFE_NATIVE_CODE=/^(?:COMPUTER|NODE|ACCESSIBILITY|SCREEN)_[A-Z_]{3,80}$/;
 const NATIVE_BROWSER_KNOWN_REFUSALS=Object.freeze([
- ['browser_requires_setup',/\\bbrowser_requires_setup\\b/i],
- ['browser_consent_required',/\\bbrowser_consent_required\\b/i],
- ['existing_profile_unsupported',/\\bexisting.profile\\b.{0,90}\\b(?:unsupported|not supported|not exposed|unavailable)\\b|\\b(?:unsupported|not exposed)\\b.{0,90}\\bexisting.profile\\b/i],
- ['browser_not_attached',/\\bbrowser_not_attached\\b|\\bbrowser_requires_attachment\\b/i],
- ['browser_target_not_found',/\\bbrowser_target_not_found\\b|\\bbrowser_window_not_found\\b/i],
- ['browser_driver_unavailable',/\\bbrowser_driver_unavailable\\b/i],
- ['browser_unsupported',/\\bbrowser_unsupported\\b|\\bunsupported_browser\\b/i]
+ ['browser_requires_setup',/\bbrowser_requires_setup\b/i],
+ ['browser_consent_required',/\bbrowser_consent_required\b/i],
+ ['existing_profile_unsupported',/\bexisting.profile\b.{0,90}\b(?:unsupported|not supported|not exposed|unavailable)\b|\b(?:unsupported|not exposed)\b.{0,90}\bexisting.profile\b/i],
+ ['browser_not_attached',/\bbrowser_not_attached\b|\bbrowser_requires_attachment\b/i],
+ ['browser_target_not_found',/\bbrowser_target_not_found\b|\bbrowser_window_not_found\b/i],
+ ['browser_driver_unavailable',/\bbrowser_driver_unavailable\b/i],
+ ['browser_unsupported',/\bbrowser_unsupported\b|\bunsupported_browser\b/i]
 ]);
 export function nativeBrowserErrorBoundary(error){
  // Match only protocol-defined tokens; do not emit messages or unknown codes.
