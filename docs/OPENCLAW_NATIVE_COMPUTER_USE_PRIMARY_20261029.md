@@ -269,3 +269,75 @@ the separate existing `scripts/alice-native-computer-window-readonly.mjs`
 read-only native AX diagnostic. No success or chat-delivery claims
 until the actual receipt exists. Do not reinstall extensions or
 revisit Chrome MCP/TCC as a substitute.
+
+## 2026-10-29 operator decision: Codex-style dedicated AliceAI browser with manual login
+
+**Operator's explicit decision:** do not depend on active tabs of daily Chrome.
+OpenClaw should own a separate, persistent **`alice-ai` managed browser profile
+and visible window**. The operator will personally sign into ChatGPT in
+**that new window when needed**; this is acceptable and preferred. No login
+credentials, Chrome cookies, Keychain contents, existing daily browser
+profile data or session tokens may be copied, read or printed by Worker,
+Agent, or docs. Login completion remains user-observed until a separate
+scoped verification; do not claim the login is already done.
+
+Official OpenClaw supported mechanisms:
+- `openclaw browser create-profile --name alice-ai` creates a named managed
+  browser profile (subject to version and collision checks), isolated from
+  `user`, `chrome`, and the default `openclaw` profile.
+- Local managed browser profiles default to **headless**, so the user-login
+  window requires explicit `browser.profiles.alice-ai.headless=false`
+  or a verified equivalent. Do **not** change the global default profile
+  or make all existing OpenClaw browsers headed.
+- OpenClaw's managed Browser routes tab/page operations; OpenClaw.app's
+  paired native `cua-computer` v2 routes desktop/native window operations.
+  These are **distinct tools**. Do not treat successful managed-browser
+  launch as proof that `computer.act` can target that browser. A fresh,
+  independent native window/identity/capability check is required before
+  any native CUA action.
+- Native CUA `browser_prepare` requires a discovered `windowRef` and
+  remains subject to existing consent. It is **not** a shortcut to creating
+  a standalone profile or bypassing `browser_consent_required`.
+- The existing Alice Coordinator's fixed Chat binding and one-writer
+  handshake remain unchanged. Switching its delivery transport requires
+  a separately tested adapter, durable write intent, exact-chat matching
+  user-role receipt, and per-project authorization.
+
+### Implementation gates
+
+**Stage D1 (this candidate):** new
+`scripts/alice-managed-browser-preflight.mjs` with inspect-only mode.
+It asks the existing OpenClaw CLI for the registered profile catalog and
+the exact `alice-ai` profile status *only if* that profile is already
+registered as managed. The output contains only fixed enums/booleans.
+No browser start, tab read, page open, config change, credential import,
+native CUA call, or message send. Mocked tests cover missing profiles,
+incompatible collisions, headless and stopped modes, and privacy.
+
+**Stage D2 (after a real D1 Mac receipt):** safely provision only a missing
+named `alice-ai` managed profile and **visible** browser mode; preserve
+existing profiles and config. First inspect the current config/CLI and
+whether a targeted headed setting requires a Gateway reload. No blanket
+Gateway restart or service/user browser disruption. Open only the exact
+AliceAI Chat URL in that isolated window. User then logs in manually.
+
+**Stage D3:** after user login, verify exact Project/Chat identity within
+the isolated managed browser using a **scoped profile and unique tab**,
+with no message reading or writing beyond what is specifically approved.
+Do not expose private login/session data or assume an AppleScript probe
+of daily Chrome correctly describes the managed browser process.
+
+**Stage D4:** implement a sole-writer Alice Coordinator adapter for the
+isolated browser only after trusted Chat owner approval, durable
+`press_intent`, no-existing-draft proof and independent receipt. Keep
+Native CUA as the Mac desktop control path, and use managed Browser where
+it is the correct independent web-control surface. No unapproved
+fallback to foreground/global input.
+
+References: https://docs.openclaw.ai/tools/browser/profiles ,
+https://docs.openclaw.ai/tools/browser-login ,
+https://docs.openclaw.ai/tools/browser/configuration ,
+https://docs.openclaw.ai/nodes/computer-use .
+
+Source candidate and docs commit are **not a Mac deployment**; require
+`project-update-verify` and a real exact Worker receipt first.
