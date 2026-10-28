@@ -68,3 +68,48 @@ project-update-verify passes the complete test suite.
 Never claim a successful Mac-to-ChatGPT receipt from the browser command
 return alone. The receiver must independently confirm the attachment
 exists and its actual bytes can be read.
+
+
+## 200B passed; 200C blocked before upload — receipt spoof regression
+
+- 200A-R1 deployed the generic script successfully with **935/935 tests**,
+  Runtime revision f4b25ef0d0b698e4443df310207eef14fbdc9af0.
+- 200B exact-file inspect succeeded for
+  /Users/ted/Desktop/IOANT-ChatGPT-General-Upload-20261028.md;
+  134 bytes, SHA-256
+  d856767434a418bc748e05763279ee9edcbbc34f51654ab4a2a638dffaa99b38,
+  no upload.
+- 200C returned **blocked** / delivery_already_visible during **preflight**;
+  uploadTriggered=false, messageSent=false. No attachment was sent or received.
+- Root-cause code review: the original scoped receipt accepted
+  localAttribute OR localFile (ordinary body text containing the filename).
+  Previously printed 200B feedback in the ChatGPT user role included BOTH
+  the deterministic marker and filename; the DOM-only pre-send existence
+  check mistook this plain feedback for a delivered attachment.
+- This is a **false-positive receipt vulnerability**, not success; do not
+  clear a journal or force uploads as a workaround. This preflight error
+  occurred before the per-file private send lock was created.
+
+### Safety repair
+
+1. Scoped receipt confirmation now requires a filename-bearing
+   title/aria-label in a distinct element *outside* the marked user text
+   bubble, inside its unique, bounded single-user-turn parent. Plain pasted
+   file names and attributes inside the marked text bubble cannot confirm.
+2. Content/path SHA-256 remains the deterministic **private journal key**.
+   Each authorized send generates an unpredictable, **new 128-bit random**
+   delivery marker. Inspect reports do not expose that marker.
+3. The previously unsafe pre-send browser-delivery test was removed; a
+   private create-exclusive journal record provides fail-closed duplicate
+   prevention. The marker is never echoed in worker feedback, even after
+   successful delivery, to avoid creating a second user-role marker.
+4. Regressions include the exact 200C log-text false-positive, an attribute
+   in user text, an attachment in another user turn, shared multi-turn
+   wrapper, duplicate marker, wrong chat, and malformed proof.
+
+### Next verification
+
+Run full candidate tests and guarded self-update; inspect the same original
+134-byte synthetic file on the updated Runtime, then use a fresh explicitly
+authorized one-time send. The old 200C failure remains recorded as a failure.
+The new sender should not disclose files outside the exact approved scope.
