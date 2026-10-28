@@ -298,3 +298,46 @@ manifest drift, real Alice binding, pending-message barriers,
 cross-Project mismatches and no unapproved mutation. Candidate requires
 Mac full `project-update-verify` of expected **1016 tests**
 (1006 previously passed + 10 new), with real count authoritative.
+
+## 205C-3: AliceAI missing state file — live evidence and first-run checkpoint fix
+
+Live read-only Mac check `openclaw-alice-chat-state-evidence-20261028-205c3`
+reported Ops `state=verified_file` with all four pending flags false,
+but AliceAI `state=state_file_absent`. This does NOT prove an Alice
+crash or that all work is settled. The Alice coordinator uses the
+same Stage-2 `chatgpt-loop.mjs` as the main watcher. Its `loadState()`
+previously returned the empty default IN MEMORY on ENOENT and did not
+persist it until a later task or message update. A healthy idle
+read-only AliceAI Worker could consequently have no `state.json`.
+
+Fix candidate:
+- `stage2/watch-state-bootstrap.mjs`: minimal default state is written
+  owner-private, with exclusive `wx` creation and `fsync`; refuses
+  existing state, symlink alias, unexpected fields or competing writer.
+- `stage2/chatgpt-loop.mjs`: persist that initial state ONLY in `--watch`
+  and ONLY after the exact Chat conversation lock is acquired. `--once`
+  still does not write state. Existing session state and pending
+  receipts are never overwritten, truncated or reset.
+- `stage2/guard-worker.mjs` and `stage2/guard-chat-continuity.mjs`:
+  distinguish a missing owner checkpoint from corrupt/unverified
+  state. Missing state explicitly blocks migration with
+  `reason=state_checkpoint_missing`; Guard NEVER writes a substitute.
+- For AliceAI, check its separate `alice-coordinator-handshake.json`
+  through the existing verified mailbox reader. `requested` or
+  `press_intent` blocks handoff; absent or `confirmed` can only
+  permit the **preliminary** readiness classification, not migration.
+  An unreadable or mismatched mailbox also blocks migration.
+- Four additional continuity tests and six new bootstrap tests
+  cover missing state, pending handshake, exclusive private write,
+  unchanged existing state and read-only `--once`.
+
+**Deployment/restart distinction:** A successful repository update
+does not demonstrate that the separately running AliceAI coordinator
+has reloaded Node modules. The next inspection must check the
+currently running Alice watcher and its handshake before any
+operator-authorized reload. Do not blindly restart or write
+`state.json` from Guard/ChatGPT; only the owning watcher may
+create it at its next verified startup.
+
+Prior passing Mac test total: 1016. Candidate adds 10 tests, so
+the expected complete count is 1026; actual Mac evidence governs.
