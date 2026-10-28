@@ -796,3 +796,29 @@ grant. Once the user has acted in the dedicated window, run a
 task to verify a single exact chat tab. Even success does **not**
 verify login/AX composer or authorize Alice Coordinator to send.
 Preserve existing Coordinator sole writer and handshake.
+
+## 2026-10-29 0541 recheck remains at zero exact Alice tabs
+
+The Mac receipt `openclaw-alice-managed-chat-after-manual-navigation-20261029-0541`
+returned exit 0 and `state=await_operator_manual_navigation`,
+`reason=dedicated_browser_does_not_yet_have_exact_chat`,
+`exactChatTabMatches=0`, `browserOwnedAndReady=true`,
+`headless=false`, `cdpReady=true`. It explicitly reported
+`navigationAttempted=false`, `tabFocused=false`,
+`nativeComputerActInvoked=false`, and `chatMessageSent=false`.
+
+The phrase "after-manual-navigation" in the task ID is **not proof
+the human manually navigated** or completed ChatGPT login. The
+operator has not separately stated that they pasted the URL into
+the *managed Alice* window. Prior 0540 diagnosed one dedicated
+tab with empty URL. Do not continue repeating E1/E2a scans without
+a change. Ask the operator one specific question: did they personally
+paste the exact target address into the dedicated browser address
+bar and press Enter, or did they only run the Worker task? If they
+did navigate and the managed tab remains missing, inspect how the
+window/profile was selected (e.g., default Chrome confusion) using
+privacy-bounded OS metadata, not secret URLs or login data. Do not
+invoke browser navigation as an unapproved workaround to the existing
+strict proxy-routed SSRF refusal; do not alter global proxy/TUN or
+Alice Coordinator. The goal remains managed independent browser,
+manual first login, native CUA v2 background operations later.
