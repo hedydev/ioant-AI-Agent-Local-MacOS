@@ -205,3 +205,18 @@ unrestricted native CUA/browser control.
 Chat, independent exact Chat DOM witness, receipt proof and old
 Worker stop. Never claim that merely refreshing a stuck page has
 created a new conversation or reset its context limit.
+
+## 205B-1 candidate failure diagnosis and repair
+
+Mac gated updater refused the first 205B-1 candidate: 1001 tests, 998 passing, 3 failing. Runtime remained on the previously verified revision.
+Independent isolated-candidate diagnosis found three existing tests:
+
+- single existing Alice watcher alone handles fixed request while other pending work has priority (test/alice-coordinator-handshake.test.mjs)
+- existing allowlisted execution remains gated by a structured task and two stable reads (test/chatgpt-watch-idle.test.mjs)
+- existing watcher does not accept model-supplied Chrome commands or auto repair (test/maintainer-protocol.test.mjs)
+
+Root cause: changing the canonical source-contract parser statement 'const a=extractWatchedAction(page)' to an alias when introducing Guard notifications. The repair restores the original single-pass statement and shares 'a' with the Guard scheduling check; it neither parses twice nor relaxes any of the three existing safety tests.
+
+Additional functional issue found: the shared incident journal may legitimately hold AliceAI and Ops events. Ops previously rejected the entire journal if any AliceAI record was present. The fix validates both known project records, but restricts Ops message selection, staging and sending exclusively to the exact authorized Ops conversation. Three new tests cover mixed journals and cross-project prohibition.
+
+Current fix is a GitHub candidate only. The next full Mac test-gated update is expected to run 1004 tests (original 1001 + three), subject to actual evidence. No automatic Guard service restart, synthetic production incident or forced task replay is authorized.
