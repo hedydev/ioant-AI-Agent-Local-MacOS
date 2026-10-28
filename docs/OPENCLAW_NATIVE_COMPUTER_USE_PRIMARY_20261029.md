@@ -521,3 +521,42 @@ OpenClaw-owned visible `alice-ai` managed browser, with independently
 validated browser SSRF safety. The 0524 managed browser is running,
 but the exact Alice Chat URL has **not** been navigated by OpenClaw
 and no login was verified.
+
+## 2026-10-29 0530: route findings and independent managed-browser CUA handoff
+
+The live 0530 read-only receipt found public/fake-IP route class physical,
+Tailscale DNS class utun and Mint LAN class physical. TUN ownership was
+not verified. The reported 'tunOverridden=absent' conflicts with the
+0529 read-only finding of 'tunOverridden=true'; no changes were
+made. These observations do not authorize changing ClashX Meta,
+macOS system proxy, Tailscale, OpenClaw global browser flags or
+browser SSRF policy.
+
+Priority returns to the operator-approved dedicated headed Alice
+browser and paired native Mac Computer Use v2. The dedicated browser
+was started in 0524, but browser navigation to the exact AliceAI
+Project Chat remains policy-blocked by explicit proxy routing.
+The operator may personally open the target URL and sign in within
+the dedicated browser; that is not evidence of agent navigation
+authorization. User authentication state must not be extracted.
+
+Candidate stage E1 introduces a separate read-only
+'scripts/alice-managed-native-readiness.mjs'. It checks the named
+managed browser's actual status, counts exact registered Alice Project
+Chat tabs only within that isolated profile, then reads paired native
+CUA provider capability metadata. It emits only finite status labels
+and booleans. It does not invoke native computer actions or navigate.
+Nine mock tests cover URL identity, tab ambiguity, profile validation
+and native capability classification. A positive result is only
+permission to perform a later, separately attested read-only
+window/PID observation; it is not authorization to read or overwrite
+an Alice draft or deliver a ChatGPT message.
+
+Previous Chrome AppleScript Stage C probes target the operator's daily
+Chrome and do not attest the new managed browser. Stage E2 must
+independently match the managed browser process and its native window.
+If native window inventory lacks a PID, fail closed pending independent
+WindowServer ownership evidence. Preserve Alice Coordinator's
+single-writer lease and pending exact-once handshake.
+
+Reference: https://docs.openclaw.ai/tools/browser/configuration .
