@@ -86,7 +86,7 @@ test('worker cannot read files when runtime check fails',async()=>{
   callReady:async()=>false});
  assert.equal(r.state,'blocked');
  assert.equal(r.reason,'private_runtime_required');
- assert.equal(r.uploadTriggered,undefined);
+ assert.equal(r.uploadTriggered,false);
 });
 test('unsupported modes are blocked without file access',async()=>{
  const r=await transfer({mode:'read-all',path:named('whatever.txt'),callReady:async()=>true});
