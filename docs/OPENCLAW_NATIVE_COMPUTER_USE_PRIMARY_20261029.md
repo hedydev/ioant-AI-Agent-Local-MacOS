@@ -684,3 +684,38 @@ The Stage E2a artifact and nine tests were protected-deployed with
 `project-update-verify` at `ef25bb7b2f64a8d2ddc8525751b344b38f38854e`
 in `0534`; Mac tests 1152 total, 1152 passed, 0 failed;
 `reloadRequired=true` is a request, not independent reload proof.
+
+## 2026-10-29 0536 after-login named recheck still lacks exact Alice tab
+
+`openclaw-alice-managed-window-after-login-20261029-0536` returned exit 0
+with `ownedNormalWindowCount=13`,
+`ownedOnScreenWindowCount=1`, `windowOwnerAttested=true`,
+`exactChatTabMatches=0`,
+`state=await_operator_manual_navigation`,
+`reason=managed_window_exists_target_chat_absent`.
+Native CUA read and background set_value capabilities remain advertised;
+no real computer.act was invoked. The task ID contains "after-login" but
+the receipt does **not** attest user login or any ChatGPT page.
+Do not infer unsuccessful authentication, retry the same owner-check,
+or create another profile.
+
+An easy operator trap: clicking a ChatGPT link in a different app
+normally opens the **default/daily browser**, not the already-running
+isolated `alice-ai` profile. The exact target URL must be pasted
+manually into the address bar of the **dedicated managed browser
+window** if the operator elects the human navigation path.
+
+Next step: a privacy-bounded, **read-only** classification of the
+`openclaw browser --browser-profile alice-ai --json tabs`
+inventory, releasing only coarse category counts
+(new-tab/blank, login-related, ChatGPT home, other ChatGPT,
+Alice project but different chat, exact Alice chat, other origins).
+Never print raw URLs, titles, cookies, profile paths or tab IDs.
+No navigation, no background/foreground focus change, no chat send,
+no Browser/SSRF policy mutations. If the target is absent, the
+operator either has not navigated inside this dedicated profile, or
+is on a redirect/other page; use the categories to distinguish.
+The exact target tab identity alone still does not prove logged-in
+state, native CUA windowRef/AX composer readiness, or permission to
+deliver a message. Preserve strict Browser SSRF and Coordinator
+single-writer gates.
