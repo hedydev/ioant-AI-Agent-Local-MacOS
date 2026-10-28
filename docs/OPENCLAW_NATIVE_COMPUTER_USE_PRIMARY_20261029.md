@@ -1051,3 +1051,36 @@ The strict Browser SSRF rule continues to block **automated**
 navigation through an explicit proxy; do not claim that proxy
 repair alone enables agent browser automation, and do not
 disable SSRF or bypass it with unaudited Computer Use.
+
+## 2026-10-29 0548: repaired proxy confirmed in actual Alice Chromium process
+
+The Mac Worker `openclaw-alice-proxy-postrestart-20261029-0548`
+completed exit 0 in 5073ms with
+`profileMatched=true`, `running=true`, `cdpReady=true`,
+`configProcessPortMatch=true`,
+`processSystemPortMatch=true`,
+`proxyPortListening=true`, and `state=proxy_process_ready`.
+Together with the preceding scoped and backup-protected
+`browser.extraArgs` config repair in 0546, scoped managed
+`alice-ai` restart in 0547, and HTTP response received through
+the system proxy in 0543, the original **dead local proxy
+endpoint** failure has been repaired and independently attested at
+the active Chromium process level. The output emitted no proxy
+addresses, port values, credentials or browser page contents.
+
+**Next user/operator action:** refresh the previously failing
+ChatGPT page inside the **existing managed alice-ai window**
+(`Command-R` on Mac); if requested, the human completes login
+there once. This is not a request to use default/daily Chrome.
+Then invoke `scripts/alice-managed-native-readiness.mjs`
+as a fresh read-only Worker task. A unique exact Alice Project
+Chat tab is necessary for owner-bound native CUA readiness.
+If the tab does not match, diagnose classification rather
+than repeat TUN, stale proxy or empty tab scans blindly.
+
+`proxy_process_ready` does **not** prove page rendering,
+authentication, login success, composer identity, CUA action
+success or ChatGPT delivery authorization. The strict Browser
+SSRF rejection of **agent-driven** proxy-routed navigation
+remains separate and must not be silently relaxed, and the
+Alice Coordinator sole-writer handshake remains pending.
