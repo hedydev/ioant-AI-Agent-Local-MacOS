@@ -33,10 +33,11 @@ export function buildScopedReceiptProbe({chatUrl=CHAT,marker=TAG,filename=FILE}=
     'if(!main.contains(node))break;'+
     'const members=[...(node.matches?.(sel)?[node]:[]),...Array.from(node.querySelectorAll(sel))];'+
     'const labels=Array.from(node.querySelectorAll("[title],[aria-label]"));'+
-    'const localAttribute=labels.some(n=>String(n.getAttribute("title")??"").includes(FILE)||'+
-     'String(n.getAttribute("aria-label")??"").includes(FILE));'+
+    'const localAttribute=labels.some(n=>!el.contains(n)&&'+
+     '(String(n.getAttribute("title")??"").includes(FILE)||'+
+     'String(n.getAttribute("aria-label")??"").includes(FILE)));'+
     'const localFile=text(node,FILE);'+
-    'if((localAttribute||localFile)&&members.length===1&&members[0]===el){'+
+    'if(localAttribute&&members.length===1&&members[0]===el){'+
      'depth=d;count=1;attached=true;inAttribute=localAttribute;break;'+
     '}'+
     'if((localAttribute||localFile)&&members.length>1){count=Math.min(members.length,101);break;}'+
@@ -72,8 +73,11 @@ export function classifyScopedReceipt(raw){
   !Number.isSafeInteger(p.roleCount)||p.roleCount<-1||p.roleCount>101||
   typeof p.attached!=='boolean'||typeof p.inAttribute!=='boolean')
   return {...BASE,state:'inconclusive',reason:'scoped_receipt_invalid'};
+ // A pasted filename is never attachment evidence. Demand distinct
+ // attachment metadata outside the user text bubble, inside the same
+ // one-message wrapper (proven by the 199B fixture's ancestorDepth=1).
  const verified=p.markerCount===1&&p.roleFamily>=0&&p.attached===true&&
-  p.roleCount===1&&p.depth>=0;
+  p.inAttribute===true&&p.roleCount===1&&p.depth>=1;
  return {...BASE,state:verified?'confirmed':'inconclusive',
   reason:verified?'one_user_turn_with_scoped_attachment':'scoped_receipt_not_confirmed',
   uniqueMarker:p.markerCount===1,attachmentScoped:p.attached,
