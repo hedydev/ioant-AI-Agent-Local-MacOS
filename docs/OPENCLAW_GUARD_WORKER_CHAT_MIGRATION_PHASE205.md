@@ -341,3 +341,14 @@ create it at its next verified startup.
 
 Prior passing Mac test total: 1016. Candidate adds 10 tests, so
 the expected complete count is 1026; actual Mac evidence governs.
+
+## 205C-15–17: AliceAI uses the functioning native Computer provider (2026-10-28)
+
+Real, unchanged Mac evidence:
+- The separately running AliceAI coordinator still waits for the exact Chat tab in its legacy `browser --browser-profile chrome --json tabs` path; 9 Relay-exposed tabs (4 ChatGPT) contained no Alice conversation ID. This is NOT proof that OpenClaw Computer Use or Chrome is broken. OS Chrome enumerated 13 tabs including exactly one Alice Project/Chat tab in a non-incognito window.
+- Native paired Mac Computer Use advertises `cua-computer` v2, `list_windows`, `get_browser_state` and `get_window_state`. No browser writes are authorized.
+- 205C-16 returned `list_windows` but its parser incorrectly assumed `app.bundleId` would exist. 205C-17 received `ok:true`, 255 walked records, 251 CUA window references, and 38 title-based Chrome hints; actual window records contain `title`, `bounds`, `windowRef`. Scoped CUA close was acknowledged, which is NOT proof of global owner release.
+
+New, **candidate only** `scripts/alice-native-browser-readonly.mjs` performs a single, operator-invoked read-only vertical. It independently verifies a unique active Alice Project/Chat tab via Google Chrome AppleScript URL metadata (no navigation or activation), requires that window's OS title to match exactly one CUA-listed window title, then invokes `get_browser_state` with that **fresh** `windowRef` within the same new UUID execution. It processes browser/page references in memory and emits only safe booleans/counts, never titles, URLs, tabs, screenshots, page content, refs or raw native payload. On any ambiguity it fails closed, does not probe other browser windows and never sends the pending handshake. A best-effort `__close_execution` is scoped only to its own UUID. The existing `stage2/chatgpt-loop.mjs` and Alice service are unchanged.
+
+Five source tests verify unique URL/Project identity, exact window matching, duplicate-title refusal, page identity and nested transport decoding. The next step is an explicit `project-update-verify` guarded full Mac suite, then one pinned script invocation. Do not claim an end-to-end CUA browser read until that live result is received. If the OS active-tab or title projection check fails, improve the narrowly scoped attestation based on **sanitized evidence**; do not loosen it to a generic Chrome title or scan all browser windows. If native discovery succeeds, design the coordinator read adapter and separate human-authorized, receipt-preserving message-write pathway. No unapproved worker restart or chat handoff.
