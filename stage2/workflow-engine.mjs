@@ -113,8 +113,14 @@ export function applyWorkflowEvent(current,e){
     e.result==='cancelled'?'cancelled':'failed';
   delete t.leaseId;delete t.leaseUntil;break;
  case 'task_accept':
+  // This reducer validates state integrity, not proof of owner authorization.
+  // At minimum, the executing Worker and its bound model Agent MUST NOT
+  // attest their own receipt. A separate trusted owner-review ingress must
+  // verify the actual Alice Project Chat before issuing this event.
   fail(t?.status==='verification_pending'&&t.receiptId===e.receiptId&&
-    id(e.verifierId)&&w.receipts.some(r=>r.id===e.receiptId&&r.result==='passed'),
+    id(e.verifierId)&&e.verifierId!==t.workerId&&
+    e.verifierId!==t.agentId&&
+    w.receipts.some(r=>r.id===e.receiptId&&r.result==='passed'),
     'verification_required');
   t.status='done';t.verifiedBy=e.verifierId;break;
  case 'task_cancel_request':
