@@ -17,6 +17,7 @@ import {aliceCoordinatorManifest,recognizeAliceCoordinatorPlist}
 import {chatKey} from './protocol.mjs';
 import {classifyGuardObservation,classifyWorkerLogTail,
  evaluateGuardHandoff} from './guard-worker-core.mjs';
+import {evaluateChatContinuity} from './guard-chat-continuity.mjs';
 const exec=promisify(execFile);
 const HOME=homedir();
 const ROOT=resolve(fileURLToPath(new URL('..',import.meta.url)));
@@ -181,6 +182,50 @@ async function persistIncidents(report){
  }finally{await fd.close()}
  return {newIncidents:pending.length};
 }
+async function readHandoffSettlement(url){
+ const file=join(CACHE,'chatgpt-loop',chatKey(url),'state.json');
+ try{
+  const state=JSON.parse(await verifiedText(file,512*1024));
+  if(!state||typeof state!=='object'||Array.isArray(state)||
+     (state.feedbackPending!==undefined&&state.feedbackPending!==null&&
+      (typeof state.feedbackPending!=='object'||Array.isArray(state.feedbackPending))))
+   return {verified:false};
+  return {verified:true,
+   taskFeedback:state.feedbackPending!==null&&state.feedbackPending!==undefined,
+   guardNotice:state.guardNotice!==null&&state.guardNotice!==undefined,
+   maintainerNotice:state.maintainerNotice!==null&&state.maintainerNotice!==undefined,
+   initialization:state.initPending!==null&&state.initPending!==undefined};
+ }catch{return {verified:false}}
+}
+async function handoffReadiness(projectKey){
+ const response={audit:'IOANT_GUARD_CHAT_CONTINUITY',schemaVersion:1,
+  readOnly:true,createdChat:false,sentHandoff:false,
+  changedBinding:false,transferredPermissions:false};
+ const svc=SERVICES.find(s=>s.key===projectKey);
+ if(!svc)return {...response,state:'blocked',reason:'unknown_project'};
+ const status=await scanGuard();
+ if(status.state!=='observed')return {...response,state:'blocked',
+  reason:'guard_status_unavailable'};
+ let binding,manifest;
+ try{
+  const plist=await verifiedText(join(HOME,'Library','LaunchAgents',
+   svc.label+'.plist'),12000);
+  binding=safeServiceIdentity(projectKey,plist);
+  const source=join(ROOT,'config','chat-projects.json');
+  const stat=await lstat(source);
+  if(!stat.isFile()||stat.isSymbolicLink()||(stat.mode&0o022)!==0||
+     stat.size>16384||await realpath(source)!==source)
+   throw Error('untrusted_manifest');
+  manifest=JSON.parse(await readFile(source,'utf8'));
+ }catch{return {...response,state:'blocked',
+  reason:'installed_binding_or_manifest_unverifiable'}}
+ const service=status.services.find(s=>s.projectKey===projectKey);
+ const settlement=binding?
+  await readHandoffSettlement(binding.chatUrl):{verified:false};
+ return evaluateChatContinuity({projectKey,binding,manifest,
+  service,settlement});
+}
+
 async function handoffCheck(projectKey,url){
  if(!SERVICES.some(s=>s.key===projectKey))
   return {audit:'IOANT_GUARD_HANDOFF_CHECK',schemaVersion:1,
@@ -219,6 +264,9 @@ async function main(args){
     incidentTicketsQueued:saved.newIncidents,chatMessagesSent:0}));
   return;
  }
+ if(args.length===2&&args[0]==='handoff-readiness'){
+  console.log(JSON.stringify(await handoffReadiness(args[1])));return;
+ }
  if(args.length===3&&args[0]==='handoff-check'){
   console.log(JSON.stringify(await handoffCheck(args[1],args[2])));return;
  }
@@ -237,7 +285,7 @@ async function main(args){
   }
  }
  console.log(JSON.stringify({audit:AUDIT,schemaVersion:1,state:'blocked',
-  reason:'usage_scan_once_watch_or_handoff_check'}));
+  reason:'usage_scan_once_watch_handoff_readiness_or_handoff_check'}));
  process.exitCode=2;
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
