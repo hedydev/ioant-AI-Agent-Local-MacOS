@@ -82,3 +82,8 @@
 - 本地视觉建议脚本已经在 GitHub 出现，但本次会话**未收到**模型调用或截图识别成功回执；`computer.act` 实际授权/动作也未验收。
 - AliceAI Chat 的浏览器 exact-tab 可见性修复、握手成功、正式 Alice 项目验收。
 - 新交接文档提交后 Mac 运行副本与 GitHub HEAD 的一致性。
+
+
+## 10. Current-status addendum — 205C-78, 2026-10-29
+
+The dated 2026-10-28 observations above are **historical**, not the latest state. The authoritative newer handoff is **[OPENCLAW_ALICE_CURRENT_HANDOFF_20261029_205C78.md](./OPENCLAW_ALICE_CURRENT_HANDOFF_20261029_205C78.md)**. Latest verified Mac runtime `8293034eb8b46f876b0a74e0624b13e9e90be156` passed **1099/1099** tests. Native CUA exclusive-lease transition succeeded, but no AliceAI Chat message was delivered; Alice coordinator remains running and its exactly-once handshake is `requested`. Chrome `user` existing-session / chrome-mcp driver reports running but `tabs` fails, with `devtools_port_missing`; live 205C-78 confirms the Chrome `DevToolsActivePort` file exists yet is **not readable by the Mac Worker**. The precise permission cause is undetermined and Gateway process permission is unverified. Read the new handoff's **ChatGPT Chat ↔ Worker rebinding** section before any new Ops Chat migration. No worker binding, browser permission or task authorization transfers because these documents were committed.
