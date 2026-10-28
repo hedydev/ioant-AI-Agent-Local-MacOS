@@ -681,7 +681,7 @@ async function main(){
         await new Promise(r=>setTimeout(r,opts.interval*1000));
         continue;
       }
-      const a=extractWatchedAction(page);
+      const a=taskBeforeGuard;
       // A fixed, operator-requested single-writer handshake. It is produced
       // only by this already-running Alice watcher, never by another Chat writer.
       // An assistant task in progress has priority; there is no unsolicited
