@@ -750,12 +750,14 @@ test('malformed foreground or cursor snapshots fail closed and never reflect raw
   frontmostUnchanged:false,pointerUnchanged:false});
  assert.doesNotMatch(JSON.stringify(signals),/PRIVATE|BUNDLE_ID/);
 });
-test('write-only fixture gate reports separate launch / post-read signals, never overrides them',()=>{
+test('background write gate separates read-time movement from write-time noninterference',()=>{
  assert.match(s,/interferenceStage:'fixture_launch'/);
- assert.match(s,/interferenceStage:'post_native_read'/);
- assert.match(s,/interferenceSignals:postReadSignals/);
  assert.match(s,/interferenceSignals:launchSignals/);
+ assert.match(s,/readPhasePointerUnchanged:postReadSignals.pointerUnchanged/);
+ assert.match(s,/readPhaseFrontmostUnchanged:postReadSignals.frontmostUnchanged/);
  assert.match(s,/mutatingActionAttempted:false,fixtureWindowMatched:true/);
+ assert.match(s,/if\(!fresh\|\|!element\.valueMatchesInitial/);
+ assert.doesNotMatch(s,/if\(!unchanged\|\|!fresh/);
  assert.match(s,/unchanged=postReadSignals.frontmostUnchanged&&postReadSignals.pointerUnchanged/);
  assert.doesNotMatch(s,/CGEventPost|osascript|--browser-profile|\.activate\(/);
 });
