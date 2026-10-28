@@ -1599,3 +1599,44 @@ post-action observation and no cross-app targeting. The present doc-only
 commit is not a Mac deployed-runtime claim; any next script change
 requires its own clean gated full-suite verification.
 
+## 2026-10-28 — 191B independent post-write native CUA reacquisition
+
+The accepted 187B fixture-only background `set_value` was followed by a
+separate, later Worker task
+`openclaw-cua-session-reacquire-20261028-191b`
+(`mac-terminal`, exit code 0, 3,126 ms). The task invoked
+`scripts/openclaw-native-computer-readonly-smoke.mjs` from the pinned
+private runtime without modifying the desktop or opening a GUI.
+
+- `IOANT_MAC_NATIVE_COMPUTER_READONLY_SMOKE`: `state=observed`,
+  `reason=native_read_completed`, `invokedComputerAct=true`,
+  `requestedAction=get_cursor_position`, `readOnly=true`,
+  `mutatedDesktop=false`, `browserAccess=false`,
+  `chatContentRead=false`.
+- The probe used its own fresh scoped execution ID; its own
+  `__close_execution` request returned
+  `attempted=true, acknowledged=true, ownerReleaseVerified=false`.
+  `existingOwnerReleased=false`.
+- The first 191 attempt exited 21 before invoking CUA because its
+  wrapper incorrectly required the separate **source worktree** to
+  match the private runtime SHA. 191B established that source HEAD
+  was `008e92be23ef2e623b43afec4e73f05a0bb356e2` while
+  private runtime HEAD was
+  `6052a733ab7ace11d0b25a684c2684436a6b4c3a`.
+  Both are expected after `project-update-verify` updates private
+  runtime independently of the source worktree. 191B pinned the
+  **executed** runtime to `6052a733...` instead, then succeeded.
+  The source worktree may be fast-forwarded separately with the
+  guarded `project-self-update.mjs` procedure.
+
+**Accepted:** a later native CUA invocation with a new execution ID
+was admitted and completed after 187B's background fixture mutation,
+so that previous session did not prevent this particular subsequent
+native read.
+
+**Not proven:** independent examination of the CUA owner's registry,
+all future session reacquisitions, or effective lease release just
+because `__close_execution` was acknowledged. Do not clear an unknown
+lease, restart the node/Gateway, use foreground fallbacks or target
+third-party apps to force ownership proof.
+
