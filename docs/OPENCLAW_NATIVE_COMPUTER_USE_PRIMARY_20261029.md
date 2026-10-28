@@ -560,3 +560,40 @@ WindowServer ownership evidence. Preserve Alice Coordinator's
 single-writer lease and pending exact-once handshake.
 
 Reference: https://docs.openclaw.ai/tools/browser/configuration .
+
+## 2026-10-29 0532 managed browser / native CUA live gate
+
+The protected update `openclaw-alice-managed-native-readiness-deploy-20261029-0531`
+installed `abf27e6c93b08eb460a095ce8b2ae33207b7e4ee`, with
+`tests.total=1143`, `passed=1143`, `failed=0` and
+`reloadRequired=true` (requested, not independent restart proof).
+
+Then `openclaw-alice-managed-native-readiness-live-20261029-0532`
+completed exit 0, emitting `state=await_operator_manual_navigation`,
+`reason=dedicated_browser_does_not_yet_have_exact_chat`,
+`exactChatTabMatches=0`, `browserOwnedAndReady=true`,
+`headless=false`, `cdpReady=true`,
+`tabActivationVerified=false`. It performed no navigation, browser-page
+read, computer.act, content read, config/network/SSRF mutation, or chat send.
+
+**Precise interpretation:** the isolated managed Chromium is ready,
+but there is **no exact Alice Project Chat tab in that profile yet**.
+No evidence of ChatGPT login or native window ownership. Do not infer
+the operator is logged out merely from a missing chat tab.
+
+Next is the operator-approved human-only step: open the registered
+AliceAI Chat URL in the already-running **alice-ai dedicated browser
+window**, sign in there if prompted, and leave that exact page open:
+`https://chatgpt.com/g/g-p-6acaef839af081919426a885b3209f54-ai-mc-alice/c/6ade11a5-f0c0-83ec-add1-8a0cff00c938`.
+This human navigation is not OpenClaw Browser automatic navigation.
+The strict SSRF refusal for automated proxy-routed Browser navigation
+remains unsolved and must not be bypassed by secretly issuing equivalent
+computer-act navigation. No credentials or session cookies are to be
+read, copied or emitted.
+
+After that human step, run
+`scripts/alice-managed-native-readiness.mjs` again with a new unique
+Mac Worker task ID. Only `ready_for_native_window_observation`
+allows the **separate read-only** E2 managed-process and native-window
+owner attestation. Existing Alice Coordinator is still the sole chat
+writer and has no delivery permission from these checks.
