@@ -1084,3 +1084,11 @@ success or ChatGPT delivery authorization. The strict Browser
 SSRF rejection of **agent-driven** proxy-routed navigation
 remains separate and must not be silently relaxed, and the
 Alice Coordinator sole-writer handshake remains pending.
+
+## 2026-10-29 0549: no exact Alice chat tab after repaired-proxy browser restart
+
+The bounded Mac Worker receipt `openclaw-alice-managed-chat-readiness-20261029-0549` returned exit 0 with `state=await_operator_manual_navigation`, `reason=dedicated_browser_does_not_yet_have_exact_chat`, `exactChatTabMatches=0`, `browserOwnedAndReady=true`, `headless=false`, `cdpReady=true`. It explicitly recorded `navigationAttempted=false`, `tabFocused=false`, `browserPageRead=false`, `nativeComputerActInvoked=false`, `chatMessageSent=false`, and no verified window owner/composer/auth/delivery readiness.
+
+This follows the confirmed 0546 proxy config repair, 0547 **stop/start** of the exact `alice-ai` browser, and 0548 post-restart proxy process verification. The pre-restart screenshot showed the exact Alice Chat URL in a Chrome address bar along with `ERR_PROXY_CONNECTION_FAILED`, but a stop/start may have reopened the managed browser with a blank/new tab rather than restoring the old URL. Therefore pressing Refresh after 0547 does **not** necessarily load the target chat. Do not infer that the human never navigated, that login failed, that the proxy is still broken, or that the managed browser has the exact chat open.
+
+Next diagnostic is the **existing read-only URL-category script** `scripts/alice-managed-tab-categories-readonly.mjs` re-run as a NEW post-restart task, `0550`, to distinguish a blank tab vs login redirect vs ChatGPT non-target page without emitting raw URLs/titles. If blank/new tab, instruct the operator to paste the existing exact AliceAI chat URL into the **dedicated managed alice-ai address bar** and press Enter (rather than merely refresh). If login-related, operator completes sign-in in that same profile; if other ChatGPT/project page, operator follows exact chat URL. Only after a unique exact chat tab is observed may separate native CUA owner/window/composer readiness proceed. Automated OpenClaw Browser CLI navigation remains disallowed by strict SSRF for a proxy-routed browser; no bypass, auth/session transfer, unapproved native navigation, or Coordinator send.
