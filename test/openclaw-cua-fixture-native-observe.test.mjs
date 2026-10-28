@@ -104,9 +104,9 @@ test('the only UI executable spawned is the private fingerprinted fixture',()=>{
  assert.doesNotMatch(s,/osascript|--browser-profile|CGEventPost|\.activate\(|killall/);
 });
 test('app lifecycle and reads compare frontmost identity + hardware cursor',()=>{
- assert.match(s,/after\.frontmost===before\.frontmost/);
- assert.match(s,/after\.mouseX===before\.mouseX/);
- assert.match(s,/after\.mouseY===before\.mouseY/);
+ assert.match(s,/before\.frontmost===after\.frontmost/);
+ assert.match(s,/before\.mouseX===after\.mouseX/);
+ assert.match(s,/before\.mouseY===after\.mouseY/);
  assert.match(s,/provider\?\.generation===generation/);
  assert.match(s,/includeScreenshot=false/);
 });
