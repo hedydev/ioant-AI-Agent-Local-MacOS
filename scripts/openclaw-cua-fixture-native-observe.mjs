@@ -523,7 +523,7 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
   const {stdout}=await exec(bin,['--diagnose-window',String(pid),token],{
    timeout:8000,maxBuffer:2048,shell:false});
   return safeFixtureOSDiagnosis(JSON.parse(stdout));
- }}={}){
+ },verifiedFixtureChallenge=null}={}){
  const base={audit:AUDIT,schemaVersion:1,
   browserAccess:false,chatContentRead:false,changedBrowser:false,
   performedPointerOrKeyboardInput:false,performedComputerInput:false,
@@ -533,7 +533,7 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
  let nativeReadAttempted=false,preAdmissionRejected=false;
  let firstReadReturned=false;
  let leasedExecutionId=null,leasedNodeId=null;
- let returnRef=null;
+ let returnRef=null,verifiedChallengeWriteAttempted=false;
  const finish=report=>{returnRef=report;return report;};
  try{
   if(process.platform!=='darwin'||ROOT!==RUNTIME||await realpath(RUNTIME)!==RUNTIME)
@@ -642,6 +642,50 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
   after=await state();
   unchanged=after.frontmost===before.frontmost&&after.mouseX===before.mouseX&&
     after.mouseY===before.mouseY;
+  // The ordinary CLI remains strictly read-only. A separately reviewed,
+  // explicit fixture-only proof may use this bounded injection seam AFTER all
+  // independent title/PID, initial-value, provider and focus gates pass.
+  // Never pass browser tools, raw window inventory or unrelated app metadata.
+  if(typeof verifiedFixtureChallenge==='function'){
+   if(!unchanged||!fresh||!element.valueMatchesInitial)
+    return finish({...base,launchedFixture:true,state:'blocked',
+     reason:!fresh?'provider_generation_changed':
+      !unchanged?'foreground_or_pointer_changed':
+       'initial_field_value_not_confirmed',
+     mutatingActionAttempted:false,fixtureWindowMatched:true});
+   phase='verified_fixture_challenge';
+   const challenge=await verifiedFixtureChallenge(Object.freeze({
+    nodeId:chosen.id,executionId,windowRef:match.windowRef,
+    elementRef:element.elementRef,observationId:element.observationId,
+    token,expectedGeneration:generation,run,
+    readState:state,baseline:Object.freeze({...before}),
+    verifyOwnedWindow:()=>ownerProof(binary,child.pid,token),
+    fixtureIsAlive:()=>child.exitCode===null,
+    getCurrentNode:async()=>{
+     const doc=await run(['nodes','status','--json'],18000);
+     const n=chooseConnectedMacNode(doc);
+     const row=(doc.result??doc).nodes.find(x=>x&&(x.nodeId===n.id||x.id===n.id));
+     return n.id===chosen.id&&
+      row?.computerUse?.provider?.generation===generation;
+    },
+    markWriteAttempted:()=>{verifiedChallengeWriteAttempted=true;}
+   }));
+   // Never trust an injected callback to declare success without all five
+   // independent post-action predicates. Return booleans only, not references.
+   const criteria=['writeIssued','nativeReadbackMatched','fixtureStillOwned',
+    'providerGenerationStable','focusAndPointerUnchanged'];
+   const passed=criteria.every(k=>challenge?.[k]===true);
+   return finish({...base,launchedFixture:true,
+    state:passed?'observed':'inconclusive',
+    reason:passed?'fixture_background_write_verified':
+     'fixture_background_write_unverified',
+    performedComputerInput:verifiedChallengeWriteAttempted,
+    mutatingActionAttempted:verifiedChallengeWriteAttempted,
+    backgroundDeliveryRequested:verifiedChallengeWriteAttempted,
+    fixtureWindowMatched:true,fixtureElementMatched:true,
+    fixtureSelfAttested:true,independentOSPidVerified:true,
+    ...Object.fromEntries(criteria.map(k=>[k,challenge?.[k]===true]))});
+  }
   return finish({...base,launchedFixture:true,state:unchanged&&fresh&&element.valueMatchesInitial?
    'observed':'inconclusive',
    reason:!fresh?'provider_generation_changed':
@@ -664,8 +708,13 @@ export async function nativeCUAFixtureObserve({run=nativeCli,
   ].includes(failed.errorClass)||
   gatewayErrorEvidence?.nodeCommandDispatched===false;
   return finish({...base,launchedFixture:launched,state:'inconclusive',
-   phase:['native_provider_preflight','baseline_read','fixture_launch','window_list','window_state'].includes(phase)?phase:'preflight',
-   reason:phase==='window_list'||phase==='window_state'?
+   performedComputerInput:verifiedChallengeWriteAttempted,
+   mutatingActionAttempted:verifiedChallengeWriteAttempted,
+   phase:phase==='verified_fixture_challenge'?phase:
+    ['native_provider_preflight','baseline_read','fixture_launch','window_list','window_state'].includes(phase)?phase:'preflight',
+   reason:phase==='verified_fixture_challenge'?
+    'fixture_write_refused_or_unavailable':
+    phase==='window_list'||phase==='window_state'?
     'native_read_refused_or_unavailable':'native_fixture_preflight_failed',
    ...(phase==='window_list'||phase==='window_state'?
      {nativeFailure:failed,nativeCliEvidence:cliEvidence,
