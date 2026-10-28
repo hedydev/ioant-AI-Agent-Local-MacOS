@@ -24,6 +24,9 @@ import {validateIsolatedProjectScope,sameIsolatedProjectChat,isolatedProjectAllo
 import {enqueueZeroTabNotice,maintainerReceipt,maintainerNoticeMessage,markMaintainerPressIntent,completeMaintainerNotice,pendingMaintainerPhase} from './maintainer-outbox.mjs';
 import { isBoundDevDiscussion } from './development-agent-route.mjs';
 import { recordDiagnosticEvent, diagnosticCode } from './diagnostic-log.mjs';
+import {nextGuardNotice,prepareGuardNotice,markGuardPressIntent,
+ completeGuardNotice,receiptForGuardTicket,guardIncidentMessage,
+ validateGuardOutboxState} from './guard-incident-outbox.mjs';
 import { BrowserReadCircuit,waitBrowserCircuit } from './chatgpt-browser-read-circuit.mjs';
 
 const call=promisify(execFile);
@@ -56,7 +59,7 @@ const readPageFunction=`() => {
         el.querySelector('.whitespace-pre-wrap')):null;
     for(const candidate of [body,el].filter(Boolean)){
       const value=String(candidate.innerText||candidate.textContent||'').trimStart();
-      const match=value.match(/^(Ioant Mac (?:local command feedback protocol ioant-mac-ops-v1|Alice witness workflow ioant-mac-ops-v1|Alice isolated 17880 startup probe ioant-mac-ops-v1|Mint read-only diagnostics ioant-mac-ops-v1)|\\[IOANT-MAC-OPS RESULT [a-zA-Z0-9_-]{4,80}\\])/);
+      const match=value.match(/^(Ioant Mac (?:local command feedback protocol ioant-mac-ops-v1|Alice witness workflow ioant-mac-ops-v1|Alice isolated 17880 startup probe ioant-mac-ops-v1|Mint read-only diagnostics ioant-mac-ops-v1)|\\[IOANT-MAC-OPS RESULT [a-zA-Z0-9_-]{4,80}\\]|\\[IOANT-GUARD-INCIDENT [0-9a-f]{24}\\])/);
       if(match)return match[1];
     }
     return null;
@@ -374,6 +377,7 @@ async function main(){
   const stateFile=join(workDir,'state.json');
   const session=randomUUID().slice(0,8);
   let lastPageErrorEvent=0,lastHeartbeat=Date.now();
+   let lastGuardNoticeWarningAt=0;
   let stopping=false;
   process.on('SIGINT',()=>{stopping=true;console.log('[loop] Stop requested; finishing current operation.');});
   process.on('SIGTERM',()=>{stopping=true;console.log('[loop] Stop requested; finishing current operation.');});
@@ -568,6 +572,67 @@ async function main(){
         if(recovery.outcome!=='confirmed'){
           await new Promise(r=>setTimeout(r,opts.interval*1000));
           continue; // Never run a new task while previous feedback unresolved.
+        }
+      }
+      // Same exact-chat single-writer notification bridge for Guard incidents.
+      // The independent Guard ONLY persists tickets and never touches Chrome.
+      // A pending ordinary task receipt ALWAYS takes priority over this block.
+      // The source service plist, ticket scope and digest are validated before
+      // the existing, locally authorized browser sender may be called.
+      if(!isolatedProjectScope){
+        if(state.guardNotice){
+          if(!validateGuardOutboxState(state))
+            throw Error('Untrusted pending Guard notice state; no send.');
+          const receipt=receiptForGuardTicket(state.guardNotice.ticket);
+          if(page.users.some(msg=>msg.startsWith(receipt))){
+            state=completeGuardNotice(state);
+            await atomicState(stateFile,state);
+            console.log('[loop] Guard incident receipt confirmed; previous notice not replayed.');
+          }else if(state.guardNotice.phase==='press_intent'){
+            if(await confirmUserReceipt(opts.url,receipt)){
+              state=completeGuardNotice(state);
+              await atomicState(stateFile,state);
+              console.log('[loop] Guard incident receipt reconciled; no second Enter.');
+            }else{
+              console.log('[loop] Guard incident delivery uncertain; receipt-only recovery.');
+            }
+          }else{
+            try{
+              await sendToChat(nowTarget,opts.url,
+                guardIncidentMessage(state.guardNotice.ticket),receipt,{
+                beforePress:async()=>{
+                  state=markGuardPressIntent(state);
+                  await atomicState(stateFile,state);
+                }
+              });
+              state=completeGuardNotice(state);
+              await atomicState(stateFile,state);
+              console.log('[loop] Guard incident delivered to exact authorized Chat.');
+            }catch{
+              // The same safe sender preserves press_intent before Enter.
+              // Never send a second Enter after an ambiguous delivery.
+              console.log('[loop] Guard notice still queued; no blind resend.');
+            }
+          }
+          await new Promise(r=>setTimeout(r,opts.interval*1000));
+          continue;
+        }
+        try{
+          const ticket=await nextGuardNotice({chatUrl:opts.url,state});
+          if(ticket){
+            state=prepareGuardNotice(state,ticket);
+            await atomicState(stateFile,state); // Durable before any browser input.
+            console.log('[loop] Scoped Guard incident queued for exact Chat.');
+            await new Promise(r=>setTimeout(r,opts.interval*1000));
+            continue;
+          }
+        }catch(e){
+          // This feature is optional; an untrusted Guard journal cannot block
+          // existing tasks or become a browser message. No raw error/log leaks.
+          if(!lastGuardNoticeWarningAt||Date.now()-lastGuardNoticeWarningAt>60000){
+            console.log('[loop] Guard notification source unavailable; sending disabled.');
+            lastGuardNoticeWarningAt=Date.now();
+          }
         }
       }
       // Single writer: the same exact-chat watcher delivers one fixed
