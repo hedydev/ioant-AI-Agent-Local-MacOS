@@ -480,3 +480,44 @@ remains enabled, and (2) documented containment/rollback for daily
 Chrome, Tailscale, Gateway, other managed browser profiles and DNS.
 Do not simply remove `--proxy-server` while macOS System Proxy
 remains enabled and declare SSRF enforcement restored.
+
+## 2026-10-29 0529 live: ClashX Meta TUN override is not TUN-enabled proof
+
+The exact receipt `openclaw-alice-clash-tun-readonly-20261029-0529`
+reported `clashProcessPresent=true`,
+`mihomoProcessPresent=false` (process-name scan only),
+`tailscaleProcessPresent=true`,
+`clashAppBundleCount=1`,
+`tunPreferenceKeysFound=["tunOverridden"]`,
+`tunOverriddenFlagOn=true`,
+`splitDefaultRoutePresent=false`,
+`fakeIpRoutePresent=false`, and
+`liveClashTunOwnershipVerified=false`.
+No settings changed or secrets emitted.
+
+**Important correction:** `tunOverridden=true` means explicit user
+override/intent has been recorded; it does **not** mean the active
+Mihomo `tun.enable` is true, a privileged helper installed routes,
+DNS hijacking occurred, or that any one of six observed `utun`
+interfaces is owned by ClashX Meta. A process-name-only negative for
+`mihomo` does not prove the core is stopped. See the upstream
+ClashX Meta v1.4.43 report
+https://github.com/MetaCubeX/ClashX.Meta/issues/213 and investigate
+the exact `restoreTunProxy`/effective-state distinction before a
+network change. The upstream issue is a general behavior reference,
+**not** proof that this host has the reported migration defect.
+
+Immediate next gate is **read-only**, fixed-field collection of:
+the app bundle's known TUN-enabled preference keys (without exporting
+the rest of preferences), public vs Tailscale vs LAN vs fake-IP route
+interface classes, and whether managed DNS contains 198.18/15 fake IP
+addresses. A TUN preference and route alone still do not independently
+prove actual ownership or safe transparent forwarding. Do not toggle
+TUN or change system proxy, Browser global flags, Gateway, Tailscale,
+Network Extension or firewall at this gate.
+
+The goal remains owner-controlled manual ChatGPT login in an
+OpenClaw-owned visible `alice-ai` managed browser, with independently
+validated browser SSRF safety. The 0524 managed browser is running,
+but the exact Alice Chat URL has **not** been navigated by OpenClaw
+and no login was verified.
