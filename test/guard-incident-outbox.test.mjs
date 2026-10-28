@@ -136,6 +136,8 @@ test('Guard notice cannot preempt a new or ambiguous ChatGPT task',()=>{
  assert.match(s,/const taskBeforeGuard=extractWatchedAction\(page\)/);
  assert.match(s,/const safeGuardSlot=taskBeforeGuard\.status==='idle'/);
  assert.match(s,/taskBeforeGuard\.task\.id===state\.lastTaskId/);
- assert.match(s,/if\(!isolatedProjectScope&&safeGuardSlot\)/);
+ assert.match(s,/if\(!isolatedProjectScope\)\{/);
+ assert.match(s,/safeGuardSlot\|\|state\.guardNotice\.phase==='press_intent'/);
+ assert.match(s,/if\(safeGuardSlot&&!state\.guardNotice\)try/);
  assert.match(s,/const a=taskBeforeGuard/);
 });
