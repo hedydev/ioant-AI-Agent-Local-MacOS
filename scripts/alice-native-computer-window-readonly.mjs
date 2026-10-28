@@ -17,6 +17,7 @@ import {walkNativePayload,makeReadOnlyNativeArgs} from
  './openclaw-cua-fixture-native-observe.mjs';
 import {scopedCloseRequest,knownPreAdmissionNativeFailure} from
  './openclaw-cua-owned-session-guard.mjs';
+import {assessAliceNativeAXSemantics} from './alice-native-ax-semantic-readiness.mjs';
 const ROOT=resolve(fileURLToPath(new URL('..',import.meta.url)));
 const RUNTIME=join(homedir(),'Library','Application Support','ioant-openclaw-ops','runtime');
 const CLI=join(homedir(),'.openclaw','bin','openclaw');
@@ -179,7 +180,8 @@ export async function inspectAliceNativeWindow({run,osRead,uuid=randomUUID}={}){
   return {...result,activeTabIdentityRechecked:true,
    ...summarizeNativeWindowOnly(observed,active),
    ...(active===true&&observed?.ok===true?
-      {editableStructure:summarizeNativeEditableCandidates(observed)}:{})};
+      {editableStructure:summarizeNativeEditableCandidates(observed),
+       semanticReadiness:assessAliceNativeAXSemantics(observed)}:{})};
  }catch(e){
   const classified=phase==='native_window_state'?
    classifyNativeBrowserError(e):null;
