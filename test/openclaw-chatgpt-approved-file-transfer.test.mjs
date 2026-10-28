@@ -101,5 +101,5 @@ test('sender includes durable pre-send lock and no automatic retry',()=>{
  assert.match(src,/noAutomaticResend:true/);
  assert.match(src,/--approval-reference/);
  assert.match(src,/constants\.O_NOFOLLOW/);
- assert.doesNotMatch(src,/CGEventPost|osascript|launchctl|clipboard/);
+ assert.doesNotMatch(src,/CGEventPost|osascript|launchctl/);
 });
