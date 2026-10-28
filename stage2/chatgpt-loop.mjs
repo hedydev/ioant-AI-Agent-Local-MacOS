@@ -577,9 +577,9 @@ async function main(){
       // Do not preempt a new or ambiguous assistant task with an unsolicited
       // Guard notice. Delivery is allowed only when the latest turn has no
       // pending executable instruction, or its task ID was already handled.
-      const taskBeforeGuard=extractWatchedAction(page);
-      const safeGuardSlot=taskBeforeGuard.status==='idle'||
-        (taskBeforeGuard.status==='task'&&taskBeforeGuard.task.id===state.lastTaskId);
+      const a=extractWatchedAction(page);
+      const safeGuardSlot=a.status==='idle'||
+        (a.status==='task'&&a.task.id===state.lastTaskId);
       // Same exact-chat single-writer notification bridge for Guard incidents.
       // The independent Guard ONLY persists tickets and never touches Chrome.
       // A pending ordinary task receipt ALWAYS takes priority over this block.
@@ -685,7 +685,6 @@ async function main(){
         await new Promise(r=>setTimeout(r,opts.interval*1000));
         continue;
       }
-      const a=taskBeforeGuard;
       // A fixed, operator-requested single-writer handshake. It is produced
       // only by this already-running Alice watcher, never by another Chat writer.
       // An assistant task in progress has priority; there is no unsolicited
