@@ -182,21 +182,25 @@ async function persistIncidents(report){
  }finally{await fd.close()}
  return {newIncidents:pending.length};
 }
-async function handoffCheck(url){
+async function handoffCheck(projectKey,url){
+ if(!SERVICES.some(s=>s.key===projectKey))
+  return {audit:'IOANT_GUARD_HANDOFF_CHECK',schemaVersion:1,
+   state:'blocked',reason:'unknown_project_service',readOnly:true};
  const r=await scanGuard();
  if(r.state!=='observed')return {...r,audit:'IOANT_GUARD_HANDOFF_CHECK'};
- const svc=r.services.find(x=>x.projectKey==='openclaw-workflow');
+ const svc=r.services.find(x=>x.projectKey===projectKey);
  if(!svc?.conversationId||svc.identityVerified!==true)
   return {audit:'IOANT_GUARD_HANDOFF_CHECK',schemaVersion:1,
    state:'blocked',reason:'current_chat_binding_not_verified'};
- // The source URL is obtained from the independently verified exact
- // main service plist, not the potentially stale project route registry.
- const binding=await verifiedText(join(HOME,'Library','LaunchAgents',
-  SERVICES[0].label+'.plist'),12000);
- const source=safeServiceIdentity('openclaw-workflow',binding);
+ // Source is the exact installed LaunchAgent, not the stale project
+ // route registry or a guessed ChatGPT window.
+ const label=SERVICES.find(s=>s.key===projectKey).label;
+ const plist=await verifiedText(join(HOME,'Library','LaunchAgents',
+  label+'.plist'),12000);
+ const source=safeServiceIdentity(projectKey,plist);
  const result=evaluateGuardHandoff({oldUrl:source.chatUrl,newUrl:url,
   oldFeedbackClear:svc.feedbackPending===false});
- return {...result,currentChatBindingVerified:true,
+ return {...result,projectKey,currentChatBindingVerified:true,
   currentServiceState:svc.serviceState};
 }
 async function main(args){
@@ -215,8 +219,8 @@ async function main(args){
    services:report.services}));
   return;
  }
- if(args.length===2&&args[0]==='handoff-check'){
-  console.log(JSON.stringify(await handoffCheck(args[1])));return;
+ if(args.length===3&&args[0]==='handoff-check'){
+  console.log(JSON.stringify(await handoffCheck(args[1],args[2])));return;
  }
  if(args.length===1&&args[0]==='watch'){
   for(;;){
