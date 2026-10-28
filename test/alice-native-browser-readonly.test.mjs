@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CHROME_WIRE,chromeAppleScript,verifyChromeTarget,chromeOSWireEvidence,selectNativeWindow,summarizeBrowserState,classifyNativeBrowserError,nativeBrowserErrorBoundary}
+import {CHROME_WIRE,chromeAppleScript,verifyChromeTarget,chromeOSWireEvidence,selectNativeWindow,summarizeBrowserState,classifyNativeBrowserError,nativeBrowserErrorBoundary,nativeBrowserAccessDisposition}
  from '../scripts/alice-native-browser-readonly.mjs';
 
 const CHAT='https://chatgpt.com/g/g-p-6acaef839af081919426a885b3209f54-ai-mc-alice/c/6ade11a5-f0c0-83ec-add1-8a0cff00c938';
@@ -176,4 +176,25 @@ test('browser specific refusals remain separate from provider and owner errors',
  assert.deepEqual(busy.browserRefusalSignals,[]);
  assert.equal(busy.processExitStatus,1);
  assert.deepEqual(nativeBrowserErrorBoundary({stdout:'other private text'}).browserRefusalSignals,[]);
+});
+
+test('browser_consent_required is a hard stop, not a transient CUA retry',()=>{
+ const parsed=classifyNativeBrowserError({
+  status:1,stdout:JSON.stringify({ok:false,error:{type:'cli_error',
+   message:'browser_consent_required: profile approval required for cua endpoint'}}),
+  stderr:'opaque private browser authorization details'});
+ const gate=nativeBrowserAccessDisposition(parsed);
+ assert.deepEqual(gate,{state:'blocked',reason:'browser_consent_required',
+  retryAllowed:false,operatorBrowserAuthorizationRequired:true});
+ assert.doesNotMatch(JSON.stringify(gate),/profile|cua endpoint|private/);
+});
+test('profile-unavailable and setup states do not trigger browser fallback',()=>{
+ for(const signal of ['existing_profile_unsupported','browser_requires_setup']){
+  const gate=nativeBrowserAccessDisposition({browserRefusalSignals:[signal]});
+  assert.deepEqual(gate,{state:'blocked',reason:signal,
+   retryAllowed:false,operatorBrowserAuthorizationRequired:true});
+ }
+ const unknown=nativeBrowserAccessDisposition({browserRefusalSignals:[]});
+ assert.deepEqual(unknown,{state:'inconclusive',reason:'native_browser_observation_unavailable',
+  retryAllowed:false});
 });
