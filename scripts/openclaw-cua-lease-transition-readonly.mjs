@@ -78,6 +78,7 @@ export async function inspectOwnLeaseTransition({
 }={}){
  const evidence={};let node=null,first=null,second=null;
  let firstMayOwn=false,secondMayOwn=false;
+ let firstCloseAttempted=false,secondCloseAttempted=false;
  if(!await permitted().catch(()=>false))return {
   audit:AUDIT,state:'blocked',reason:'private_runtime_required',
   readOnly:true,invokedComputerAct:false};
@@ -112,6 +113,7 @@ export async function inspectOwnLeaseTransition({
    reason:b==='admitted'?'parallel_owner_admission':'overlap_unclassified',
    readOnly:true};
   // Release only the ID created by this invocation.
+  firstCloseAttempted=true;
   evidence.firstCloseAcknowledged=await close(node,first);
   firstMayOwn=!evidence.firstCloseAcknowledged;
   if(!evidence.firstCloseAcknowledged)return {
@@ -124,6 +126,7 @@ export async function inspectOwnLeaseTransition({
   if(!evidence.afterCloseAdmitted)return {
    audit:AUDIT,...concludeLeaseTransition(evidence),
    reason:'reacquire_failed',readOnly:true};
+  secondCloseAttempted=true;
   evidence.afterCloseAcknowledged=await close(node,second);
   secondMayOwn=!evidence.afterCloseAcknowledged;
   const after=await status(statusArgs,18000);
@@ -141,8 +144,10 @@ export async function inspectOwnLeaseTransition({
  }finally{
   // On unknown errors, close only our own potentially admitted ID.
   // An ACK is not owner-release proof. Never close an external owner.
-  if(node&&second&&secondMayOwn)await close(node,second).catch(()=>false);
-  if(node&&first&&firstMayOwn)await close(node,first).catch(()=>false);
+  if(node&&second&&secondMayOwn&&!secondCloseAttempted)
+   await close(node,second).catch(()=>false);
+  if(node&&first&&firstMayOwn&&!firstCloseAttempted)
+   await close(node,first).catch(()=>false);
  }
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
