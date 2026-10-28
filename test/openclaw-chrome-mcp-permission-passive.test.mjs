@@ -5,7 +5,7 @@ import {mkdtemp,copyFile,rm,mkdir,symlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {posixAllow,classifyMetadata,parsePids,parsePs} from '../scripts/openclaw-chrome-mcp-permission-passive.mjs';
+import {posixAllow,classifyMetadata,parsePids,parsePs,summarizeAclListing} from '../scripts/openclaw-chrome-mcp-permission-passive.mjs';
 
 test('POSIX estimate uses owner group other bits, without claiming actual access',()=>{
  assert.equal(posixAllow({mode:0o100600,uid:501,gid:20},501,[20],4),true);
@@ -27,7 +27,7 @@ test('process parsing never outputs process command arguments',()=>{
  assert.deepEqual(parsePids('123\n123\n345\n'),[123,345]);
  assert.deepEqual(parsePs('501 501 1 /opt/homebrew/bin/node'),
   {uid:501,euid:501,ppid:1,executableClass:'node'});
- assert.deepEqual(parsePs('501 0 1 /private/other Application Name'),
+ assert.deepEqual(parsePs('0 501 1 /private/other Application Name'),
   {uid:501,euid:0,ppid:1,executableClass:'other'});
  assert.equal(parsePs('garbage'),null);
 });
@@ -81,4 +81,33 @@ test('CLI entrypoint identifies symlinked /var-style path with spaces',async()=>
  }finally{
   await rm(folder,{recursive:true,force:true});
  }
+});
+
+test('macOS ACL classification redacts principals, distinguishes deny delete from read/search',()=>{
+ const raw='drwx------ 20 local group 640 Oct 29 00:00 hidden\n'
+  +' 0: group:everyone deny delete\n'
+  +' 1: user:PRIVATEUSER deny search,read\n'
+  +' 2: group:SECRETGROUP allow readattr\n';
+ const summary=summarizeAclListing(raw);
+ assert.deepEqual(summary,{count:3,denyReadOrSearchCount:1,denyDeleteOnlyCount:1,otherCount:1});
+ assert.doesNotMatch(JSON.stringify(summary),/PRIVATEUSER|SECRETGROUP/);
+ const harmless=summarizeAclListing('dir\n 0: group:everyone deny delete\n');
+ const dirs=Array.from({length:5},()=>({state:'observed',type:'directory',
+  posixAllowsExpected:true,aclEntries:0,aclDeleteOnlyCount:0,aclDenyReadOrSearchCount:0}));
+ const port={state:'observed',type:'file',posixAllowsExpected:true,
+  aclEntries:0,aclDeleteOnlyCount:0,aclDenyReadOrSearchCount:0};
+ assert.equal(classifyMetadata([{...dirs[0],aclEntries:harmless.count,
+  aclDeleteOnlyCount:harmless.denyDeleteOnlyCount},...dirs.slice(1),port]),
+  'only_delete_acl_observed');
+ assert.equal(classifyMetadata([{...dirs[0],aclEntries:summary.count,
+  aclDenyReadOrSearchCount:summary.denyReadOrSearchCount},...dirs.slice(1),port]),
+  'acl_read_or_search_deny_present');
+});
+test('Darwin ps effective uid is uid and real uid is ruid',()=>{
+ const parsed=parsePs('0 501 1 /usr/local/bin/node');
+ assert.equal(parsed.euid,0);
+ assert.equal(parsed.uid,501);
+ const source=readFileSync(new URL('../scripts/openclaw-chrome-mcp-permission-passive.mjs',import.meta.url),'utf8');
+ assert.match(source,/uid=,ruid=,ppid=,comm=/);
+ assert.doesNotMatch(source,/uid=,euid=,ppid=,comm=/);
 });

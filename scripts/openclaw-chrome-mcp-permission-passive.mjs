@@ -39,7 +39,10 @@ export function classifyMetadata(entries){
   return 'unexpected_path_type';
  if(entries.some(e=>e.posixAllowsExpected===false))return 'posix_mode_may_block';
  if(entries.some(e=>e.aclEntries===null))return 'acl_observation_incomplete';
- if(entries.some(e=>e.aclEntries>0))return 'acl_present_requires_review';
+ if(entries.some(e=>e.aclDenyReadOrSearchCount>0))return 'acl_read_or_search_deny_present';
+ if(entries.some(e=>e.aclEntries>0&&e.aclDeleteOnlyCount!==e.aclEntries))
+  return 'acl_present_requires_review';
+ if(entries.some(e=>e.aclEntries>0))return 'only_delete_acl_observed';
  return 'not_explained_by_posix_metadata';
 }
 export function parsePids(raw){
@@ -51,14 +54,31 @@ export function parsePs(raw){
  const m=typeof raw==='string'?raw.trim().match(/^(\d+)\s+(\d+)\s+(\d+)\s+(.+)$/):null;
  if(!m)return null;
  const name=basename(m[4].trim());
- return {uid:+m[1],euid:+m[2],ppid:+m[3],
+ // Darwin ps uid is EFFECTIVE UID, ruid is REAL UID.
+ return {uid:+m[2],euid:+m[1],ppid:+m[3],
   executableClass:/^node(?:\d+)?$/.test(name)?'node':
    /^openclaw(?:\.app)?$/i.test(name)?'openclaw':'other'};
+}
+export function summarizeAclListing(raw){
+ if(typeof raw!=='string'||raw.length>8192)return null;
+ const lines=raw.split(/\r?\n/).filter(x=>/^\s*\d+:\s/.test(x));
+ let denyReadOrSearchCount=0,denyDeleteOnlyCount=0,otherCount=0;
+ for(const line of lines){
+  const m=line.match(/^\s*\d+:\s+.+?\s+(allow|deny)\s+([a-z_,]+)(?:\s|$)/);
+  if(!m){otherCount++;continue;}
+  const rights=m[2].split(',');
+  if(m[1]==='deny'&&rights.some(r=>['read','search','list','readattr','readextattr'].includes(r)))
+   denyReadOrSearchCount++;
+  else if(m[1]==='deny'&&rights.length===1&&rights[0]==='delete')
+   denyDeleteOnlyCount++;
+  else otherCount++;
+ }
+ return {count:lines.length,denyReadOrSearchCount,denyDeleteOnlyCount,otherCount};
 }
 async function aclCount(path){
  try{
   const {stdout}=await exec('/bin/ls',['-lde',path],{timeout:4500,maxBuffer:8192});
-  return (stdout.match(/^\s*\d+:\s/gm)??[]).length;
+  return summarizeAclListing(stdout);
  }catch{return null;}
 }
 async function inspectPath(path,label,isLast){
@@ -67,12 +87,16 @@ async function inspectPath(path,label,isLast){
   const observedType=type(s);
   // Never follow a symbolic link or attempt any further operation on its target.
   if(observedType==='symlink')return {label,state:'observed',type:'symlink',
-    ownerUid:s.uid,groupGid:s.gid,mode:mode(s),posixAllowsExpected:null,aclEntries:null};
+    ownerUid:s.uid,groupGid:s.gid,mode:mode(s),posixAllowsExpected:null,aclEntries:null,
+    aclDenyReadOrSearchCount:null,aclDeleteOnlyCount:null};
   const need=isLast?4:1;
+  const acl=await aclCount(path);
   return {label,state:'observed',type:observedType,ownerUid:s.uid,
    groupGid:s.gid,mode:mode(s),
    posixAllowsExpected:posixAllow({mode:s.mode,uid:s.uid,gid:s.gid},EUID,GROUPS,need),
-   aclEntries:await aclCount(path)};
+   aclEntries:acl?.count??null,
+   aclDenyReadOrSearchCount:acl?.denyReadOrSearchCount??null,
+   aclDeleteOnlyCount:acl?.denyDeleteOnlyCount??null};
  }catch(e){return {label,state:'unavailable',reason:code(e)};}
 }
 async function gatewayIdentity(){
@@ -84,7 +108,7 @@ async function gatewayIdentity(){
   }catch{return {state:'unavailable',reason:'listener_process_lookup_failed'};}
   if(pids.length!==1)return {state:'unavailable',reason:'listener_not_unique',count:pids.length};
   try{
-   const {stdout}=await exec('/bin/ps',['-p',String(pids[0]),'-o','uid=,euid=,ppid=,comm='],
+   const {stdout}=await exec('/bin/ps',['-p',String(pids[0]),'-o','uid=,ruid=,ppid=,comm='],
     {timeout:4500,maxBuffer:4096});
    const parsed=parsePs(stdout);
    if(!parsed)return {state:'unavailable',reason:'process_identity_unparsed'};
