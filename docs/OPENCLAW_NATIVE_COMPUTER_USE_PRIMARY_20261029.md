@@ -970,3 +970,51 @@ rejection of *automated* proxy-routed navigation. Keep
 retain one-writer Alice Coordinator and independently review
 a truly policy-enforcing egress/native-CUA workflow before
 agent-initiated navigation or chat send.
+
+## 2026-10-29 0544-0546: guarded proxy fix is applied, browser process pending
+
+The protected Mac runtime update `0544` moved the deployed source to
+`4910547daa68d937fe268722bf7858f892588e8b` with
+`1173/1173` tests passing. `reloadRequired=true` means a reload
+was requested, not independently verified.
+
+`openclaw-alice-stale-proxy-repair-plan-20261029-0545` returned
+`state=ready_for_scoped_apply`, with one other managed profile
+`otherManagedProfileCount=1` but `otherManagedProfilesRunning=0`,
+old proxy listener absent and current loopback listener present,
+`originalFlagCount=1`, `unchangedFlagCount=0`,
+`dryRunPassed=true`. The plan did not write a config or backup.
+
+The separate authorized `openclaw-alice-stale-proxy-repair-apply-20261029-0546`
+returned exit 0 and `state=scoped_config_updated`,
+`backupSaved=true`, `configChanged=true`,
+`browserProcessRestartRequired=true`,
+`ownedBrowserRestarted=false`, `loginVerified=false`,
+`browserAutomaticNavigationAuthorized=false`.
+This is **confirmed config change**, not confirmed Chromium process
+replacement or browser network/login readiness. Existing system
+proxy, Tailscale, daily Chrome, Browser SSRF policy and Alice
+Coordinator were not changed by the script. The private original
+`browser.extraArgs` backup was saved on Mac with restrictive
+permissions. No backup contents/ports should be pasted into Chat.
+
+The next operator-authorized task may use the official per-profile
+OpenClaw lifecycle commands:
+`openclaw browser --browser-profile alice-ai stop` then
+`openclaw browser --browser-profile alice-ai start`, followed by
+bounded `alice-ai` status. Official CLI reference
+https://docs.openclaw.ai/cli/browser states that a locally managed
+profile's `stop` stops that managed browser process; it does NOT
+require `reset-profile`. Use the **same named profile**, preserve its
+user data, and never touch daily Chrome or other managed profiles.
+A named `stop` or `start` may affect visible focus briefly; no
+automation should enter ChatGPT credentials or send a message.
+
+After a fresh, headed and CDP-ready managed process is observed,
+verify that its actual startup proxy port matches the system's
+listening and forwarding HTTPS loopback proxy, with endpoints
+redacted. A healthy proxy permits the user to retry **manual**
+ChatGPT login in this independent window, but **does not resolve**
+the separate strict SSRF rejection of *automated* Browser navigation
+under explicit proxy routing. Continue the native CUA v2/Coordinator
+safety gates; do not relax `dangerouslyAllowPrivateNetwork`.
