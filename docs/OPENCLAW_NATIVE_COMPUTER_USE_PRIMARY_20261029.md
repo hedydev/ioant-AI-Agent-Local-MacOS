@@ -822,3 +822,42 @@ invoke browser navigation as an unapproved workaround to the existing
 strict proxy-routed SSRF refusal; do not alter global proxy/TUN or
 Alice Coordinator. The goal remains managed independent browser,
 manual first login, native CUA v2 background operations later.
+
+## 2026-10-29 operator screenshot: ChatGPT navigation fails at proxy connection
+
+The operator supplied a Chrome screenshot showing the precise AliceAI
+Project Chat path in the address bar, but the page body displays
+`No internet`, `There is something wrong with the proxy server, or
+the address is incorrect`, and `ERR_PROXY_CONNECTION_FAILED`.
+This is direct evidence of a **browser-facing proxy connection failure**,
+not proof of a failed ChatGPT login or a malformed Alice Project URL.
+The screenshot alone cannot independently establish which Chrome
+profile/process owns that pictured window.
+
+Previous live receipts established the OpenClaw-managed `alice-ai`
+profile has a headed Chromium with one on-screen normal window
+(`0535`), a global explicit proxy in both OpenClaw browser config
+and that Chromium's process arguments (`0526`), an unsuccessful
+proxy-free direct `curl` to ChatGPT (`0527`) and its tab URL was
+empty when checked (`0540`). Do **not** assume the screenshot was
+taken at the same instant as the last tab metadata scan.
+
+Immediate next gate: a **bounded, read-only local socket comparison**
+of the `alice-ai` managed process's `--proxy-server` loopback port,
+the global `browser.extraArgs` proxy loopback port, and macOS
+System HTTPS Proxy local port, checking whether each localhost TCP
+listener is reachable. Return only fixed booleans and port-match
+flags: never raw proxy URIs, addresses, port numbers, process argv,
+credentials, subscription URLs or Chrome content. This can
+differentiate a stale legacy proxy endpoint from a live ClashX Meta
+system endpoint. A successful local TCP connection is not proof that
+the proxy forwards ChatGPT. The screenshot and current evidence do
+**not** authorize editing proxy configuration.
+
+Preserve the strict OpenClaw Browser SSRF boundary: as official
+OpenClaw browser configuration documents, a healthy explicit Chrome
+proxy still does not automatically permit agent Browser navigation
+under strict SSRF. Manual user navigation/login and later agent
+navigation are separate gates. Do not disable SSRF, restart the
+Gateway, toggle ClashX TUN, change daily Chrome or migrate Alice
+Coordinator merely to hide the original error.
