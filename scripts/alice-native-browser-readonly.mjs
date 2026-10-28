@@ -13,7 +13,7 @@ import {fileURLToPath} from 'node:url';
 import {chooseConnectedMacNode} from './openclaw-mac-visual.mjs';
 import {walkNativePayload} from './openclaw-cua-fixture-native-observe.mjs';
 import {scopedCloseRequest,knownPreAdmissionNativeFailure} from './openclaw-cua-owned-session-guard.mjs';
-import {classifyInvokeFailure} from './openclaw-cua-readonly-invoke-diagnostic.mjs';
+import {classifyInvokeFailure,safeInvokeFailureShape} from './openclaw-cua-readonly-invoke-diagnostic.mjs';
 import {parseProjectChatUrl} from '../stage2/project-chat-routing.mjs';
 
 const ROOT=resolve(fileURLToPath(new URL('..',import.meta.url)));
@@ -30,6 +30,34 @@ const cleanText=v=>typeof v==='string'&&v.length>0&&v.length<512&&!/[\r\n\t]/.te
 const safeRef=v=>typeof v==='string'&&v.length>=3&&v.length<=1024;
 const SAFE_CATEGORY=/^[a-z][a-z0-9_]{1,70}$/;
 const SAFE_NATIVE_CODE=/^(?:COMPUTER|NODE|ACCESSIBILITY|SCREEN)_[A-Z_]{3,80}$/;
+const NATIVE_BROWSER_KNOWN_REFUSALS=Object.freeze([
+ ['browser_requires_setup',/\\bbrowser_requires_setup\\b/i],
+ ['browser_consent_required',/\\bbrowser_consent_required\\b/i],
+ ['existing_profile_unsupported',/\\bexisting.profile\\b.{0,90}\\b(?:unsupported|not supported|not exposed|unavailable)\\b|\\b(?:unsupported|not exposed)\\b.{0,90}\\bexisting.profile\\b/i],
+ ['browser_not_attached',/\\bbrowser_not_attached\\b|\\bbrowser_requires_attachment\\b/i],
+ ['browser_target_not_found',/\\bbrowser_target_not_found\\b|\\bbrowser_window_not_found\\b/i],
+ ['browser_driver_unavailable',/\\bbrowser_driver_unavailable\\b/i],
+ ['browser_unsupported',/\\bbrowser_unsupported\\b|\\bunsupported_browser\\b/i]
+]);
+export function nativeBrowserErrorBoundary(error){
+ // Match only protocol-defined tokens; do not emit messages or unknown codes.
+ const stderr=typeof error?.stderr==='string'?error.stderr:'';
+ const stdout=typeof error?.stdout==='string'?error.stdout:'';
+ const raw=(stdout.slice(0,100000)+'\\n'+stderr.slice(0,100000));
+ const signals=NATIVE_BROWSER_KNOWN_REFUSALS.filter(([,re])=>re.test(raw)).map(([name])=>name);
+ const shape=safeInvokeFailureShape(error);
+ return Object.freeze({
+  browserRefusalSignals:signals,
+  cliEnvelopeRootKeys:shape.topLevelKeys,
+  cliEnvelopeErrorFieldType:shape.errorFieldType,
+  cliEnvelopeErrorKeys:shape.errorObjectKeys,
+  cliEnvelopeErrorDetailsKeys:shape.errorDetailsKeys,
+  gatewayFailureClass:shape.recognizedGatewayErrorCode,
+  cliErrorType:shape.cliErrorSignals.cliErrorType,
+  cliSafeWords:shape.cliErrorSignals.safeSignalWords,
+  processExitStatus:Number.isInteger(error?.status)&&error.status>=0&&error.status<=255?error.status:null
+ });
+}
 export function classifyNativeBrowserError(error){
  // Reuse the tested native error taxonomy without raw CLI output.
  const cls=classifyInvokeFailure(error);
@@ -43,7 +71,8 @@ export function classifyNativeBrowserError(error){
   structuredErrorBody:cls.structuredErrorBody===true,
   stdoutPresent:cls.stdoutPresent===true,
   stderrPresent:cls.stderrPresent===true,
-  localFailureSubtype:subtype
+  localFailureSubtype:subtype,
+  ...nativeBrowserErrorBoundary(error)
  });
 }
 function cli(args,timeout=25000){
