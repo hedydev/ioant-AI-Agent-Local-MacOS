@@ -719,3 +719,38 @@ The exact target tab identity alone still does not prove logged-in
 state, native CUA windowRef/AX composer readiness, or permission to
 deliver a message. Preserve strict Browser SSRF and Coordinator
 single-writer gates.
+
+## 2026-10-29 0537: Worker rejected oversized inline command; no execution
+
+Mac Worker receipt `openclaw-alice-managed-tab-categories-20261029-0537`
+returned `Status=invalid_task`, because the mac-terminal command exceeded
+the Worker's **2048-character / 4096-byte** bounds. **No action was
+executed.** This was an instruction transport rejection, not evidence
+of a browser failure or any network/Chrome/Coordinator state change.
+Do not reuse that task ID or issue multiline inline Python exceeding
+the limit. New tasks must have fresh IDs and a short private-runtime
+entrypoint; always pass `project-update-verify` first for code updates.
+
+New committed Stage E1 diagnostic:
+`scripts/alice-managed-tab-categories-readonly.mjs`, with ten mocked
+tests. It reads only the running, owned `alice-ai` browser profile
+status and that same profile's tab **URL metadata**, classifying rows
+strictly into bounded predefined categories:
+`exactAliceChat`, `otherAliceProject`, `chatgptHome`,
+`otherChatGPT`, `loginRelated`, `blankOrNewTab`,
+`otherOrigin`, `unknown`. It emits counts and fixed reasons,
+never raw URLs, titles, tab IDs, user profile paths, URL query tokens,
+cookies or page content. It does not navigate, focus, call native
+CUA, send chat messages, change config or relax SSRF. An observed
+login-related URL is **not login verification**. A precise target URL
+can be counted only as a metadata match; it does not authorize
+composer interaction. Do not infer no login from the target-chat count
+remaining zero.
+
+When `project-update-verify` succeeds on the new commit, invoke
+only this short entrypoint under the private Mac runtime:
+`node "$HOME/Library/Application Support/ioant-openclaw-ops/runtime/scripts/alice-managed-tab-categories-readonly.mjs"`.
+Interpret the resulting category counts before deciding whether the
+operator should type the exact Alice Chat URL in the **already
+running dedicated window**. Never use the default browser as a
+fallback; do not re-run E2a window ownership until a change warrants it.
