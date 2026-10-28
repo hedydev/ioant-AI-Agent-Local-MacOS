@@ -154,3 +154,20 @@ Previous live Mac runtime before candidate changes:
 1061 tests passed. New candidate adds four pure tests, expected 1065,
 to be confirmed by guarded `project-update-verify`. It makes **zero**
 changes to the running Worker, Gateway, Chrome, BDS or ledger.
+
+## 205C-45 live acceptance and write-boundary correction (2026-10-29)
+
+The operator's real Mac task `openclaw-alice-native-background-fixture-acceptance-20261029-205c45` **failed closed before any write**. CUA node connected, provider contract v2 accepted, `background` delivery and `set_value` advertised, driver process visible. The independently owned disposable AppKit window was found. Launch-phase `frontmostUnchanged=true,pointerUnchanged=true`; after multi-second read-only `get_window_state` the foreground remained unchanged but the pointer position differed. Result: `state=blocked`, `reason=foreground_or_pointer_changed`, `interferenceStage=post_native_read`, `mutatingActionAttempted=false`. The own execution close ACK was true, **not** an independent owner-release proof.
+
+**Root cause in our test harness:** the post-read comparison used the snapshot taken *before launching the fixture*, conflating ordinary user cursor activity while OpenClaw was doing read-only observation with computer input interference. There is no evidence that CUA itself moved the pointer, no `set_value` call, and no background delivery acceptance in this receipt. Do not label the CUA provider broken or infer background writes are safe.
+
+Code correction (candidate, not yet Mac-deployed):
+- In the *write-enabled fixture-only challenge*, retain the independent window PID/title, original field value, provider generation, unique native refs and nonforeground launch gates; report prewrite failure if any identity/capability check fails.
+- Treat pointer or frontmost movement during the long **read-only observation** as telemetry, not as proof of a CUA write. Immediately before the **single** allowed fixture `set_value(deliveryMode:"background")`, reverify fixture ownership, process life and provider generation. Take **two adjacent fresh** cursor/frontmost snapshots. If either differs, fail closed before sending input.
+- Keep the last immediate snapshot private as the write-boundary baseline. After exactly one mutation and independent value readback, compare the frontmost and cursor with this baseline. A user mouse motion during the mutation/readback is **inconclusive** and NEVER a successful noninterference proof; never retry the write automatically.
+- Do not expose raw cursor coordinates, foreground app ID, element refs, user content, or private app details. The public prewrite report still contains only fixed boolean predicates.
+- Do not relax the fixture's one-shot uniqueness, fresh observation, owner proof, no Chrome/ChatGPT, no foreground input, and hard-stop behavior.
+
+This improves acceptance signal under normal Mac activity without falsely proving that a provider-induced mouse movement can be distinguished from user movement. A genuinely concurrent pointer movement within the write interval remains inconclusive. For fully unattended/active-user operation an independent provenance audit or stronger native noninterference attestation would be needed before granting general ChatGPT background mutation.
+
+The actual AliceAI Chat `requirements` ledger stays revision 24 and unapproved, and its exact-chat browser CUA consent barrier is not altered by these fixture changes. No Coordinator restart, chat message or task acceptance is authorized. Prior deployed runtime HEAD: `a764159f2aa4161da422f3f7555d752ae358930e`, 1065/1065 tests passed. Two new fixture tests are proposed; guarded deploy should verify **1067** total tests. A passing unit suite is not live background-write proof.
