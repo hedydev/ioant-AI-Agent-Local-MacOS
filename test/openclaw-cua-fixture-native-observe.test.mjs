@@ -6,7 +6,8 @@ import {makeReadOnlyNativeArgs,findExactFixtureWindow,findFixtureElement,
  walkNativePayload,nativeCUAFixtureObserve,fixtureWindowEvidence,
  shouldCloseOwnFixtureExecution,findOSAttestedFixtureWindow,
  safeFixtureOSDiagnosis,parseOwnFixtureReady,awaitOwnFixtureReady,
- safeNativeCLIExitEvidence,safeGatewayNativeError,safeCliMessageFingerprint}
+ safeNativeCLIExitEvidence,safeGatewayNativeError,safeCliMessageFingerprint,
+ focusPointerComparison}
  from '../scripts/openclaw-cua-fixture-native-observe.mjs';
 
 const root=resolve(import.meta.dirname,'..');
@@ -726,4 +727,35 @@ test('native CLI diagnostic retains strict one-shot and no user desktop input',(
  assert.match(s,/nativeReadAttempted=true/);
  assert.match(s,/scopedCloseRequest\(leasedNodeId,leasedExecutionId\)/);
  assert.doesNotMatch(s,/console\.log\(error\)|console\.error\(error\)|private_document_name/);
+});
+
+test('background fixture observer separates frontmost from pointer changes',()=>{
+ const original={frontmost:'com.example.foreground',mouseX:25,mouseY:33};
+ assert.deepEqual(focusPointerComparison(original,{...original}),{
+  frontmostUnchanged:true,pointerUnchanged:true});
+ assert.deepEqual(focusPointerComparison(original,{
+  ...original,frontmost:'com.example.second'}),{
+  frontmostUnchanged:false,pointerUnchanged:true});
+ assert.deepEqual(focusPointerComparison(original,{
+  ...original,mouseY:34}),{
+  frontmostUnchanged:true,pointerUnchanged:false});
+});
+test('malformed foreground or cursor snapshots fail closed and never reflect raw IDs',()=>{
+ const before={frontmost:'PRIVATE_BUNDLE_ID',mouseX:0,mouseY:0};
+ const signals=focusPointerComparison(before,{
+  frontmost:'PRIVATE_BUNDLE_ID',mouseX:Number.NaN,mouseY:0});
+ assert.deepEqual(signals,{frontmostUnchanged:true,pointerUnchanged:false});
+ assert.equal(Object.isFrozen(signals),true);
+ assert.deepEqual(focusPointerComparison(null,null),{
+  frontmostUnchanged:false,pointerUnchanged:false});
+ assert.doesNotMatch(JSON.stringify(signals),/PRIVATE|BUNDLE_ID/);
+});
+test('write-only fixture gate reports separate launch / post-read signals, never overrides them',()=>{
+ assert.match(s,/interferenceStage:'fixture_launch'/);
+ assert.match(s,/interferenceStage:'post_native_read'/);
+ assert.match(s,/interferenceSignals:postReadSignals/);
+ assert.match(s,/interferenceSignals:launchSignals/);
+ assert.match(s,/mutatingActionAttempted:false,fixtureWindowMatched:true/);
+ assert.match(s,/unchanged=postReadSignals.frontmostUnchanged&&postReadSignals.pointerUnchanged/);
+ assert.doesNotMatch(s,/CGEventPost|osascript|--browser-profile|\.activate\(/);
 });
