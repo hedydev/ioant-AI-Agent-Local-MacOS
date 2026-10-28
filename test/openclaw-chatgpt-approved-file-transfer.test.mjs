@@ -4,7 +4,7 @@ import {homedir} from 'node:os';
 import {join} from 'node:path';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
-import {checkPathIdentity,transferIdentity,parseProof,composerProbe,transfer}
+import {checkPathIdentity,transferIdentity,newDeliveryMarker,parseProof,composerProbe,transfer}
  from '../scripts/openclaw-chatgpt-approved-file-transfer.mjs';
 import {buildScopedReceiptProbe,classifyScopedReceipt}
  from '../stage2/chatgpt-upload-scoped-receipt.mjs';
@@ -46,7 +46,7 @@ test('transfer identity is content and exact-path scoped',()=>{
  const c=transferIdentity(named('a.txt'),'e'.repeat(64));
  assert.notEqual(a.key,b.key);
  assert.notEqual(a.key,c.key);
- assert.match(a.tag,/^IOANT-FILE-TRANSFER-[A-F0-9]{24}$/);
+ assert.equal(Object.hasOwn(a,'tag'),false);
  assert.equal(transferIdentity(named('a.txt'),digest).key,a.key);
  assert.throws(()=>transferIdentity(named('a.txt'),'f'));
 });
@@ -102,4 +102,21 @@ test('sender includes durable pre-send lock and no automatic retry',()=>{
  assert.match(src,/--approval-reference/);
  assert.match(src,/constants\.O_NOFOLLOW/);
  assert.doesNotMatch(src,/CGEventPost|osascript|launchctl/);
+});
+
+test('a fresh delivery marker cannot be predicted from inspect/dedupe identity',()=>{
+ const a=newDeliveryMarker(),b=newDeliveryMarker();
+ assert.match(a,/^IOANT-FILE-TRANSFER-[A-F0-9]{32}$/);
+ assert.match(b,/^IOANT-FILE-TRANSFER-[A-F0-9]{32}$/);
+ assert.notEqual(a,b);
+ assert.notEqual(a,transferIdentity(named('a.txt'),digest).key);
+ assert.throws(()=>newDeliveryMarker(()=>Buffer.alloc(4)));
+});
+test('generic sender never leaks a pre-send marker in inspect or error feedback',()=>{
+ const src=readFileSync(resolve(import.meta.dirname,
+  '../scripts/openclaw-chatgpt-approved-file-transfer.mjs'),'utf8');
+ assert.match(src,/tag:newDeliveryMarker\(\)/);
+ assert.doesNotMatch(src,/delivery_already_visible/);
+ assert.match(src,/duplicate_or_pending_file_transfer/);
+ assert.doesNotMatch(src,/transferTag:file\.tag/);
 });
