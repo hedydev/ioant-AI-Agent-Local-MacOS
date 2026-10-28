@@ -50,6 +50,82 @@ function buttonNearEditor(button,editor){
   cy>=e.y-96&&cy<=e.y+e.h+96;
 }
 
+// Accessibly named buttons can be absent while a chat composer is empty.
+// Inspect only one uniquely prompt-labelled editor and nearby button
+// metadata. Neither proximity nor an AX press action proves a SEND control.
+function tri(x){return x===true?'yes':x===false?'no':'unknown'}
+function privateEditorValueClass(x){
+ const v=x?.value??x?.stringValue;
+ if(typeof v!=='string')return 'unknown';
+ return v.trim()===''?'empty':'nonempty';
+}
+function nativePressEvidence(x){
+ const fields=[x?.actions,x?.supportedActions,x?.accessibilityActions,
+  x?.actionNames];
+ const words=fields.flatMap(v=>Array.isArray(v)?v:
+  typeof v==='string'?[v]:[]);
+ return {actionsProvided:fields.some(v=>Array.isArray(v)||typeof v==='string'),
+  pressActionHint:words.some(v=>typeof v==='string'&&
+   /^(?:AXPress|press|activate|performPress)$/i.test(v.trim()))};
+}
+function buttonPositionClass(x,editor){
+ const b=readBounds(x),e=readBounds(editor);
+ if(!b||!e)return 'unknown';
+ const centerX=b.x+b.w/2,centerY=b.y+b.h/2;
+ const side=centerX<e.x+e.w/3?'leading':
+  centerX>e.x+e.w*2/3?'trailing':'middle';
+ const level=centerY<e.y+e.h/2?'upper':'lower';
+ return level+'_'+side;
+}
+export function assessUniqueNativeComposerControls(raw){
+ const byRef=new Map();
+ for(const e of walkNativePayload(raw)){
+  if(!e||typeof e!=='object'||Array.isArray(e)||
+   !validRef(e.elementRef)||!role(e.role))continue;
+  if(!byRef.has(e.elementRef))byRef.set(e.elementRef,e);
+ }
+ const edits=[...byRef.values()].filter(x=>editable.has(role(x.role)));
+ const matching=edits.filter(x=>attrs(x).some(v=>editPrompt.test(v))&&
+  !attrs(x).some(v=>searchControl.test(v)));
+ if(matching.length!==1)return Object.freeze({
+  evidenceState:'no_unique_semantic_composer',
+  promptCandidates:matching.length,
+  controlCount:0,controls:[],uniqueNativeControlIdentified:false,
+  composerIdentityVerified:false,chatDeliveryAuthorized:false});
+ const editor=matching[0];
+ const closeButtons=[...byRef.values()].filter(x=>
+  button.has(role(x.role))&&buttonNearEditor(x,editor)).slice(0,8);
+ const controls=closeButtons.map((x,i)=>{
+  const p=nativePressEvidence(x);
+  const metadata=[x.label,x.accessibilityLabel,x.description,
+   x.name,x.title,x.help,x.tooltip];
+  return Object.freeze({
+   ordinal:i+1,
+   hasAccessibleName:metadata.some(v=>text(v).length>0),
+   hasIdentifier:[x.identifier,x.accessibilityIdentifier]
+    .some(v=>text(v).length>0),
+   sendSemanticHint:hintSendButton(x),
+   positionClass:buttonPositionClass(x,editor),
+   enabled:tri(x.enabled),visible:tri(x.visible),
+   actionMetadataProvided:p.actionsProvided,
+   pressActionHint:p.pressActionHint
+  });
+ });
+ return Object.freeze({
+  evidenceState:'unique_prompt_hint_with_nearby_controls',
+  promptCandidates:1,
+  editorRoleKind:role(editor.role).includes('area')?'text_area':'text_field',
+  editorValueState:privateEditorValueClass(editor),
+  editorEnabled:tri(editor.enabled),
+  editorVisible:tri(editor.visible),
+  controlCount:closeButtons.length,
+  controlEvidenceTruncated:[...byRef.values()].filter(x=>
+   button.has(role(x.role))&&buttonNearEditor(x,editor)).length>8,
+  controls,
+  uniqueNativeControlIdentified:false,
+  composerIdentityVerified:false,chatDeliveryAuthorized:false
+ });
+}
 function parentRef(x){
  return [x.parentRef,x.parentElementRef,x.parent?.elementRef,
   x.parent?.ref].find(validRef)??null;
@@ -135,6 +211,7 @@ export function assessAliceNativeAXSemantics(raw){
   rawAXTextReleased:false,
   nativeRefsReleased:false,
   screenshotTaken:false,
-  computerInput:false
+  computerInput:false,
+  nativeControlReadiness:assessUniqueNativeComposerControls(raw)
  });
 }
