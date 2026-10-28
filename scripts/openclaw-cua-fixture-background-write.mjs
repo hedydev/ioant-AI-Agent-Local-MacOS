@@ -47,24 +47,31 @@ export function exactFixtureWrittenValue(raw,token,previousObservationId){
 }
 // Independently sample every read-only prewrite gate, even if an earlier
 // gate fails. Do not leak app IDs, coordinates, raw errors or native refs.
+// Independently verify ownership/generation, then sample foreground and
+// pointer twice at the immediate write boundary. User activity during the
+// earlier multi-second *read-only* observation is irrelevant; movement at
+// the write boundary blocks the mutation. No raw state leaves this module.
 export async function inspectFixtureWritePreflight({
- baseline,fixtureIsAlive,verifyOwnedWindow,getCurrentNode,readState
+ fixtureIsAlive,verifyOwnedWindow,getCurrentNode,readState,onWriteBaseline
 }={}){
  const probe=async fn=>{try{return await fn()===true}catch{return false}};
  const fixtureProcessAlive=await probe(fixtureIsAlive);
  const fixtureOwnerProofValid=await probe(verifyOwnedWindow);
  const providerGenerationAndCapabilitiesValid=await probe(getCurrentNode);
- let after=null;
- try{after=await readState()}catch{}
- const frontmostUnchanged=typeof baseline?.frontmost==='string'&&
-  typeof after?.frontmost==='string'&&
-  baseline.frontmost===after.frontmost;
- const pointerUnchanged=Number.isFinite(baseline?.mouseX)&&
-  Number.isFinite(baseline?.mouseY)&&Number.isFinite(after?.mouseX)&&
-  Number.isFinite(after?.mouseY)&&
-  baseline.mouseX===after.mouseX&&baseline.mouseY===after.mouseY;
- return Object.freeze({fixtureProcessAlive,fixtureOwnerProofValid,
+ let first=null,second=null;
+ try{first=await readState();second=await readState()}catch{}
+ const frontmostUnchanged=typeof first?.frontmost==='string'&&
+  typeof second?.frontmost==='string'&&first.frontmost===second.frontmost;
+ const pointerUnchanged=Number.isFinite(first?.mouseX)&&
+  Number.isFinite(first?.mouseY)&&Number.isFinite(second?.mouseX)&&
+  Number.isFinite(second?.mouseY)&&first.mouseX===second.mouseX&&
+  first.mouseY===second.mouseY;
+ const checks=Object.freeze({fixtureProcessAlive,fixtureOwnerProofValid,
   providerGenerationAndCapabilitiesValid,frontmostUnchanged,pointerUnchanged});
+ if(Object.values(checks).every(v=>v===true)&&
+    typeof onWriteBaseline==='function')
+  onWriteBaseline(Object.freeze({...second}));
+ return checks;
 }
 // Callback runs only after the observer verified fresh window/title, child
 // PID, independent WindowServer ownership, initial value, provider generation
@@ -81,8 +88,10 @@ export async function verifiedFixtureBackgroundWrite(context){
  // original read and mutation.
  const params={nodeId,executionId,windowRef,elementRef,observationId,token};
  const args=makeFixtureBackgroundSetValueArgs(params);
+ let immediateWriteBaseline=null;
  const prewriteChecks=await inspectFixtureWritePreflight({
-  baseline,fixtureIsAlive,verifyOwnedWindow,getCurrentNode,readState});
+  fixtureIsAlive,verifyOwnedWindow,getCurrentNode,readState,
+  onWriteBaseline:x=>{immediateWriteBaseline=x}});
  const ready=Object.values(prewriteChecks).every(v=>v===true);
  if(!ready)return {
   writeIssued:false,nativeReadbackMatched:false,
@@ -109,7 +118,7 @@ export async function verifiedFixtureBackgroundWrite(context){
   nativeReadbackMatched:exactFixtureWrittenValue(post,token,observationId),
   fixtureStillOwned:owned===true&&fixtureIsAlive()===true,
   providerGenerationStable:provider===true,
-  focusAndPointerUnchanged:sameState(baseline,after),
+  focusAndPointerUnchanged:sameState(immediateWriteBaseline,after),
   prewriteChecks
  };
 }
