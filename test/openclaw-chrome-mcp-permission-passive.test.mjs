@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {mkdtemp,copyFile,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {spawnSync} from 'node:child_process';
 import {posixAllow,classifyMetadata,parsePids,parsePs} from '../scripts/openclaw-chrome-mcp-permission-passive.mjs';
 
 test('POSIX estimate uses owner group other bits, without claiming actual access',()=>{
@@ -33,4 +37,26 @@ test('static source excludes file open/read, browser and permission-mutation ope
  assert.doesNotMatch(source,/\b(?:cdp|browser|tccutil)\s*\(/);
  assert.match(source,/portContentRead:false/);
  assert.match(source,/tccCausality:'not_established'/);
+});
+
+test('CLI entrypoint emits bounded audit even when installed path contains spaces',async()=>{
+ const folder=await mkdtemp(join(tmpdir(),'ioant chrome mcp CLI '));
+ try{
+  const target=join(folder,'chrome mcp passive.mjs');
+  await copyFile(new URL('../scripts/openclaw-chrome-mcp-permission-passive.mjs',import.meta.url),target);
+  // Invalid arguments take a non-mutating fast path, independent of host platform.
+  const result=spawnSync(process.execPath,[target,'--unsupported'],{
+   encoding:'utf8',timeout:10000,maxBuffer:8192
+  });
+  assert.equal(result.error,undefined);
+  assert.equal(result.status,2,result.stderr);
+  const lines=result.stdout.trim().split(/\r?\n/).filter(Boolean);
+  assert.equal(lines.length,1);
+  const audit=JSON.parse(lines[0]);
+  assert.equal(audit.audit,'IOANT_CHROME_MCP_PERMISSION_PASSIVE');
+  assert.equal(audit.state,'blocked');
+  assert.equal(audit.reason,'no_arguments_supported');
+ }finally{
+  await rm(folder,{recursive:true,force:true});
+ }
 });
