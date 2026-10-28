@@ -130,3 +130,12 @@ test('Watcher adds receipt prefix and preserves one-writer proof',()=>{
  assert.match(s,/state\.feedbackPending\)\{/);
  assert.match(s,/const unlock=await acquireConversationLock\(workDir\)/);
 });
+
+test('Guard notice cannot preempt a new or ambiguous ChatGPT task',()=>{
+ const s=readFileSync(resolve(import.meta.dirname,'../stage2/chatgpt-loop.mjs'),'utf8');
+ assert.match(s,/const taskBeforeGuard=extractWatchedAction\(page\)/);
+ assert.match(s,/const safeGuardSlot=taskBeforeGuard\.status==='idle'/);
+ assert.match(s,/taskBeforeGuard\.task\.id===state\.lastTaskId/);
+ assert.match(s,/if\(!isolatedProjectScope&&safeGuardSlot\)/);
+ assert.match(s,/const a=taskBeforeGuard/);
+});
