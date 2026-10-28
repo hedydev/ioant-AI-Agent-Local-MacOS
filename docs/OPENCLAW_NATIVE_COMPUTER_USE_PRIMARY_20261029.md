@@ -1018,3 +1018,36 @@ ChatGPT login in this independent window, but **does not resolve**
 the separate strict SSRF rejection of *automated* Browser navigation
 under explicit proxy routing. Continue the native CUA v2/Coordinator
 safety gates; do not relax `dangerouslyAllowPrivateNetwork`.
+
+## 2026-10-29 0547: Alice managed browser owner-scoped restart succeeded
+
+The Mac Worker `openclaw-alice-browser-scoped-restart-20261029-0547`
+returned exit 0 in 12452ms after `openclaw browser --browser-profile alice-ai stop`
+reported `running:false`, then `openclaw browser --browser-profile alice-ai start`
+reported `running:true`. Its privacy-bounded final status:
+`profileMatched=true`, `browserRunning=true`,
+`browserHeaded=true`, `cdpReady=true`,
+`proxyPortEmitted=false`, `ssrfRelaxed=false`.
+OpenClaw printed a benign retry with the managed Node v24.22.1
+runtime ("current Node failed runtime admission"); the command
+ultimately passed. The same `alice-ai` managed profile was used;
+no profile reset, daily Chrome termination or Gateway restart was
+requested.
+
+**Remaining Gate F3:** verify the newly running Chromium process
+actually uses the now-configured **listening** local HTTPS proxy
+endpoint, that the global `browser.extraArgs` proxy matches that
+process, and that the macOS system HTTPS proxy port matches both.
+Use only fixed booleans and redacted bounded status; never emit
+raw URLs, process args, proxy ports or credentials. Previous 0543
+confirmed the system HTTPS proxy forwards to chatgpt.com with HTTP
+response (4xx), but a fresh process-level proxy check is still
+needed. Even a positive process-level result is not proof of
+ChatGPT authenticated UI; user must manually navigate/login
+in the now-network-capable independent browser and a later native
+CUA read-only readiness check must attest the exact Alice Chat tab.
+
+The strict Browser SSRF rule continues to block **automated**
+navigation through an explicit proxy; do not claim that proxy
+repair alone enables agent browser automation, and do not
+disable SSRF or bypass it with unaudited Computer Use.
