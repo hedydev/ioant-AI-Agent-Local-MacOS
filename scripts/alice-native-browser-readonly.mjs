@@ -38,16 +38,22 @@ export function verifyChromeTarget(report){
   return {title:rows[2]};
  }catch{return null}
 }
-function chromeAppleScript(){
- // Enumerates only Chrome's own URL metadata, without tab activation or navigation.
+export function chromeAppleScript(){
+ // Chrome's tab object does NOT have an "index" property (-1728).
+ // Use the enumerated 1-based tab number and the window's active tab index.
+ // Read the *active tab title* (Chrome's window.name is not authoritative).
+ // No tab activation/navigation, and no page contents are read.
  return 'tell application "Google Chrome"\n'+
   'set n to 0\nset a to 0\nset nm to ""\nset uri to ""\n'+
-  'repeat with w in windows\nrepeat with t in tabs of w\n'+
+  'repeat with w in windows\n'+
+  'set activeIdx to active tab index of w\n'+
+  'repeat with j from 1 to (count of tabs of w)\n'+
+  'set t to tab j of w\n'+
   'set u to URL of t as text\n'+
   'if u contains "/c/6ade11a5-f0c0-83ec-add1-8a0cff00c938" then\n'+
   'set n to n + 1\n'+
-  'if (index of t) is (active tab index of w) then\n'+
-  'set a to a + 1\nset nm to name of w as text\nset uri to u\n'+
+  'if j is activeIdx then\n'+
+  'set a to a + 1\nset nm to title of t as text\nset uri to u\n'+
   'end if\nend if\nend repeat\nend repeat\n'+
   'return (n as text) & tab & (a as text) & tab & nm & tab & uri\nend tell';
 }
