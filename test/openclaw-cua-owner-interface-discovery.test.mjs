@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {
- sourcePatternSignals,summarizeOwnerInterfaceScan
+ sourcePatternSignals,sourceOwnerCohesion,summarizeOwnerInterfaceScan
 } from '../scripts/openclaw-cua-owner-interface-discovery.mjs';
 
 test('exact owner-related API patterns are only leads, not ownership proof',()=>{
@@ -46,4 +46,36 @@ test('read-only script has no computer mutation, lock cleanup, or service restar
  assert.doesNotMatch(s,/execFileSync|spawn\(|writeFileSync|rmSync|unlinkSync/);
  assert.match(s,/ownerReleaseVerified:false/);
  assert.match(s,/invokedComputerAct:false/);
+});
+
+test('owner and close symbols in one source are only a co-location hint',()=>{
+ const a=sourceOwnerCohesion(
+  'ownerRegistry __close_execution COMPUTER_HOST_BUSY releaseExecutionOwner');
+ assert.equal(a.registryWithClose,true);
+ assert.equal(a.registryWithBusy,true);
+ assert.equal(a.closeWithBusy,true);
+ assert.equal(a.registryWithMutationWords,true);
+ assert.equal(a.candidateStatusAction,false);
+ const b=sourceOwnerCohesion('getExecutionOwnerStatus');
+ assert.equal(b.candidateStatusAction,true);
+ assert.equal(b.registryWithClose,false);
+});
+test('co-location counts are bounded and do not establish a callable interface',()=>{
+ const r=summarizeOwnerInterfaceScan({
+  filesInspected:2500,rootsFound:2,hitCounts:{ownerRegistry:2},
+  cohortCounts:{registryWithClose:1,closeWithBusy:9000,
+   candidateStatusAction:-1}
+ });
+ assert.equal(r.ownerSourceCoLocation.registryWithClose,1);
+ assert.equal(r.ownerSourceCoLocation.closeWithBusy,2500);
+ assert.equal(r.ownerSourceCoLocation.candidateStatusAction,0);
+ assert.equal(r.interfaceVerified,false);
+ assert.equal(r.ownerReleaseVerified,false);
+ assert.doesNotMatch(JSON.stringify(r),/ownerRegistry __close_execution|releaseExecutionOwner/);
+});
+test('unrelated owner text and empty sources never supply ownership proof',()=>{
+ for(const input of ['',42,'ownership is pending']){
+  const r=sourceOwnerCohesion(input);
+  assert.ok(Object.values(r).every(x=>x===false));
+ }
 });
