@@ -1434,3 +1434,58 @@ Sequence:
    and closure acknowledgment holds, consider test fixture background
    text write proven. Still require separate consent/targeting
    before controlling other apps or chat.
+
+
+## 2026-10-28 — 186B Mac write attempt safely refused before mutation
+
+Mac gated deployment 186A passed **890/890** tests at
+\`b450bd46b222cc9c2aeac59f9fbabc8ed5015db4\`.
+Live 186B Worker invoked the reviewed synthetic fixture write CLI.
+It reported \`state=inconclusive\`,
+\`reason=fixture_background_write_unverified\`,
+\`mutatingActionAttempted=false\`, \`writeIssued=false\`,
+\`backgroundDeliveryRequested=false\`. Own fixture launch, window
+PID proof, windowRef/elementRef and initial observation all passed.
+Own execution close was attempted/acknowledged, with
+\`ownerReleaseVerified=false\`. No browser, screenshot, click, typing,
+global keyboard/pointer mutation or native \`set_value\` occurred.
+
+**Important interpretation:** the original prewrite callback used
+short-circuit \`if (!fixtureIsAlive() || !await verifyOwnedWindow() ||
+!await getCurrentNode() || !sameState(...))\`. Its refusal returned
+\`fixtureStillOwned=false\`, \`providerGenerationStable=false\`,
+\`focusAndPointerUnchanged=false\` **unconditionally**, rather than
+reporting the actual independent gate observations. Those values
+must NOT be misinterpreted as proof that all three gates failed.
+One or more guards refused the mutation; root cause still unknown.
+
+The follow-up code repairs only the reporting granularity and does
+**not weaken any gate**. Before dispatch, the callback independently
+reads five allowlisted Boolean-only conditions:
+\`prewriteChecks.fixtureProcessAlive\`,
+\`prewriteChecks.fixtureOwnerProofValid\`,
+\`prewriteChecks.providerGenerationAndCapabilitiesValid\`,
+\`prewriteChecks.frontmostUnchanged\` and
+\`prewriteChecks.pointerUnchanged\`.
+Any \`false\` prevents \`set_value\` entirely, including if a read-only
+probe threw an exception. Neither raw errors, user app IDs, other
+window data, PIDs, mouse positions, credentials, nor opaque references
+appear in the report. Successful verification additionally requires
+all five flags true and the existing one-shot write-attempt marker.
+
+New regression tests cover each independent prewrite refusal, a
+pointer-only change, asynchronous read failures/redaction, and
+fixed-schema output; 16 fixture-only unit tests were simulated and
+passed before full Mac verification.
+
+Next:
+1. \`project-update-verify\` guarded fast-forward; **do not execute**
+   if candidate tests fail.
+2. One new task ID to run the same pinned one-shot fixture-only write
+   program. A failed gate then reports the precise Boolean set so the
+   actual cause can be determined, without attempted native input.
+   If all gates pass, it sends exactly one background \`set_value\` to
+   the test fixture, performs one targeted readback, then closes the
+   UUID execution and exits only the owned fixture child.
+3. Do not claim full Mac test gate or write success before receiving
+   the corresponding Worker results.
