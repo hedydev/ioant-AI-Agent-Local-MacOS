@@ -51,3 +51,31 @@ Do not treat the GitHub code commit itself as a deployment or as acceptance of C
 - Chrome DevTools MCP upstream confirms the precise macOS `EPERM` / `DevToolsActivePort` failure, normally enforced by `kTCCServiceSystemPolicyAppDataDetailed`, and recommends per-host Google Chrome access in Files & Folders: <https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/troubleshooting.md> and <https://github.com/ChromeDevTools/chrome-devtools-mcp/issues/3089>. Attribution to the exact installed Node remains unproven by system logs.
 - For the **next Mac-side step**, add `scripts/openclaw-chrome-tcc-live-passive.mjs` and regression tests. This performs a short-lived bounded macOS `tccd` log stream surrounding one open/close-only attempt, outputs **only counts and sanitized candidate responsible IDs**; never emits raw log lines, accesses profile contents, changes TCC or restarts anything. One attempt may still return no TCC events due to log privacy or current audit settings. A client ID captured in concurrent logs is not automatically causal proof.
 - Do **not** run global `tccutil reset` or indiscriminately reset `ai.openclaw.mac` (its per-Chrome toggle was already ON). Apple documents scoped `tccutil reset SERVICE bundle-id` but it does not grant access or identify non-bundle executable clients. Any eventual reset must precisely target a proven client, be operator-authorized and followed by the macOS consent UI.
+
+## 2026-10-29 browser-extension detour — scope correction after 0515
+
+- The **operator explicitly confirms** that the Chrome extension is
+  installed and **OpenClaw Debug Browser is enabled**. Treat this as
+  user-confirmed UI state, not as a CLI assertion.
+- 0509 simply had `openclaw` missing from the Worker shell `PATH`;
+  0510 located the existing launcher and bundled OpenClaw CLI. Neither
+  indicated a missing app.
+- 0511/0515 `browser extension setup --action inspect` returned
+  `extension_missing` and `installedProfiles:0`; 0512 did not request
+  install; 0513 `browser extension install` failed to create a Chrome
+  External Extensions request due to `EPERM`, although the Native Host
+  registration was `owned`. These results prove CLI discovery/
+  installation limitations, **not that the user-observed extension is
+  absent**. The prior advice to reinstall the extension was a wrong
+  direction and must **not be repeated**.
+- 0508 repeated the scoped open-only `EPERM` test; one TCC attribution
+  line was observed but no safe responsible identifier identified.
+  Do not infer exact TCC client and do not repeat speculative reset.
+- **This browser/TCC record is now an optional diagnostic appendix.**
+  The user goal is **OpenClaw.app native Mac Computer Use** through the
+  existing CUA v2 node, with exact-window/AX noninterfering background
+  capability and independent Alice Chat coordinator. Continue from
+  [OPENCLAW_NATIVE_COMPUTER_USE_PRIMARY_20261029.md](./OPENCLAW_NATIVE_COMPUTER_USE_PRIMARY_20261029.md).
+  No extension reinstall or further TCC investigation unless the operator
+  separately requests it or native CUA evidence shows it is specifically
+  blocking the approved operation.

@@ -2,6 +2,42 @@
 
 Read this file and `docs/PHASE1.md` before changing the repository. Read Hero Skills `AGENTS.md`, `AI_START_HERE.md`, and relevant skills/standards before implementation. This repo owns current state; Hero Skills owns cross-project patterns.
 
+## Current mandatory project direction — native Computer Use (2026-10-29)
+
+**Before any OpenClaw/Mac/ChatGPT/AliceAI desktop task, read
+[docs/OPENCLAW_NATIVE_COMPUTER_USE_PRIMARY_20261029.md](docs/OPENCLAW_NATIVE_COMPUTER_USE_PRIMARY_20261029.md).**
+This is the current operator-confirmed **priority and routing contract** for
+the *separately opted-in* modern Ops/AliceAI workflow; it does **not** weaken
+Phase-1 read-only browser audit restrictions.
+
+1. The goal is **OpenClaw.app's paired native macOS Computer Use**
+   (`cua-computer` v2 / `computer.act`) controlling Mac windows through
+   well-attested, approved actions, especially non-interfering background
+   element operations. The Chrome extension, Chrome MCP and TCC investigation
+   are **secondary**, not the project goal.
+2. The operator **confirmed the Chrome extension is installed and OpenClaw
+   Debug Browser is enabled**. A conflicting CLI `extension_missing`
+   result is a discovery/profile ambiguity, **not proof of absence**.
+   Do not prompt reinstall/setup/reset or repeatedly diagnose it without
+   new task-specific evidence and user approval.
+3. Preserve accepted Mac evidence: AppKit fixture background `set_value`
+   worked (205C-48); own CUA lease transition worked (205C-67). Real
+   AliceAI Chat composer identity, draft emptiness, unique send target and
+   receipt are **not yet proven**. Move these native CUA readiness gates
+   forward; do not loop back to extension installation.
+4. The Ops Worker is **not** the AliceAI Chat writer. The independent Alice
+   Coordinator remains the only permitted Alice Chat writer; its pending
+   one-shot handshake may not be replayed. Browser host consent, CUA action
+   approval, Mac terminal grant and Alice owner approval are distinct.
+5. No unapproved global pointer/focus/input, Chrome/tab switching, raw
+   CDP/browser permission bypass, TCC reset, FDA escalation, provider
+   replacement or service restart. Explicitly approved native actions are
+   allowed within scoped capabilities; never misrepresent user authorization
+   as a blanket prohibition or blanket bypass.
+6. **Script First**: reviewed repo script + tests + safe commit + protected
+   `project-update-verify` + one unique short Worker task + actual Mac
+   acceptance receipt. Distinguish GitHub-only changes from deployed code.
+
 ## Immutable stage-1 trust boundaries
 
 - OpenClaw browser CLI may only call `tabs` and `snapshot` from runtime code. Operator manually opens authorized tabs.

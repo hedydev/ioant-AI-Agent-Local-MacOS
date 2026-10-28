@@ -1,5 +1,18 @@
 # Ioant AI Agent — Local macOS
 
+> **Current AI-OpenClaw workflow direction (2026-10-29):**
+> The primary path is **OpenClaw.app native Mac Computer Use (CUA v2
+> `computer.act`) → exact-window background element control → approved
+> ChatGPT/AliceAI collaboration**, not reinstalling Chrome extensions.
+> Operator confirms the extension is already installed and OpenClaw Debug
+> Browser enabled; `extension_missing` from a CLI is a conflicting
+> discovery result, not proof of absence. Read the
+> [authoritative native Computer Use project rules](docs/OPENCLAW_NATIVE_COMPUTER_USE_PRIMARY_20261029.md)
+> before attempting any browser/desktop work. Historical Phase-1 content
+> below documents a **separate read-only site audit**, not the currently
+> active native CUA development objective.
+
+
 Phase 1: **human-controlled, read-only website audits** using the OpenClaw browser CLI for *snapshots* and a local Ollama model for *analysis*. No ChatDock dependency, cloud API, browser clicking, shell actions proposed by pages, or unattended account mutation.
 
 > Status: first real Mac **read-only smoke audit passed** (2026-10-23 operator log): OpenClaw opened example.com, local Ollama produced a private Markdown report, and temporary Gateway cleanup ran. Report quality, unchanged-page deduplication and ongoing monitoring remain to be individually accepted.

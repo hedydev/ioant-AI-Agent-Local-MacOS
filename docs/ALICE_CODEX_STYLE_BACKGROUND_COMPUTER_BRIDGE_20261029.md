@@ -1,5 +1,15 @@
 # AliceAI ↔ ChatGPT: Codex-style background Computer control
 
+> **Current precedence / correction (2026-10-29):** this document's
+> design and real CUA receipts remain valid, but the project entrypoint
+> is now [OPENCLAW_NATIVE_COMPUTER_USE_PRIMARY_20261029.md](./OPENCLAW_NATIVE_COMPUTER_USE_PRIMARY_20261029.md).
+> The operator confirms the Chrome extension is already installed and
+> OpenClaw Debug Browser enabled. CLI extension discovery reports must
+> not redirect this native Computer Use plan into an installation/TCC
+> loop. Preserve consent and exclusive message ownership; continue from
+> exact native AX composer/draft/send readiness and execution ownership.
+
+
 Status: **design + no-input planning gates committed**, not yet shipped as a live
 writer. This deliberately supersedes the screenshot-pilot code (removed before
 deployment). The existing Mac Ops and Alice Coordinator Workers remain unchanged.

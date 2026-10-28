@@ -56,3 +56,21 @@ Protected source update is initiated by a user-approved Worker JSON task `{"prot
 The next assistant should **begin at 205C-78**: `DevToolsActivePort` exists but is **not readable by Mac Worker**, `chrome-mcp` tabs unavailable. Identify the cause with non-invasive permissions/identity diagnostics before proposing authorized remediation. Keep `com.ioant.openclaw.alice-coordinator` running; keep handshake `alice-coordinator-verify-20261027-103` in `requested` unless a genuine Alice Chat receipt establishes its next phase. Do not switch Alice into the foreground, impersonate its ChatGPT owner, replay a send, overwrite a draft, alter Chrome permissions invisibly, restart Gateway/Worker or conflate native fixture success with real ChatGPT delivery.
 
 Repository documentation and GitHub source may be ahead of the user's Mac runtime; **always inspect both HEADs and require the test-gated `project-update-verify` receipt before asserting a source change is deployed**.
+
+## 2026-10-29 current directive — native CUA supersedes Chrome setup detour
+
+The 205C-78 text above is valid *historical evidence* but not the next
+project priority. The authoritative current routing and acceptance contract
+is [OPENCLAW_NATIVE_COMPUTER_USE_PRIMARY_20261029.md](./OPENCLAW_NATIVE_COMPUTER_USE_PRIMARY_20261029.md).
+The operator confirmed Chrome extension **already installed** and
+OpenClaw Debug Browser **already enabled**. Later CLI `extension_missing`
+is an unresolved discovery disagreement, not proof of absent installation.
+Native Mac CUA v2 is the chosen primary control path; accepted fixture
+background write 205C-48 and own lease transition 205C-67 should be reused,
+not retried as if never completed. Alice Chat composer/draft/send identity and
+actual one-writer receipt remain unproven. Do not substitute Chrome MCP,
+extension setup, screenshots, raw CDP, or TCC reset for this project work.
+The Ops main Worker was separately rebound to Chat
+`6ae25a0b-9b38-83ec-b2df-9db1f40f9488` with a real canary and a new
+explicit terminal grant; Alice Coordinator remains separately bound and its
+pending exactly-once handshake is still only requested.
