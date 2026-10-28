@@ -109,16 +109,18 @@ export function summarizeBrowserState(raw){
    'target_page_verified':'target_page_unverified'};
 }
 export async function observeAliceNativeBrowser({run=cli,osRead=()=>execFileSync('/usr/bin/osascript',
- ['-e',chromeAppleScript()],{encoding:'utf8',timeout:7000,maxBuffer:8192})}={}){
+ ['-e',chromeAppleScript()],{encoding:'utf8',timeout:7000,maxBuffer:8192,stdio:['ignore','pipe','pipe']})}={}){
  const base={audit:AUDIT,schemaVersion:1,readOnly:true,
   changedBrowser:false,chatMessageSent:false,desktopInput:false,
   screenshotTaken:false,relayAccess:false};
  if(process.platform!=='darwin'||ROOT!==RUNTIME||await realpath(RUNTIME)!==RUNTIME)
   return {...base,state:'blocked',reason:'private_runtime_required'};
  let own=null,node=null,closeAttempted=false,closeAcknowledged=false,firstAttempted=false;
+ let phase='chrome_os_metadata';
  try{
   const target=verifyChromeTarget(osRead());
   if(!target)return {...base,state:'inconclusive',reason:'os_active_target_unverified'};
+  phase='native_provider_preflight';
   const status=run(['nodes','status','--json'],18000);
   const selection=chooseConnectedMacNode(status);
   const rows=(status.result??status).nodes;
@@ -131,13 +133,16 @@ export async function observeAliceNativeBrowser({run=cli,osRead=()=>execFileSync
   const native=(action,params={})=>run(['nodes','invoke','--node',node,
    '--command','computer.act','--params',
    JSON.stringify({action,executionId:own,...params}),'--json'],30000);
+  phase='native_window_list';
   firstAttempted=true;
   const list=native('list_windows');
   if(list?.ok!==true)return {...base,state:'inconclusive',reason:'native_window_list_unverified'};
+  phase='native_window_matching';
   const selected=selectNativeWindow(list,target.title);
   if(selected.state!=='matched')return {...base,state:'inconclusive',
    reason:selected.reason,nativeWindowRecords:selected.nativeWindowRecords,
    compatibleWindowRecords:selected.compatibleCount};
+  phase='native_browser_state';
   const response=native('get_browser_state',{windowRef:selected.windowRef});
   if(response?.ok!==true)return {...base,state:'inconclusive',reason:'native_browser_state_refused'};
   const summary=summarizeBrowserState(response);
@@ -146,8 +151,8 @@ export async function observeAliceNativeBrowser({run=cli,osRead=()=>execFileSync
    browserRefObserved:summary.browserRefObserved,exactPageMatches:summary.exactPageMatches};
  }catch(e){
   return {...base,state:'inconclusive',
-   reason:'native_browser_observation_unavailable',
-   preAdmissionDenied:knownPreAdmissionNativeFailure(e)};
+   reason:phase==='chrome_os_metadata'?'chrome_os_metadata_unavailable':'native_browser_observation_unavailable',
+   phase,preAdmissionDenied:knownPreAdmissionNativeFailure(e)};
  }finally{
   if(firstAttempted&&own&&node){
    closeAttempted=true;
