@@ -19,3 +19,9 @@
 - Existing evidence proves the Chrome `DevToolsActivePort` exists but the Worker could not read it; neither Gateway read permission nor TCC/ACL root cause has yet been independently proven.
 
 Do not treat the GitHub code commit itself as a deployment or as acceptance of Chrome MCP access.
+
+## Follow-up test-gate failure and bounded path fix
+
+- Real Mac Worker receipt `openclaw-chrome-mcp-cli-fix-deploy-20261029-0495`: protected candidate update **blocked** with `candidate_tests_failed` (1104 total, 1103 passed, one failed). The failure evidence did not include an assertion location or raw logs; it does **not** prove which test failed. Runtime must remain at the last accepted `83d2e26d6bb73f5a903dfa4c1b95aca0b346bcc1`; no partial deployment should be claimed.
+- Strong candidate root cause: on macOS, the temp location used by the new subprocess test may use the `/var` alias for `/private/var`; `fileURLToPath(import.meta.url)` decodes space but a literal equality with `process.argv[1]` is not robust across this alias. The fix compares `realpathSync` of both paths and adds a deterministic symlinked-directory-with-spaces CLI test. This remains a **hypothesis** until the next protected suite confirms it.
+- The probe `0494` still has no diagnostic JSON; do not infer any DevToolsActivePort/Gateway/TCC conclusion from its zero exit code. Do not retry the failed deployment task ID or inspect Chrome via unauthorized browser/CDP surfaces.

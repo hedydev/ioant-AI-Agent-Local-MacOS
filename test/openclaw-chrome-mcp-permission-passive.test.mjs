@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {mkdtemp,copyFile,rm} from 'node:fs/promises';
+import {mkdtemp,copyFile,rm,mkdir,symlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
@@ -55,6 +55,28 @@ test('CLI entrypoint emits bounded audit even when installed path contains space
   const audit=JSON.parse(lines[0]);
   assert.equal(audit.audit,'IOANT_CHROME_MCP_PERMISSION_PASSIVE');
   assert.equal(audit.state,'blocked');
+  assert.equal(audit.reason,'no_arguments_supported');
+ }finally{
+  await rm(folder,{recursive:true,force:true});
+ }
+});
+
+test('CLI entrypoint identifies symlinked /var-style path with spaces',async()=>{
+ const folder=await mkdtemp(join(tmpdir(),'ioant chrome mcp alias '));
+ try{
+  const actualDir=join(folder,'actual space');
+  const aliasDir=join(folder,'alias space');
+  await mkdir(actualDir);
+  const name='passive CLI.mjs';
+  await copyFile(new URL('../scripts/openclaw-chrome-mcp-permission-passive.mjs',import.meta.url),join(actualDir,name));
+  await symlink(actualDir,aliasDir,'dir');
+  const result=spawnSync(process.execPath,[join(aliasDir,name),'--unsupported'],{
+   encoding:'utf8',timeout:10000,maxBuffer:8192
+  });
+  assert.equal(result.error,undefined);
+  assert.equal(result.status,2,result.stderr);
+  const audit=JSON.parse(result.stdout.trim());
+  assert.equal(audit.audit,'IOANT_CHROME_MCP_PERMISSION_PASSIVE');
   assert.equal(audit.reason,'no_arguments_supported');
  }finally{
   await rm(folder,{recursive:true,force:true});

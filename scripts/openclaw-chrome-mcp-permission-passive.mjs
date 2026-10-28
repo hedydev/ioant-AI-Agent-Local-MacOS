@@ -3,6 +3,7 @@
 // Only path metadata / ACL presence and process identity; NO file contents,
 // fs.open, fs.access, browser/CDP calls, TCC changes, or service mutations.
 import {lstat} from 'node:fs/promises';
+import {realpathSync} from 'node:fs';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {homedir} from 'node:os';
@@ -109,7 +110,7 @@ export async function inventory(){
   metadataAssessment:classifyMetadata(entries),
   tccCausality:'not_established',gatewayCanReadPort:'not_tested'};
 }
-if(process.argv[1]===fileURLToPath(import.meta.url)){
+if(process.argv[1]&&realpathSync(process.argv[1])===realpathSync(fileURLToPath(import.meta.url))){
  if(process.argv.length!==2){console.log(JSON.stringify({audit:'IOANT_CHROME_MCP_PERMISSION_PASSIVE',
   state:'blocked',reason:'no_arguments_supported'}));process.exitCode=2;}
  else{console.log(JSON.stringify(await inventory()));}
