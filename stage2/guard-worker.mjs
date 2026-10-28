@@ -18,6 +18,7 @@ import {chatKey} from './protocol.mjs';
 import {classifyGuardObservation,classifyWorkerLogTail,
  evaluateGuardHandoff} from './guard-worker-core.mjs';
 import {evaluateChatContinuity} from './guard-chat-continuity.mjs';
+import {readHandshake} from './alice-coordinator-handshake.mjs';
 const exec=promisify(execFile);
 const HOME=homedir();
 const ROOT=resolve(fileURLToPath(new URL('..',import.meta.url)));
@@ -195,7 +196,8 @@ async function readHandoffSettlement(url){
    guardNotice:state.guardNotice!==null&&state.guardNotice!==undefined,
    maintainerNotice:state.maintainerNotice!==null&&state.maintainerNotice!==undefined,
    initialization:state.initPending!==null&&state.initPending!==undefined};
- }catch{return {verified:false}}
+ }catch(e){return {verified:false,
+   reason:e?.code==='ENOENT'?'state_file_absent':'state_file_unverifiable'}}
 }
 async function handoffReadiness(projectKey){
  const response={audit:'IOANT_GUARD_CHAT_CONTINUITY',schemaVersion:1,
@@ -220,8 +222,18 @@ async function handoffReadiness(projectKey){
  }catch{return {...response,state:'blocked',
   reason:'installed_binding_or_manifest_unverifiable'}}
  const service=status.services.find(s=>s.projectKey===projectKey);
- const settlement=binding?
+ let settlement=binding?
   await readHandoffSettlement(binding.chatUrl):{verified:false};
+ if(projectKey==='alice-ai'&&settlement.verified){
+  try{
+   const handshake=await readHandshake({cache:CACHE,volume:'/Volumes/LunaDrive'});
+   settlement={...settlement,handshake:handshake?.phase??'none'};
+  }catch{
+   // A missing/invalid Alice mailbox must never be treated as
+   // 'confirmed' or silently bypassed during a Chat migration.
+   settlement={verified:false,reason:'alice_handshake_unverifiable'};
+  }
+ }
  return evaluateChatContinuity({projectKey,binding,manifest,
   service,settlement});
 }
