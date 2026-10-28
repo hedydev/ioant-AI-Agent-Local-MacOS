@@ -13,6 +13,7 @@ import {fileURLToPath} from 'node:url';
 import {chooseConnectedMacNode} from './openclaw-mac-visual.mjs';
 import {walkNativePayload} from './openclaw-cua-fixture-native-observe.mjs';
 import {scopedCloseRequest,knownPreAdmissionNativeFailure} from './openclaw-cua-owned-session-guard.mjs';
+import {classifyInvokeFailure} from './openclaw-cua-readonly-invoke-diagnostic.mjs';
 import {parseProjectChatUrl} from '../stage2/project-chat-routing.mjs';
 
 const ROOT=resolve(fileURLToPath(new URL('..',import.meta.url)));
@@ -27,6 +28,24 @@ const AUDIT='IOANT_ALICE_NATIVE_BROWSER_READONLY';
 export const CHROME_WIRE='|IOANT-ALICE-205C25-WIRE|';
 const cleanText=v=>typeof v==='string'&&v.length>0&&v.length<512&&!/[\r\n\t]/.test(v);
 const safeRef=v=>typeof v==='string'&&v.length>=3&&v.length<=1024;
+const SAFE_CATEGORY=/^[a-z][a-z0-9_]{1,70}$/;
+const SAFE_NATIVE_CODE=/^(?:COMPUTER|NODE|ACCESSIBILITY|SCREEN)_[A-Z_]{3,80}$/;
+export function classifyNativeBrowserError(error){
+ // Reuse the tested native error taxonomy without raw CLI output.
+ const cls=classifyInvokeFailure(error);
+ const subtype=error?.name==='SyntaxError'?'invalid_json':
+  error?.code==='ERR_CHILD_PROCESS_STDIO_MAXBUFFER'?'oversized_output':
+  error?.killed===true?'timed_out':'none';
+ return Object.freeze({
+  failureCategory:SAFE_CATEGORY.test(cls.category)?cls.category:'unclassified',
+  ...(SAFE_NATIVE_CODE.test(cls.nativeCode??'')?{nativeCode:cls.nativeCode}:{}),
+  cliExitCode:cls.exitCode,
+  structuredErrorBody:cls.structuredErrorBody===true,
+  stdoutPresent:cls.stdoutPresent===true,
+  stderrPresent:cls.stderrPresent===true,
+  localFailureSubtype:subtype
+ });
+}
 function cli(args,timeout=25000){
  return JSON.parse(execFileSync(CLI,args,{cwd:RUNTIME,timeout,maxBuffer:8*1024*1024,encoding:'utf8',stdio:['ignore','pipe','pipe']}));
 }
@@ -168,8 +187,10 @@ export async function observeAliceNativeBrowser({run=cli,osRead=()=>execFileSync
    compatibleWindowRecords:selected.compatibleCount,targetWasActive:target.targetActive};
   phase='native_browser_state';
   const response=native('get_browser_state',{windowRef:selected.windowRef});
-  if(response?.ok!==true)return {...base,state:'inconclusive',reason:'native_browser_state_refused',
-   targetWasActive:target.targetActive};
+  if(response?.ok!==true)return {...base,state:'inconclusive',
+   reason:'native_browser_state_refused',targetWasActive:target.targetActive,
+   ...classifyNativeBrowserError({stdout:JSON.stringify({
+    ok:response?.ok,error:response?.error,code:response?.code})})};
   const summary=summarizeBrowserState(response);
   return {...base,state:summary.state,reason:summary.state==='target_page_verified'?
    'native_browser_page_reference_verified':'browser_page_identity_unverified',
@@ -178,7 +199,8 @@ export async function observeAliceNativeBrowser({run=cli,osRead=()=>execFileSync
  }catch(e){
   return {...base,state:'inconclusive',
    reason:phase==='chrome_os_metadata'?'chrome_os_metadata_unavailable':'native_browser_observation_unavailable',
-   phase,preAdmissionDenied:knownPreAdmissionNativeFailure(e)};
+   phase,preAdmissionDenied:knownPreAdmissionNativeFailure(e),
+   ...(phase==='native_browser_state'?classifyNativeBrowserError(e):{})};
  }finally{
   if(firstAttempted&&own&&node){
    closeAttempted=true;
