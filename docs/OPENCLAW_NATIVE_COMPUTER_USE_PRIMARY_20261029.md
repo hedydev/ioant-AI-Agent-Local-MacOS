@@ -1092,3 +1092,47 @@ The bounded Mac Worker receipt `openclaw-alice-managed-chat-readiness-20261029-0
 This follows the confirmed 0546 proxy config repair, 0547 **stop/start** of the exact `alice-ai` browser, and 0548 post-restart proxy process verification. The pre-restart screenshot showed the exact Alice Chat URL in a Chrome address bar along with `ERR_PROXY_CONNECTION_FAILED`, but a stop/start may have reopened the managed browser with a blank/new tab rather than restoring the old URL. Therefore pressing Refresh after 0547 does **not** necessarily load the target chat. Do not infer that the human never navigated, that login failed, that the proxy is still broken, or that the managed browser has the exact chat open.
 
 Next diagnostic is the **existing read-only URL-category script** `scripts/alice-managed-tab-categories-readonly.mjs` re-run as a NEW post-restart task, `0550`, to distinguish a blank tab vs login redirect vs ChatGPT non-target page without emitting raw URLs/titles. If blank/new tab, instruct the operator to paste the existing exact AliceAI chat URL into the **dedicated managed alice-ai address bar** and press Enter (rather than merely refresh). If login-related, operator completes sign-in in that same profile; if other ChatGPT/project page, operator follows exact chat URL. Only after a unique exact chat tab is observed may separate native CUA owner/window/composer readiness proceed. Automated OpenClaw Browser CLI navigation remains disallowed by strict SSRF for a proxy-routed browser; no bypass, auth/session transfer, unapproved native navigation, or Coordinator send.
+
+## 2026-10-29 0550: UI visually open but OpenClaw exact-tab inventory disagrees
+
+Receipt `openclaw-alice-postrestart-tab-and-readiness-20261029-0550`:
+the dedicated `alice-ai` profile still reported exactly one
+tab, with coarse categories `unknown=1` and `exactAliceChat=0`.
+The separate readiness result was
+`state=await_operator_manual_navigation`,
+`exactChatTabMatches=0`, `headless=false`,
+`cdpReady=true`, with **no** browser navigation, native CUA
+invocation, login verification or message sent.
+
+**Important new operator evidence:** immediately afterward the user
+shared a screenshot and stated in Chinese "已经打开了" ("It's already
+open"). Treat this as evidence of a browser window/page visible to
+the operator, **not** as evidence that the currently reported empty
+or unknown managed CDP tab is that exact window or that the target
+AliceAI Project Chat is loaded and authenticated. Do **not**
+repeatedly ask them to paste the URL, press Enter or re-login without
+first examining the discrepancy; do not claim the human never
+navigated. Past 0540 established the managed API tab URL was the
+empty string. User-facing observation and the CLI's profile tab
+inventory now differ.
+
+**Next audit 0551:** perform a bounded, read-only *differential*
+of (a) OpenClaw CLI `browser --browser-profile alice-ai tabs --json`
+and (b) the known local managed Chromium CDP endpoint
+`http://127.0.0.1:18801/json/list`. Require previously
+attested `alice-ai` browser status; classify only the tab
+metadata as empty/ChatGPT/exact-target/other with booleans or
+counts. Do not expose raw URLs, titles, tab IDs, tokens, Chrome
+argv, screenshots, cookies or chat content, and do not use CDP to
+navigate, execute JavaScript or change Chrome state. CDP metadata
+may be unavailable due to endpoint permissions: report that
+as inconclusive, not as no target. If both views still show an
+empty managed tab while the human can see ChatGPT, inspect **native
+GUI window process ownership** (managed Chromium PID vs daily
+Chrome) using only bounded OS metadata; do not blame the user.
+If CDP sees exact chat but CLI remains empty, investigate OpenClaw
+tab inventory adapter. If both see exact chat, continue native
+CUA windowRef/AX read-only gate; chat delivery still unauthorized.
+
+This is independent of the fully verified 0548 stale proxy
+repair. Strict Browser SSRF under proxy routing remains enforced.
