@@ -574,12 +574,18 @@ async function main(){
           continue; // Never run a new task while previous feedback unresolved.
         }
       }
+      // Do not preempt a new or ambiguous assistant task with an unsolicited
+      // Guard notice. Delivery is allowed only when the latest turn has no
+      // pending executable instruction, or its task ID was already handled.
+      const taskBeforeGuard=extractWatchedAction(page);
+      const safeGuardSlot=taskBeforeGuard.status==='idle'||
+        (taskBeforeGuard.status==='task'&&taskBeforeGuard.task.id===state.lastTaskId);
       // Same exact-chat single-writer notification bridge for Guard incidents.
       // The independent Guard ONLY persists tickets and never touches Chrome.
       // A pending ordinary task receipt ALWAYS takes priority over this block.
       // The source service plist, ticket scope and digest are validated before
       // the existing, locally authorized browser sender may be called.
-      if(!isolatedProjectScope){
+      if(!isolatedProjectScope&&safeGuardSlot){
         if(state.guardNotice){
           if(!validateGuardOutboxState(state))
             throw Error('Untrusted pending Guard notice state; no send.');
