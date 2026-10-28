@@ -1526,3 +1526,76 @@ invalid snapshots and bounded stage-specific output. **Full Mac suite
 and a new live run are still pending.** When evaluating a new run,
 do not infer CUA interference from movement alone; observation proves
 a state difference but cannot attribute it to the user, OS or provider.
+
+## 2026-10-28 — 187B native CUA background fixture write accepted on real Mac
+
+After the same-Project ChatGPT Worker rebind, the new chat
+`6ae18e93-e2a0-83ec-aac9-88105079f208` received a successful
+`project-head` Canary for `008e92be23ef2e623b43afec4e73f05a0bb356e2`.
+The operator separately enabled the new conversation's scoped terminal
+grant; the old conversation's terminal and window-text grants were revoked.
+This is routing/authorization evidence, not independent proof of CUA write.
+
+A candidate regression failure (896/897) was traced to three stale
+source-text assertions in
+`test/openclaw-cua-fixture-native-observe.test.mjs` expecting
+`after===before` while the pure `focusPointerComparison` implementation
+used the equivalent `before===after`. Only those test expectations were
+corrected in GitHub commit
+`008e92be23ef2e623b43afec4e73f05a0bb356e2`; Mac's guarded
+self-update then returned **897/897 passed, 0 failed**, and a separate
+runtime fast-forward was verified at that exact SHA. No actual CUA
+mutation guard was weakened for this repair.
+
+Live Worker task:
+`openclaw-cua-fixture-background-187b-20261028`
+(`mac-terminal`, exit 0, elapsed 12,825 ms; report audit
+`IOANT_CUA_FIXTURE_BACKGROUND_WRITE`):
+
+- Preparation: `state=prepared`, reused pinned native AppKit fixture,
+  source digest prefix `9d297fd10418fcf9`.
+- Action: `state=observed`, `reason=fixture_background_write_verified`,
+  `mutatingActionAttempted=true`, `backgroundDeliveryRequested=true`,
+  `writeIssued=true`.
+- Identity: `fixtureWindowMatched=true`, `fixtureElementMatched=true`,
+  `fixtureSelfAttested=true`, `independentOSPidVerified=true`.
+- All five prewrite checks true:
+  `fixtureProcessAlive`, `fixtureOwnerProofValid`,
+  `providerGenerationAndCapabilitiesValid`, `frontmostUnchanged`,
+  `pointerUnchanged`.
+- Post-action: `nativeReadbackMatched=true`,
+  `fixtureStillOwned=true`, `providerGenerationStable=true`,
+  `focusAndPointerUnchanged=true`.
+- `performedComputerInput=true` means the scoped native background
+  `set_value` mutation was actually attempted; simultaneously,
+  `performedPointerOrKeyboardInput=false`, `screenshotTaken=false`,
+  `browserAccess=false`, and `changedBrowser=false`.
+- Scoped execution close:
+  `ownExecutionClosure.attempted=true`,
+  `acknowledged=true`, **`ownerReleaseVerified=false`**;
+  `existingComputerOwnerReleased=false`. An acknowledged close request
+  does not independently prove release.
+
+**Accepted conclusion:** The real paired Mac native CUA provider can
+perform exactly one background `computer.act set_value` to an
+independently attested, newly spawned, synthetic AppKit fixture field
+while the tested frontmost-app and hardware-pointer invariants stay
+unchanged; a fresh targeted native read verified the synthetic value.
+
+**Not accepted/generalized:** no authorization, targeting or success
+has been established for Chrome, ChatGPT DOM, user files, third-party
+applications, arbitrary screen coordinates, mouse/keyboard simulation
+or persistent general-purpose desktop automation. Do not infer
+effective execution-lease release from `acknowledged=true`; future
+computer runs must separately verify ownership/admission. Preserve
+the nonce/PID/window/element/observation/generation gates, fail-closed
+interference checks, one-shot/no-retry behavior and no foreground
+fallback.
+
+Suggested next work: perform a separate read-only native capability and
+lease-ownership diagnostic, then design an explicit operator-consented
+allowlist for a real application's specific safe action, with independent
+post-action observation and no cross-app targeting. The present doc-only
+commit is not a Mac deployed-runtime claim; any next script change
+requires its own clean gated full-suite verification.
+
