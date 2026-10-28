@@ -60,3 +60,14 @@ test('source is exact-fixture scoped, no arbitrary paths or new browser navigati
  assert.match(s,/state\('press_intent'\)/);
  assert.doesNotMatch(s,/CGEventPost|osascript|launchctl|browser navigate|browser open|--element|--screenshot/);
 });
+
+test('the sender uses scoped user-turn attachment receipt, not global message text',()=>{
+ const s=readFileSync(resolve(import.meta.dirname,
+  '../scripts/openclaw-chatgpt-fixture-upload.mjs'),'utf8');
+ assert.match(s,/buildScopedReceiptProbe/);
+ assert.match(s,/classifyScopedReceipt\(raw\)/);
+ assert.match(s,/scopedDeliveryReceipt\(id\)/);
+ assert.doesNotMatch(s,/if\(\(await proof\(id\)\)\.receipt\)/);
+ assert.match(s,/state\('press_intent'\)/);
+ assert.match(s,/prior_send_state_exists/);
+});
