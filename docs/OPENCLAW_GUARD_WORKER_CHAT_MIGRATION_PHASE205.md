@@ -220,3 +220,36 @@ Root cause: changing the canonical source-contract parser statement 'const a=ext
 Additional functional issue found: the shared incident journal may legitimately hold AliceAI and Ops events. Ops previously rejected the entire journal if any AliceAI record was present. The fix validates both known project records, but restricts Ops message selection, staging and sending exclusively to the exact authorized Ops conversation. Three new tests cover mixed journals and cross-project prohibition.
 
 Current fix is a GitHub candidate only. The next full Mac test-gated update is expected to run 1004 tests (original 1001 + three), subject to actual evidence. No automatic Guard service restart, synthetic production incident or forced task replay is authorized.
+
+## 205B-2 live health and 205B-3 isolated Browser-mock acceptance candidate
+
+Mac live 205B-2 read-only response confirmed installed Guard launchd
+`registered=true`, `periodic=true`, `StartInterval=60`,
+`runs=21`, `last exit code=0`. Because this is a short periodic job,
+`state=not running` between runs is expected and not a service crash.
+Both registered exact-chat Workers were running, had identities verified,
+no pending feedback, and no currently detected incidents. This validates
+periodic host monitoring, not a live Guard notification delivery.
+
+205B-3 adds two isolated tests in the repository:
+- `test/guard-incident-browser-mock-e2e.test.mjs`: spawns the real
+  `chatgpt-loop.mjs` under a temporary canonical HOME with a strictly
+  locally generated, installed-plist-shaped service binding, a private
+  one-ticket Guard journal and a fake executable standing in for
+  the OpenClaw Browser CLI. It checks exactly one type/Enter, the
+  fixed `IOANT-GUARD-INCIDENT` user receipt and a durable delivered
+  ledger entry, without touching real Chrome, ChatGPT or CUA.
+- `test/chatgpt-new-layout.test.mjs`: checks the actual ChatGPT
+  user-role DOM extraction recognizes the exact Guard receipt prefix
+  without leaking the incident message body.
+
+205B-3 is still a candidate until full Mac `project-update-verify`
+passes. Last full Mac suite was 1004/1004, so the expected total
+is 1006/1006. The live installed Guard is not restarted or modified.
+
+Important distinction: a simulated Browser-CLI success proves the
+tested local code path and receipt logic, not production ChatGPT
+delivery reliability or permission to inject synthetic incidents
+into a real user's conversation. Independent Guard-to-Chat takeover
+after a crashed main Worker and safe per-Chat rollover remain future
+separate authorization and acceptance phases.
