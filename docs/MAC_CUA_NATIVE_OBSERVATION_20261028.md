@@ -1489,3 +1489,40 @@ Next:
    UUID execution and exits only the owned fixture child.
 3. Do not claim full Mac test gate or write success before receiving
    the corresponding Worker results.
+
+
+## 2026-10-28 — 186C identifies early foreground/pointer invariant
+
+After 186B diagnostic deployment passed **894/894** at
+\`cbb9e216ce998009a7e9e78cb2e96df6a1bdd1fe\`,
+186C Mac live attempt returned:
+
+- \`state=blocked\`, \`reason=foreground_or_pointer_changed\`.
+- Fixture launched and its synthetic window matched.
+- \`mutatingActionAttempted=false\`, no CUA \`set_value\` dispatched.
+- Own UUID close acknowledged; \`ownerReleaseVerified=false\`.
+
+The refusal comes from the **observer's early gate** comparing the
+frontmost bundle ID and mouse coordinates sampled before fixture launch
+against the values sampled after the CUA read-only calls, BEFORE the
+five callback-level prewrite checks. Thus the new \`prewriteChecks\`
+were legitimately absent, not a reporting or provider failure.
+The existing report cannot distinguish focus vs cursor change;
+ordinary human mouse movement during the ~6-second read is a plausible
+cause, but provenance of the change is not established.
+
+Follow-up diagnostic patch adds only fixed Boolean comparisons:
+\`interferenceStage: fixture_launch | post_native_read\`,
+\`interferenceSignals.frontmostUnchanged\` and
+\`interferenceSignals.pointerUnchanged\`. For the post-read gate it
+also reports the fixture-launch comparison. The same strict blocking
+rule remains active, and no raw bundle names, coordinates, private
+app/window metadata or chat content appear in reports. The default
+read-only observer remains read-only. There is no pointer reset,
+focus switch, foreground fallback, retry or bypass.
+
+Three focused regression tests cover exact independent comparisons,
+invalid snapshots and bounded stage-specific output. **Full Mac suite
+and a new live run are still pending.** When evaluating a new run,
+do not infer CUA interference from movement alone; observation proves
+a state difference but cannot attribute it to the user, OS or provider.
