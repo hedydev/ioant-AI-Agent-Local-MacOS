@@ -4,7 +4,8 @@ import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {
  makeFixtureBackgroundSetValueArgs,exactFixtureWrittenValue,
- verifiedFixtureBackgroundWrite,fixtureBackgroundWriteProof
+ verifiedFixtureBackgroundWrite,fixtureBackgroundWriteProof,
+ inspectFixtureWritePreflight
 } from '../scripts/openclaw-cua-fixture-background-write.mjs';
 const script=readFileSync(resolve(import.meta.dirname,'..',
  'scripts/openclaw-cua-fixture-background-write.mjs'),'utf8');
@@ -92,19 +93,35 @@ test('success: one write and one targeted read with unchanged frontmost',async()
  const report=await verifiedFixtureBackgroundWrite(base);
  assert.deepEqual(report,{writeIssued:true,nativeReadbackMatched:true,
   fixtureStillOwned:true,providerGenerationStable:true,
-  focusAndPointerUnchanged:true});
+  focusAndPointerUnchanged:true,prewriteChecks:{
+   fixtureProcessAlive:true,fixtureOwnerProofValid:true,
+   providerGenerationAndCapabilitiesValid:true,
+   frontmostUnchanged:true,pointerUnchanged:true
+  }});
  assert.deepEqual(stats(),{calls:2,marked:1});
 });
 test('OS target PID lost before mutation => no write or read',async()=>{
  const {base,stats}=fakeContext({verifyOwnedWindow:async()=>false});
  const out=await verifiedFixtureBackgroundWrite(base);
  assert.equal(out.writeIssued,false);
+ assert.deepEqual(out.prewriteChecks,{
+  fixtureProcessAlive:true,fixtureOwnerProofValid:false,
+  providerGenerationAndCapabilitiesValid:true,frontmostUnchanged:true,
+  pointerUnchanged:true
+ });
+ assert.equal(out.fixtureStillOwned,false);
  assert.deepEqual(stats(),{calls:0,marked:0});
 });
 test('provider generation changed => no write or read',async()=>{
  const {base,stats}=fakeContext({getCurrentNode:async()=>false});
  const out=await verifiedFixtureBackgroundWrite(base);
  assert.equal(out.writeIssued,false);
+ assert.deepEqual(out.prewriteChecks,{
+  fixtureProcessAlive:true,fixtureOwnerProofValid:true,
+  providerGenerationAndCapabilitiesValid:false,frontmostUnchanged:true,
+  pointerUnchanged:true
+ });
+ assert.equal(out.providerGenerationStable,false);
  assert.deepEqual(stats(),{calls:0,marked:0});
 });
 test('foreground/pointer changed => no write or read',async()=>{
@@ -113,12 +130,24 @@ test('foreground/pointer changed => no write or read',async()=>{
  })});
  const out=await verifiedFixtureBackgroundWrite(base);
  assert.equal(out.writeIssued,false);
+ assert.deepEqual(out.prewriteChecks,{
+  fixtureProcessAlive:true,fixtureOwnerProofValid:true,
+  providerGenerationAndCapabilitiesValid:true,frontmostUnchanged:false,
+  pointerUnchanged:true
+ });
+ assert.equal(out.focusAndPointerUnchanged,false);
  assert.deepEqual(stats(),{calls:0,marked:0});
 });
 test('original fixture process exited => no mutation',async()=>{
  const {base,stats}=fakeContext({fixtureIsAlive:()=>false});
  const out=await verifiedFixtureBackgroundWrite(base);
  assert.equal(out.writeIssued,false);
+ assert.deepEqual(out.prewriteChecks,{
+  fixtureProcessAlive:false,fixtureOwnerProofValid:true,
+  providerGenerationAndCapabilitiesValid:true,frontmostUnchanged:true,
+  pointerUnchanged:true
+ });
+ assert.equal(out.fixtureStillOwned,false);
  assert.deepEqual(stats(),{calls:0,marked:0});
 });
 test('native write refusal is not retried, intent is recorded',async()=>{
@@ -170,4 +199,53 @@ test('read-only CLI default and fixture-only write path remain separate',()=>{
  assert.match(script,/deliveryMode:'background'/);
  assert.match(script,/markWriteAttempted\(\)/);
  assert.doesNotMatch(script,/osascript|CGEventPost|\.activate\(|killall|--browser-profile|screencapture/);
+});
+
+
+test('read-only prewrite samples every gate independently even if first fails',async()=>{
+ const p=await inspectFixtureWritePreflight({
+  baseline:{frontmost:'app-a',mouseX:1,mouseY:2},
+  fixtureIsAlive:()=>false,
+  verifyOwnedWindow:async()=>false,
+  getCurrentNode:async()=>false,
+  readState:async()=>({frontmost:'app-b',mouseX:1,mouseY:3})
+ });
+ assert.deepEqual(p,{fixtureProcessAlive:false,
+  fixtureOwnerProofValid:false,
+  providerGenerationAndCapabilitiesValid:false,
+  frontmostUnchanged:false,pointerUnchanged:false});
+ assert.equal(Object.isFrozen(p),true);
+ assert.equal(JSON.stringify(p).includes('app-b'),false);
+});
+test('unexpected prewrite read error closes gate without leaking errors or sending input',async()=>{
+ const {base,stats}=fakeContext({
+  verifyOwnedWindow:async()=>{throw Error('PRIVATE_WINDOW_NAME')},
+  getCurrentNode:async()=>{throw Error('SECRET_GATEWAY_ADDRESS')},
+  readState:async()=>{throw Error('PRIVATE_MOUSE_COORDINATES')}
+ });
+ const r=await verifiedFixtureBackgroundWrite(base);
+ assert.equal(r.writeIssued,false);
+ assert.deepEqual(stats(),{calls:0,marked:0});
+ assert.deepEqual(r.prewriteChecks,{
+  fixtureProcessAlive:true,fixtureOwnerProofValid:false,
+  providerGenerationAndCapabilitiesValid:false,
+  frontmostUnchanged:false,pointerUnchanged:false
+ });
+ assert.doesNotMatch(JSON.stringify(r),/PRIVATE|SECRET|WINDOW_NAME|ADDRESS|COORDINATES/);
+});
+test('pointer-only movement is independently detected and blocks mutation',async()=>{
+ const {base,stats}=fakeContext({
+  readState:async()=>({frontmost:'com.example.current',mouseX:106,mouseY:210})
+ });
+ const result=await verifiedFixtureBackgroundWrite(base);
+ assert.equal(result.prewriteChecks.frontmostUnchanged,true);
+ assert.equal(result.prewriteChecks.pointerUnchanged,false);
+ assert.deepEqual(stats(),{calls:0,marked:0});
+});
+test('native observer outputs only a fixed prewrite boolean schema',()=>{
+ assert.match(observer,/const prewriteNames=\[/);
+ assert.match(observer,/prewriteChecks=Object\.fromEntries/);
+ assert.match(observer,/Object\.values\(prewriteChecks\)\.every\(v=>v===true\)/);
+ assert.doesNotMatch(observer,/console\.log\(before\)|console\.log\(after\)/);
+ assert.doesNotMatch(script,/console\.log\(baseline\)|console\.log\(after\)/);
 });
