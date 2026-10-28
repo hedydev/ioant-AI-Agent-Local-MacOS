@@ -67,8 +67,8 @@ async function invoke(args,timeout=18000){
  try{return classifyCUAResponse(await cli(args,timeout))}
  catch(e){return classifyCUAResponse(null,e)}
 }
-async function close(node,id){
- const status=await invoke(scopedCloseRequest(node,id),12000);
+async function close(node,id,run=invoke){
+ const status=await run(scopedCloseRequest(node,id),12000);
  return status==='admitted';
 }
 export async function inspectOwnLeaseTransition({
@@ -97,6 +97,7 @@ export async function inspectOwnLeaseTransition({
   first=makeId();second=makeId();
   if(first===second)throw Error('duplicate_execution_id');
   // A: read-only admission. If another owner is already active, stop.
+  firstMayOwn=true;
   const a=await run(scopedReadRequest(node,first,'get_cursor_position'),18000);
   if(a!=='admitted'){
    firstMayOwn=a!=='busy';
@@ -106,6 +107,7 @@ export async function inspectOwnLeaseTransition({
   }
   firstMayOwn=true;evidence.firstAdmitted=true;
   // B: same read-only action under a separate identity before closing A.
+  secondMayOwn=true;
   const b=await run(scopedReadRequest(node,second,'get_cursor_position'),18000);
   evidence.overlapBusy=b==='busy';
   secondMayOwn=b!=='busy';
@@ -114,12 +116,13 @@ export async function inspectOwnLeaseTransition({
    readOnly:true};
   // Release only the ID created by this invocation.
   firstCloseAttempted=true;
-  evidence.firstCloseAcknowledged=await close(node,first);
+  evidence.firstCloseAcknowledged=await close(node,first,run);
   firstMayOwn=!evidence.firstCloseAcknowledged;
   if(!evidence.firstCloseAcknowledged)return {
    audit:AUDIT,...concludeLeaseTransition(evidence),
    reason:'first_close_unacknowledged',readOnly:true};
   // Retry B only after an exact BUSY admission rejection of B.
+  secondMayOwn=true;
   const b2=await run(scopedReadRequest(node,second,'get_cursor_position'),18000);
   evidence.afterCloseAdmitted=b2==='admitted';
   secondMayOwn=b2!=='busy';
@@ -127,7 +130,7 @@ export async function inspectOwnLeaseTransition({
    audit:AUDIT,...concludeLeaseTransition(evidence),
    reason:'reacquire_failed',readOnly:true};
   secondCloseAttempted=true;
-  evidence.afterCloseAcknowledged=await close(node,second);
+  evidence.afterCloseAcknowledged=await close(node,second,run);
   secondMayOwn=!evidence.afterCloseAcknowledged;
   const after=await status(statusArgs,18000);
   const body2=after.result??after;
@@ -145,9 +148,9 @@ export async function inspectOwnLeaseTransition({
   // On unknown errors, close only our own potentially admitted ID.
   // An ACK is not owner-release proof. Never close an external owner.
   if(node&&second&&secondMayOwn&&!secondCloseAttempted)
-   await close(node,second).catch(()=>false);
+   await close(node,second,run).catch(()=>false);
   if(node&&first&&firstMayOwn&&!firstCloseAttempted)
-   await close(node,first).catch(()=>false);
+   await close(node,first,run).catch(()=>false);
  }
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
