@@ -59,6 +59,39 @@ function privateEditorValueClass(x){
  if(typeof v!=='string')return 'unknown';
  return v.trim()===''?'empty':'nonempty';
 }
+// AX may mirror a placeholder/label into `value`. Equality does NOT prove
+// an empty editable, so the compositor always remains write-protected.
+// Only fixed boolean metadata leaves the private native observation.
+function privateEditorValueOriginEvidence(x){
+ const v=typeof x?.value==='string'?x.value:
+  typeof x?.stringValue==='string'?x.stringValue:null;
+ const hasNativeValue=typeof x?.value==='string';
+ const hasStringValue=typeof x?.stringValue==='string';
+ const valid=typeof v==='string';
+ const nonempty=valid&&v.trim().length>0;
+ const norm=z=>typeof z==='string'?z.normalize('NFKC').trim():null;
+ const value=norm(v);
+ const matches=z=>nonempty&&typeof z==='string'&&
+  norm(z)!==''&&value===norm(z);
+ const matchesLabel=matches(x?.label)||matches(x?.accessibilityLabel);
+ const matchesPlaceholder=matches(x?.placeholder)||
+  matches(x?.placeholderValue);
+ const conflictingValueFields=hasNativeValue&&hasStringValue&&
+  norm(x.value)!==norm(x.stringValue);
+ return Object.freeze({
+  nativeValueFieldPresent:hasNativeValue,
+  stringValueFieldPresent:hasStringValue,
+  valueClass:!valid?'unknown':nonempty?'nonempty':'empty',
+  matchesEditorLabel:matchesLabel,
+  matchesPlaceholderText:matchesPlaceholder,
+  valueFieldConflict:conflictingValueFields,
+  nonemptyDistinctFromKnownPromptText:nonempty&&
+   !matchesLabel&&!matchesPlaceholder&&!conflictingValueFields,
+  // Even an identical placeholder may be a real user draft: NO mutation.
+  safeToOverwrite:false,
+  editorIdentityVerified:false
+ });
+}
 function nativePressEvidence(x){
  const fields=[x?.actions,x?.supportedActions,x?.accessibilityActions,
   x?.actionNames];
@@ -116,6 +149,7 @@ export function assessUniqueNativeComposerControls(raw){
   promptCandidates:1,
   editorRoleKind:role(editor.role).includes('area')?'text_area':'text_field',
   editorValueState:privateEditorValueClass(editor),
+  editorValueOriginEvidence:privateEditorValueOriginEvidence(editor),
   editorEnabled:tri(editor.enabled),
   editorVisible:tri(editor.visible),
   controlCount:closeButtons.length,
