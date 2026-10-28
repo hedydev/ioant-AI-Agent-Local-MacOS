@@ -56,7 +56,7 @@ export function unpack(raw){
  }
  return null;
 }
-function pageFunction(){
+export function pageFunction(){
  // No user text or unrelated filenames returned; only fixed proof booleans.
  return '() => {'+
   'const U='+JSON.stringify(CHAT)+',N='+JSON.stringify(NAME)+',M='+JSON.stringify(TAG)+';'+
