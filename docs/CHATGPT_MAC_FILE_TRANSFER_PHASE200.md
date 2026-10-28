@@ -113,3 +113,43 @@ Run full candidate tests and guarded self-update; inspect the same original
 134-byte synthetic file on the updated Runtime, then use a fresh explicitly
 authorized one-time send. The old 200C failure remains recorded as a failure.
 The new sender should not disclose files outside the exact approved scope.
+
+
+## 201C final acceptance: COMPLETE (2026-10-28)
+
+After the 201A safe update passed 940/940 tests at
+3442ccc056a70ff53801ec91b9dd88f51160719e, read-only 201B
+inspected the approved synthetic Mac file successfully.
+
+201C used the generic sender on the explicitly authorized path:
+- Mac original: /Users/ted/Desktop/IOANT-ChatGPT-General-Upload-20261028.md
+- Sender audit: IOANT_EXACT_CHAT_APPROVED_FILE_TRANSFER
+- Worker result: Status=passed, Exit code=0, state=confirmed,
+  reason=same_user_turn_file_receipt_verified
+- uploadTriggered=true, messageSent=true, noAutomaticResend=true
+- Worker-reported size: 134 bytes
+- Worker-reported SHA-256:
+  d856767434a418bc748e05763279ee9edcbbc34f51654ab4a2a638dffaa99b38
+
+Independent RECEIVER confirmation in the exact ChatGPT conversation:
+- A real Markdown file attachment appeared in the message whose unique
+  random marker began IOANT-FILE-TRANSFER-B0352C43.
+- ChatGPT read the mounted received file (not the sender's output);
+  confirmed 134 bytes and locally computed the SAME SHA-256 above.
+- Received text:
+  # IOANT General File Transfer Test
+  Synthetic test file.
+  No personal information.
+  Purpose: verify exact-path Mac to ChatGPT delivery.
+
+**Acceptance: PASS**. This is actual end-to-end byte verification, not just
+a browser DOM claim. Historic 200C preflight false-positive was fixed,
+regression-tested, and not bypassed; 201C was the first generic successful
+send of this synthetic 134-byte file.
+
+Operational limits remain: only explicitly approved exact individual files,
+the existing three allowed roots and listed extensions, current exact
+conversation, 20 MiB cap, private content/path dedupe record, fail-closed
+errors and no automatic resend on uncertain outcome. A real non-synthetic
+file has NOT yet been sent. Do not send any actual user document without
+a clear, file-specific approval in the conversation.
