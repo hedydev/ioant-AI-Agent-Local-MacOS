@@ -68,3 +68,54 @@ test('all semantic readiness outputs are read only without browser or pointer in
  assert.match(source,/composerIdentityVerified:false/);
  assert.match(source,/chatDeliveryAuthorized:false/);
 });
+
+test('exact composer identifier is distinguished from generic prompt text, without authorizing input',()=>{
+ const raw={ok:true,details:{elements:[
+  {elementRef:'ref:search',role:'AXTextField',label:'Search conversation'},
+  {elementRef:'ref:compose',role:'AXTextArea',identifier:'prompt-textarea',
+   value:'confidential draft text',bounds:{x:120,y:600,width:620,height:50}},
+  {elementRef:'ref:icon',role:'AXButton',identifier:'composer-submit-button',
+   bounds:{x:710,y:612,width:30,height:30}}
+ ]}};
+ const r=assessAliceNativeAXSemantics(raw);
+ assert.equal(r.uniquePromptHint,true);
+ assert.equal(r.candidates[1].exactComposerIdentifierHint,true);
+ assert.deepEqual(r.candidates[1].promptSignalSources,['identifier']);
+ assert.equal(r.nativeButtonsNamedSendCount,0);
+ assert.equal(r.nativeButtonsBroaderSendHintCount,1);
+ assert.equal(r.nativeButtonsWithGeometryCount,1);
+ assert.equal(r.candidates[1].nearbyNativeButtonsWithBounds,1);
+ assert.equal(r.composerIdentityVerified,false);
+ assert.equal(r.chatDeliveryAuthorized,false);
+ assert.doesNotMatch(JSON.stringify(r),
+  /prompt-textarea|ref:compose|ref:icon|confidential draft text|620|710/);
+});
+test('unnamed icon buttons are reported only as counts, never assumed to send',()=>{
+ const raw={ok:true,result:{data:{elements:[
+  {elementRef:'opaque-editor',role:'text area',placeholder:'Ask anything'},
+  {elementRef:'opaque-icon',role:'button',
+   bounds:{x:10,y:20,width:20,height:20}},
+  {elementRef:'opaque-other',role:'button',label:'Attach file'}
+ ]}}};
+ const r=assessAliceNativeAXSemantics(raw);
+ assert.equal(r.nativeButtonCount,2);
+ assert.equal(r.nativeButtonsWithoutTextMetadataCount,1);
+ assert.equal(r.nativeButtonsBroaderSendHintCount,0);
+ assert.equal(r.candidates[0].nearbyNativeButtonsWithBounds,0);
+ assert.equal(r.composerIdentityVerified,false);
+ assert.equal(r.chatDeliveryAuthorized,false);
+});
+test('no prompt identifier and coarse button proximity cannot grant composer identity',()=>{
+ const raw={ok:true,elements:[
+  {elementRef:'opaque-editor',role:'text field',label:'Write a message',
+   bounds:{x:0,y:0,width:300,height:50}},
+  {elementRef:'opaque-button',role:'AXButton',identifier:'send',
+   bounds:{x:250,y:20,width:32,height:32}}
+ ]};
+ const r=assessAliceNativeAXSemantics(raw);
+ assert.equal(r.uniquePromptHint,true);
+ assert.equal(r.candidates[0].exactComposerIdentifierHint,false);
+ assert.equal(r.nativeButtonsBroaderSendHintCount,1);
+ assert.equal(r.candidates[0].nearbyNativeButtonsWithBounds,1);
+ assert.equal(r.composerIdentityVerified,false);
+});
