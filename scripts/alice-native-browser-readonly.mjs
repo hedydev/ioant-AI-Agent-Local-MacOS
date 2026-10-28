@@ -46,6 +46,19 @@ export function verifyChromeTarget(report){
   return {title:rows[3],targetActive:rows[2]==='1'};
  }catch{return null}
 }
+export function chromeOSWireEvidence(report){
+ // Only bounded booleans and numerical counts; never print Chrome titles,
+ // URLs, target references or raw AppleScript output.
+ const parts=String(report).trim().split(CHROME_WIRE);
+ const number=i=>/^(?:0|[1-9][0-9]{0,2})$/.test(parts[i]||'')?Number(parts[i]):null;
+ return Object.freeze({
+  wireFields:Math.min(parts.length,16),
+  targetTabs:number(0),containingWindowMatches:number(1),
+  targetActiveCount:number(2),
+  windowTitlePresent:typeof parts[3]==='string'&&cleanText(parts[3]),
+  exactProjectConversationVerified:verifyChromeTarget(report)!==null
+ });
+}
 export function chromeAppleScript(){
  // Chrome's tab object does NOT have an "index" property (-1728).
  // Use the enumerated 1-based tab number and the window's active tab index.
@@ -127,8 +140,10 @@ export async function observeAliceNativeBrowser({run=cli,osRead=()=>execFileSync
  let own=null,node=null,closeAttempted=false,closeAcknowledged=false,firstAttempted=false;
  let phase='chrome_os_metadata';
  try{
-  const target=verifyChromeTarget(osRead());
-  if(!target)return {...base,state:'inconclusive',reason:'os_target_window_unverified'};
+  const osReport=osRead();
+  const target=verifyChromeTarget(osReport);
+  if(!target)return {...base,state:'inconclusive',reason:'os_target_window_unverified',
+   ...chromeOSWireEvidence(osReport)};
   phase='native_provider_preflight';
   const status=run(['nodes','status','--json'],18000);
   const selection=chooseConnectedMacNode(status);
