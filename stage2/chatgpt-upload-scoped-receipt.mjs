@@ -7,9 +7,13 @@ const PREFIX='IOANT_SCOPED_RECEIPT:';
 const BASE={audit:'IOANT_SCOPED_SYNTHETIC_UPLOAD_RECEIPT',
  schemaVersion:1,readOnly:true,exactConversationOnly:true,
  rawMessageTextReturned:false,rawDOMReturned:false};
-export function buildScopedReceiptProbe(){
- const constants='const URL='+JSON.stringify(CHAT)+
-  ',TAG='+JSON.stringify(TAG)+',FILE='+JSON.stringify(FILE)+
+export function buildScopedReceiptProbe({chatUrl=CHAT,marker=TAG,filename=FILE}={}){
+ if(chatUrl!==CHAT||typeof marker!=='string'||
+  !/^[A-Z0-9_-]{10,96}$/.test(marker)||
+  typeof filename!=='string'||filename.length<1||filename.length>180||
+  /[\\\\/\\x00-\\x1f]/.test(filename))throw Error('invalid_scoped_receipt_identity');
+ const constants='const URL='+JSON.stringify(chatUrl)+
+  ',TAG='+JSON.stringify(marker)+',FILE='+JSON.stringify(filename)+
   ',PREFIX='+JSON.stringify(PREFIX)+';';
  return '() => {'+constants+
   'const main=document.querySelector("main"),exact=location.href===URL;'+
