@@ -36,7 +36,7 @@ export function summarizeNativeAXElements(raw){
      typeof el.elementRef!=='string'||el.elementRef.length<3||
      el.elementRef.length>1024||typeof el.role!=='string')continue;
   const ref=el.elementRef;
-  const role=el.role.toLowerCase().replace(/[\\s_-]/g,'');
+  const role=el.role.toLowerCase().replace(/[^a-z0-9]/g,'');
   refs.add(ref);
   if(role==='button'||role==='axbutton')buttons.add(ref);
   if(['textarea','textfield','textbox','textentryarea','edittext',
