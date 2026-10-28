@@ -46,7 +46,7 @@ test('unverified source identity fails before any migration',()=>{
 });
 test('cross-Project route divergence blocks even if conversation is verified',()=>{
  const bad=structuredClone(manifest);
- bad.projects[0].chatUrl=aliceUrl;
+ bad.projects[0].chatUrl='https://chatgpt.com/g/g-p-ffffffffffffffffffffffffffffffff-another/c/11111111-2222-3333-4444-555555555555';
  const r=evaluateChatContinuity({...baseline(),manifest:bad});
  assert.equal(r.state,'blocked');
  assert.equal(r.reason,'installed_project_manifest_mismatch');
