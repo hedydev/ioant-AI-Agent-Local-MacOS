@@ -1299,3 +1299,67 @@ no mismatch. **The Mac 870-test candidate gate still must run.**
 No CUA source, request, permissions, other user sessions,
 Gateway configuration, or GUI behavior changed. The guarded
 `project-update-verify` must pass before attempting 183B.
+
+## 2026-10-28 — 184A OpenClaw permissions passed; 184B command-length refusal; 184B-R1 script
+
+184A `IOANT_CUA_MAC_PERMISSION_READONLY` completed successfully.
+The *connected macOS OpenClaw node itself* reported the native CUA
+provider enabled and both `screenRecording=granted` and
+`accessibility=granted`. This is materially stronger than the
+disposable fixture app's own CGWindow privacy diagnosis; it rules out
+an **advertised** missing capability, but not CUA Driver runtime
+failure or an out-of-date OS permission observation.
+
+A proposed inline 184B Worker `mac-terminal` action was rejected
+*before execution* as `invalid_task` because the command exceeded
+2048 characters or 4096 bytes. No Mac action occurred and there is
+no new runtime failure.
+
+The replacement at `scripts/openclaw-cua-driver-host-readonly.mjs`
+is a short-entry, private-runtime-pinned read-only diagnostic; it
+does not require CUA requests. It uses the official OpenClaw v2026.10.7
+macOS app-owned Driver layout:
+`~/Library/Application Support/OpenClaw/cua/<16-hex>/cua.sock`
+and `cua.pid`. Source:
+https://github.com/openclaw/openclaw/blob/v2026.10.7/apps/macos/Sources/OpenClaw/CuaDriverHostCoordinator.swift
+
+It checks, without printing paths or IDs:
+- CUA directory is locally owned, not a symlink; up to 16 strictly
+  named 0700 child directories; owned socket leaves and tiny
+  sanitized integer PID files.
+- Read-only `/bin/ps -p <sanitized PID> -o comm=` only for such
+  records. Count live PIDs and plausible CUA daemon basenames.
+  This is *not* authenticated process ownership or proof of
+  successful protocol health.
+- Bounded `/usr/bin/log show --last 45m` for the
+  `ai.openclaw/cua-driver-host` category. Logs remain in memory;
+  only seven fixed booleans are returned: ready, startupTimeout,
+  launchFailure, unexpectedExit, unbundledDriver, socketError
+  and pidRecordFailure. A log query failure reports `available=false`.
+  Do not treat an absent log marker as proof an event never happened.
+
+No `computer.act`, socket connection, driver start/stop, TCC
+change, screenshot, event injection, browser access, window
+inventory, focus or keyboard/mouse action occurs. There are no raw
+error strings, log lines, process names, process IDs, command lines,
+arbitrary paths or window titles in result JSON.
+
+Eight independent regression cases in
+`test/openclaw-cua-driver-host-readonly.test.mjs` cover
+redaction, pid validation, owned directory checks, symlink refusal,
+malformed PID injection, fixed log command, report whitelist and
+non-interference. A separate in-memory execution of these eight
+tests succeeded (8/8) before requesting Mac's complete guarded
+candidate test suite. **The Mac `project-update-verify` still
+must pass before live script execution**.
+
+Next approved operations (two separate Worker requests):
+1. `project-update-verify`, then note actual commit SHA and full
+   suite results; do not proceed if rejected.
+2. On success, `mac-terminal` using an exact runtime HEAD match and
+   `node scripts/openclaw-cua-driver-host-readonly.mjs`, well below
+   the 2048-character Worker command ceiling.
+
+Use that report to decide if CUA Driver readiness / private socket
+health warrants further investigation; avoid repeating
+`list_windows` until a concrete cause is identified.
