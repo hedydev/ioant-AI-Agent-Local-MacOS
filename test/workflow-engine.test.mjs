@@ -66,3 +66,29 @@ test('unsafe mutations and invalid dependency rejected',()=>{
  assert.throws(()=>event(x,'task_void',{taskId:'parent-one',reason:'user revoked task'}),/cannot_void_active_task/);
  assert.throws(()=>event(x,'task_receipt',{taskId:'parent-one',workerId:'mac-worker',leaseId:'lease-1234',receiptId:'receipt-1234',result:'cancelled',evidenceSha256:digest}),/unverified_cancel/);
 });
+
+test('executing worker and bound model Agent cannot approve their own receipt',()=>{
+ let x=start(fixture());
+ x=event(x,'task_receipt',{taskId:'parent-one',
+  workerId:'mac-worker',leaseId:'lease-1234',
+  receiptId:'receipt-1234',result:'passed',evidenceSha256:digest});
+ for(const verifierId of ['mac-worker','openclaw-dev']){
+  assert.throws(()=>event(x,'task_accept',{
+   taskId:'parent-one',receiptId:'receipt-1234',verifierId
+  }),/verification_required/);
+  assert.equal(x.tasks[0].status,'verification_pending');
+  assert.deepEqual(readyTasks(x),[]);
+ }
+});
+test('distinct reviewer identity remains only a reducer check, not owner authorization',()=>{
+ let x=start(fixture());
+ x=event(x,'task_receipt',{taskId:'parent-one',
+  workerId:'mac-worker',leaseId:'lease-1234',
+  receiptId:'receipt-1234',result:'passed',evidenceSha256:digest});
+ x=event(x,'task_accept',{taskId:'parent-one',receiptId:'receipt-1234',
+  verifierId:'independent-reviewer'});
+ assert.equal(x.tasks[0].verifiedBy,'independent-reviewer');
+ assert.equal(x.tasks[0].status,'done');
+ // No claim that the reducer authenticates who generated that name; the
+ // authorizing entry point must independently attest owner review.
+});
