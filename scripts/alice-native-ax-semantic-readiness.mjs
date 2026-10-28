@@ -15,6 +15,41 @@ const editPrompt=/\b(?:ask anything|ask chatgpt|message chatgpt|send a message|w
 const sendControl=/^(?:send|send message|send prompt|发送|发送消息|发送信息|发送提问)$/i;
 const searchControl=/\b(?:search|find|address|url|omnibox)\b|(?:搜索|查找|地址栏)/i;
 const validRef=v=>typeof v==='string'&&v.length>=3&&v.length<=1024;
+const semanticFields=['label','accessibilityLabel','placeholder',
+ 'placeholderValue','description','identifier','accessibilityIdentifier','name'];
+// The exact field *name* is safe to reveal. Never reveal a raw attribute.
+function promptSignalSources(x){
+ return semanticFields.filter(k=>editPrompt.test(text(x?.[k])));
+}
+function strongComposerIdentifier(x){
+ const a=[x?.identifier,x?.accessibilityIdentifier].map(text);
+ return a.some(v=>/^(?:prompt-textarea|chat-prompt-textarea)$/i.test(v));
+}
+const sendLike=/^(?:send|send message|send prompt|submit|submit message|submit prompt|发送|发送消息|发送信息|发送提问)$/i;
+const idSendLike=/(?:^|[-_])(send|submit)(?:[-_]|$)/i;
+function hintSendButton(x){
+ const direct=[x.label,x.accessibilityLabel,x.description,x.name,
+  x.title,x.help,x.tooltip].map(text);
+ const ident=[x.identifier,x.accessibilityIdentifier].map(text);
+ return direct.some(v=>sendLike.test(v))||ident.some(v=>idSendLike.test(v));
+}
+function readBounds(x){
+ const b=[x.bounds,x.frame,x.rect,x.boundingBox]
+  .find(v=>v&&typeof v==='object'&&!Array.isArray(v));
+ if(!b)return null;
+ const px=b.x??b.left??b.origin?.x,py=b.y??b.top??b.origin?.y;
+ const width=b.width??b.size?.width,height=b.height??b.size?.height;
+ if(![px,py,width,height].every(Number.isFinite)||width<0||height<0)return null;
+ return {x:px,y:py,w:width,h:height};
+}
+function buttonNearEditor(button,editor){
+ const b=readBounds(button),e=readBounds(editor);
+ if(!b||!e)return false;
+ const cx=b.x+b.w/2,cy=b.y+b.h/2;
+ return cx>=e.x-64&&cx<=e.x+e.w+64&&
+  cy>=e.y-96&&cy<=e.y+e.h+96;
+}
+
 function parentRef(x){
  return [x.parentRef,x.parentElementRef,x.parent?.elementRef,
   x.parent?.ref].find(validRef)??null;
@@ -49,8 +84,9 @@ export function assessAliceNativeAXSemantics(raw){
   if(!byRef.has(e.elementRef))byRef.set(e.elementRef,e);
  }
  const edits=[...byRef.values()].filter(x=>editable.has(role(x.role)));
- const sends=[...byRef.values()].filter(x=>button.has(role(x.role))&&
-  attrs(x).some(s=>sendControl.test(s)));
+ const buttons=[...byRef.values()].filter(x=>button.has(role(x.role)));
+ const sends=buttons.filter(x=>attrs(x).some(s=>sendControl.test(s)));
+ const broaderSendHints=buttons.filter(hintSendButton);
  const candidates=edits.slice(0,12).map((x,i)=>{
   const a=attrs(x);
   const prompt=a.some(s=>editPrompt.test(s));
@@ -61,7 +97,11 @@ export function assessAliceNativeAXSemantics(raw){
    roleKind:role(x.role).includes('search')?'search_field':
     role(x.role).includes('area')?'text_area':'text_field',
    promptSemanticSignal:prompt,
+   promptSignalSources:promptSignalSources(x),
+   exactComposerIdentifierHint:strongComposerIdentifier(x),
    searchSemanticSignal:search,
+   nearbyNativeButtonsWithBounds:Math.min(
+    buttons.filter(b=>buttonNearEditor(b,x)).length,52),
    parentRefProvided:parentRef(x)!==null,
    mappedAncestorCount:Math.min(ancestors(x,byRef).length,7),
    relatedSendButtonCount:Math.min(nearSend,52),
@@ -78,6 +118,12 @@ export function assessAliceNativeAXSemantics(raw){
   state:'observed',
   nativeEditableCount:edits.length,
   nativeButtonsNamedSendCount:sends.length,
+  nativeButtonsBroaderSendHintCount:broaderSendHints.length,
+  nativeButtonCount:buttons.length,
+  nativeButtonsWithGeometryCount:buttons.filter(readBounds).length,
+  nativeButtonsWithoutTextMetadataCount:buttons.filter(x=>
+   ![x.label,x.accessibilityLabel,x.description,x.name,x.title,
+     x.help,x.tooltip].some(v=>text(v).length>0)).length,
   reportedCandidateCount:candidates.length,
   candidatesTruncated:edits.length>12,
   mappedRefCount:Math.min(byRef.size,1800),
