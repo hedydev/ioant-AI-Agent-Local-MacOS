@@ -253,3 +253,48 @@ delivery reliability or permission to inject synthetic incidents
 into a real user's conversation. Independent Guard-to-Chat takeover
 after a crashed main Worker and safe per-Chat rollover remain future
 separate authorization and acceptance phases.
+
+## 205B-3 Mac acceptance
+
+The actual 2026-10-28 guarded deployment returned `updated` from
+`05d1dc003558f302b21f32ade3ffc683f2b316f8` to
+`2bf0cc3d7447b177aa6e74789df9314991faf6eb`,
+with **1006/1006 Node tests passing** and `reloadRequired=true`.
+The added isolated mock-Browser test and Guard receipt parser regression
+passed as part of the suite. This is proof of the mocked delivery path,
+not of injecting any real incident into production ChatGPT.
+
+## 205C-1 current-Chat handoff readiness (candidate only)
+
+New pure module `stage2/guard-chat-continuity.mjs` and the read-only
+`stage2/guard-worker.mjs handoff-readiness <projectKey>` mode.
+The CLI accepts ONLY `openclaw-workflow` or `alice-ai`; it does not
+accept browser instructions, arbitrary shell, or new conversation URL.
+It matches the current Chat against the *installed, independently
+verified LaunchAgent plist*, checks the existing owned Chat state for
+pending task feedback, Guard incident delivery, Maintainer notice
+delivery and initialization, and compares the verified Project identity
+with the bundled registration manifest.
+
+Important real-world drift: `config/chat-projects.json` still contains
+an older OpenClaw main conversation ID, while the installed service
+was observed running on `6ae18e93-e2a0-83ec-aac9-88105079f208`.
+Readiness therefore reports `registry_reconciliation_required`,
+not a false assertion that the old registry entry is the active Chat.
+No automatic registry rewrite, process stop, browser refresh,
+Chat creation, task replay or permission transfer is permitted.
+
+For each Chat the next authorized stages must establish a verified
+project-specific handoff text (from the actual old Chat, not guessed
+from Guard log metadata), a destination created under the same Project,
+a validated new Chat DOM identity, an idempotent user-role receipt,
+explicit operator approval, old Worker shutdown and a separate
+operator-approved rebind/start. The existing `chat-handoff.mjs`,
+`handoff-journal.mjs` and `ops-rebind.mjs` remain the building blocks.
+A temporary Relay/browser fault does not prove context exhaustion.
+
+Ten new tests in `test/guard-chat-continuity.test.mjs` cover live
+manifest drift, real Alice binding, pending-message barriers,
+cross-Project mismatches and no unapproved mutation. Candidate requires
+Mac full `project-update-verify` of expected **1016 tests**
+(1006 previously passed + 10 new), with real count authoritative.
