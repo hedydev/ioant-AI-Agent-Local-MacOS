@@ -182,3 +182,52 @@ test('absence of native action metadata and value is explicitly unknown, never a
  assert.equal(r.controls[0].sendSemanticHint,false);
  assert.equal(r.chatDeliveryAuthorized,false);
 });
+
+test('AX value equal to composer label is ambiguous, not proof that input is empty',()=>{
+ const secret='Ask anything';
+ const r=assessUniqueNativeComposerControls({elements:[
+  {elementRef:'ref:composer',role:'AXTextArea',label:secret,value:secret}
+ ]});
+ assert.equal(r.editorValueState,'nonempty');
+ assert.equal(r.editorValueOriginEvidence.nativeValueFieldPresent,true);
+ assert.equal(r.editorValueOriginEvidence.matchesEditorLabel,true);
+ assert.equal(r.editorValueOriginEvidence.matchesPlaceholderText,false);
+ assert.equal(r.editorValueOriginEvidence.safeToOverwrite,false);
+ assert.equal(r.chatDeliveryAuthorized,false);
+ assert.doesNotMatch(JSON.stringify(r),/Ask anything|ref:composer/);
+});
+test('AX value equal to placeholder is ambiguous, never overwrite',()=>{
+ const r=assessUniqueNativeComposerControls({elements:[
+  {elementRef:'ref:composer',role:'AXTextArea',label:'Ask anything',
+   placeholder:'Message ChatGPT',value:'Message ChatGPT'}
+ ]});
+ assert.equal(r.editorValueState,'nonempty');
+ assert.equal(r.editorValueOriginEvidence.matchesPlaceholderText,true);
+ assert.equal(r.editorValueOriginEvidence.matchesEditorLabel,false);
+ assert.equal(r.editorValueOriginEvidence.safeToOverwrite,false);
+});
+test('nonempty AX value distinct from hint metadata is possible draft and is never released',()=>{
+ const r=assessUniqueNativeComposerControls({elements:[
+  {elementRef:'ref:composer',role:'AXTextArea',label:'Ask anything',
+   value:'Confidential privately typed content'}
+ ]});
+ assert.equal(r.editorValueState,'nonempty');
+ assert.equal(r.editorValueOriginEvidence.nonemptyDistinctFromKnownPromptText,true);
+ assert.equal(r.editorValueOriginEvidence.safeToOverwrite,false);
+ assert.equal(r.chatDeliveryAuthorized,false);
+ assert.doesNotMatch(JSON.stringify(r),/Confidential|privately typed|ref:composer/);
+});
+test('conflicting value fields and missing native value remain write protected',()=>{
+ const ambiguous=assessUniqueNativeComposerControls({elements:[
+  {elementRef:'ref:composer',role:'AXTextArea',label:'Ask anything',
+   value:'first private text',stringValue:'different private text'}
+ ]});
+ assert.equal(ambiguous.editorValueOriginEvidence.valueFieldConflict,true);
+ assert.equal(ambiguous.editorValueOriginEvidence.safeToOverwrite,false);
+ const missing=assessUniqueNativeComposerControls({elements:[
+  {elementRef:'ref:composer',role:'AXTextArea',label:'Ask anything'}
+ ]});
+ assert.equal(missing.editorValueState,'unknown');
+ assert.equal(missing.editorValueOriginEvidence.nativeValueFieldPresent,false);
+ assert.equal(missing.editorValueOriginEvidence.safeToOverwrite,false);
+});
