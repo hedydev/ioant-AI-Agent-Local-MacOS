@@ -7,7 +7,7 @@ import {promisify} from 'node:util';
 import {homedir} from 'node:os';
 import {join,resolve,relative,basename,extname,isAbsolute} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {createHash} from 'node:crypto';
+import {createHash,randomBytes} from 'node:crypto';
 import {lstat,realpath,open,stat,mkdir,mkdtemp,writeFile,rename,rm} from 'node:fs/promises';
 import {constants} from 'node:fs';
 import {exactTab,uniqueRef} from './openclaw-chatgpt-fixture-upload.mjs';
@@ -50,8 +50,15 @@ export function checkPathIdentity(path){
 }
 export function transferIdentity(path,digest){
  if(!/^[a-f0-9]{64}$/.test(digest))throw error('invalid_file_digest');
- const hash=createHash('sha256').update(CHAT+'\n'+path+'\n'+digest).digest('hex');
- return {key:hash,tag:'IOANT-FILE-TRANSFER-'+hash.slice(0,24).toUpperCase()};
+ const key=createHash('sha256').update(CHAT+'\n'+path+'\n'+digest).digest('hex');
+ // This stable identity is for the private dedupe journal, never the
+ // user-visible delivery marker (which would leak into the chat log).
+ return {key};
+}
+export function newDeliveryMarker(bytes=randomBytes){
+ const value=bytes(16);
+ if(!Buffer.isBuffer(value)||value.length!==16)throw error('invalid_marker_entropy');
+ return 'IOANT-FILE-TRANSFER-'+value.toString('hex').toUpperCase();
 }
 async function readApprovedFile(path){
  const identity=checkPathIdentity(path);
@@ -178,8 +185,13 @@ export async function transfer({mode,path,approvalReference,
   // All file content stays local during inspect; no upload or menu action.
   if(mode==='inspect')return {...BASE,state:'observed',reason:'file_and_chat_preflight_passed',
    basename:file.name,bytes:file.size,sha256:file.digest,
-   transferTag:file.tag,uploadTriggered:false,messageSent:false};
-  if(await checkReceipt(id,file))throw error('delivery_already_visible');
+   uploadTriggered:false,messageSent:false};
+  // An inspect result is forwarded into the same user conversation. A
+  // deterministic marker printed before delivery may be copied into that
+  // user turn and masquerade as a delivered file. Allocate a fresh secret
+  // marker only for the one authorized send, and persist it privately.
+  // Replays are prevented by the exclusive content/path journal below.
+  file={...file,tag:newDeliveryMarker()};
   recordPath=await makeLock(file,approvalReference);
   folder=await stage(file);
   phase='menu';
@@ -212,19 +224,19 @@ export async function transfer({mode,path,approvalReference,
    if(await checkReceipt(id,file)){
     await record(recordPath,'confirmed',file,approvalReference);
     return {...BASE,state:'confirmed',reason:'same_user_turn_file_receipt_verified',
-     basename:file.name,sha256:file.digest,bytes:file.size,transferTag:file.tag,
+     basename:file.name,sha256:file.digest,bytes:file.size,
      uploadTriggered:true,messageSent:true};
    }
    await new Promise(r=>setTimeout(r,1200));
   }
   return {...BASE,state:'inconclusive',reason:'post_send_receipt_unconfirmed',
-   basename:file.name,transferTag:file.tag,uploadTriggered:true,
+   basename:file.name,uploadTriggered:true,
    messageSent:'unknown'};
  }catch(e){
   return {...BASE,state:pressIssued?'inconclusive':'blocked',
    reason:e.safeReason??'file_transfer_unavailable',
    phase,uploadTriggered:uploaded,messageSent:pressIssued?'unknown':false,
-   ...(file?{basename:file.name,transferTag:file.tag}:{}),
+   ...(file?{basename:file.name}:{}),
    ...(recordPath?{recordPersisted:true}:{}),
    ...(uploaded&&!pressIssued?{draftAttachmentMayRemain:true}:{})};
  }finally{
