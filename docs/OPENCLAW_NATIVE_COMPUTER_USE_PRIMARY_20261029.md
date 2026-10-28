@@ -754,3 +754,45 @@ Interpret the resulting category counts before deciding whether the
 operator should type the exact Alice Chat URL in the **already
 running dedicated window**. Never use the default browser as a
 fallback; do not re-run E2a window ownership until a change warrants it.
+
+## 2026-10-29 0540: dedicated tab URL is currently empty
+
+`openclaw-alice-tab-shape-20261029-0540` was a successfully
+executed bounded **read-only** Mac Worker command. It reported:
+`tabArray=true`, `tabCount=1`, `tabIsObject=true`,
+`urlType=string`, `urlEmpty=true`, `urlTooLong=false`,
+`urlScheme=empty`, `fields.url=true`,
+`fields.targetId=true`, `fields.title=true`,
+`fields.type=true`, `fields.id=false`,
+`fields.webUrl=false`, `fields.lastCommittedURL=false`,
+`state=observed`. Raw tab URLs, titles and browser content were
+not emitted. No browser mutation was attempted.
+
+**What this proves:** at that moment, the running managed
+`alice-ai` browser's only enumerated tab had `url=""`. This
+completely explains the E1/E2a exact Alice Chat match count of zero
+and the tab-category audit's `unknown=1`. The URL string is
+empty, not an invalid ChatGPT URL parser projection. It does not
+prove the operator's authentication status, that the tab has
+*never* navigated historically, or that a different browser window
+was used.
+
+**Immediate operator action is no longer another diagnostic:** the
+operator agreed to manually navigate/login in the isolated browser.
+Use the existing `alice-ai` managed GUI window (one on-screen
+window independently owner-attested in 0535), paste the **exact
+registered Alice Project Chat URL directly into that window's
+address bar**, press Enter, and personally sign in if prompted.
+A ChatGPT link clicked in another app may open the default daily
+browser and will not satisfy this specific profile's tab identity.
+Do not request passwords, browser cookies or copied session data.
+
+Navigation via OpenClaw Browser CLI in 0524 was explicitly blocked
+by strict proxy-routed browser SSRF. Do not change SSRF or use
+unapproved CUA browser navigation as an alternate automated bypass.
+Human-performed navigation is not an automated-browser permission
+grant. Once the user has acted in the dedicated window, run a
+**fresh** short read-only `scripts/alice-managed-native-readiness.mjs`
+task to verify a single exact chat tab. Even success does **not**
+verify login/AX composer or authorize Alice Coordinator to send.
+Preserve existing Coordinator sole writer and handshake.
