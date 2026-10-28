@@ -79,7 +79,8 @@ test('Chrome OS read uses only tab URL and active title, no navigation or activa
  assert.match(src,/set nm to title of tab activeIdx of w as text/);
  assert.match(src,/set u to URL of t as text/);
  assert.doesNotMatch(src,/set active tab|activate|execute javascript|reload|close window|make new/);
- assert.match(src,/return \(n as text\).*CHROME_WIRE/);
+ assert.match(src,/return \(n as text\) & "/);
+ assert.equal(src.split(CHROME_WIRE).length,5);
 });
 
 test('background Alice tab never requires UI activation in AppleScript',()=>{
