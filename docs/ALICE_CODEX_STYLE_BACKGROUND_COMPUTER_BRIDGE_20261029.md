@@ -171,3 +171,34 @@ Code correction (candidate, not yet Mac-deployed):
 This improves acceptance signal under normal Mac activity without falsely proving that a provider-induced mouse movement can be distinguished from user movement. A genuinely concurrent pointer movement within the write interval remains inconclusive. For fully unattended/active-user operation an independent provenance audit or stronger native noninterference attestation would be needed before granting general ChatGPT background mutation.
 
 The actual AliceAI Chat `requirements` ledger stays revision 24 and unapproved, and its exact-chat browser CUA consent barrier is not altered by these fixture changes. No Coordinator restart, chat message or task acceptance is authorized. Prior deployed runtime HEAD: `a764159f2aa4161da422f3f7555d752ae358930e`, 1065/1065 tests passed. Two new fixture tests are proposed; guarded deploy should verify **1067** total tests. A passing unit suite is not live background-write proof.
+
+## 205C-46 safe-update gate failure (2026-10-29)
+
+The Mac Worker declined the candidate `project-update-verify`:
+`state=blocked`, `reason=candidate_tests_failed`, `tests=1067`,
+`pass=1066`, `fail=1`, with no failing location disclosed.
+**The runtime was not advanced.** This is exactly the behavior the safe
+update gate is intended to enforce; never bypass it.
+
+Source inspection found a stale test in
+`test/openclaw-cua-fixture-background-write.test.mjs` named
+`foreground/pointer changed => no write or read`. It injected a constant
+new foreground app in every `readState` sample, so the new two-adjacent-
+sample boundary was **stable** and correctly permitted the one fixture-only
+write; the old assertion expected that a change relative to the original
+pre-launch baseline would still block. Its test inputs, rather than the
+new boundary rules, were outdated.
+
+The test now feeds **different foreground apps into the two immediate
+prewrite samples**. It still asserts `writeIssued=false`, the
+`frontmostUnchanged=false` failure signal, and zero calls/intent marks.
+The separate pointer movement test also enforces a mutation block for
+unstable adjacent cursor samples. Existing long-read user-activity test
+allows a stable *new* foreground at the immediate write boundary, but
+still checks post-write noninterference and single execution.
+
+This is a targeted candidate test correction, not a relaxation of the
+new guard. The exact failing test name is inferred from the code diff;
+because the Mac receipt deliberately suppressed test locations, it is
+**not proven** until the next guarded 1067-test deploy passes.
+Do not invoke the live AppKit write until the entire suite passes.
