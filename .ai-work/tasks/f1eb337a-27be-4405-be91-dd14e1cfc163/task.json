@@ -1,0 +1,31 @@
+{
+  "schema_version": 2,
+  "task_id": "f1eb337a-27be-4405-be91-dd14e1cfc163",
+  "created_at": "2026-10-29T01:06:16.820368Z",
+  "created_by": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "objective": "Configure an independent local conversational OpenClaw Agent after the requested Git checkpoint",
+  "scope": [
+    "scripts/configure-local-chat-agent.mjs",
+    "scripts/chat-model-probe.py",
+    "test/local-chat-config.test.mjs",
+    "docs/LOCAL_CHAT_AGENT_PLAN_20261029.md"
+  ],
+  "target_ids": [
+    "macos-audit-cli"
+  ],
+  "acceptance_criteria": [
+    "Independent local-only chat Agent preserves existing project Agents",
+    "Native low and high thinking requests and multi-turn context verified",
+    "Private configuration backups and exact readback",
+    "Full tests pass; code and docs pushed; UI acceptance pending operator"
+  ],
+  "deduplication_key": "independent-local-chat-agent-20261029",
+  "parent_task_id": null,
+  "relations": []
+}

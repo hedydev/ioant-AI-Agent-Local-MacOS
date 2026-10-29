@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "event_id": "cbbe6b23-2558-4f33-9da0-82bbb664c7e7",
+  "task_id": "f1eb337a-27be-4405-be91-dd14e1cfc163",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T01:06:16.820368Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "4cacf91",
+  "message": "Provisioned local-chat with GPT-OSS 20B and low thinking, denied action tools, separate workspace/sessions. Existing Agent entries preserved. Corrected only installed GPT-OSS reasoning capability metadata after explicit high request failed before inference; subsequent high local turn succeeded. Full native tests 1215/1215. Await user acceptance in OpenClaw Chat UI. Original web MCP computer-tool metadata refresh remains pending.",
+  "changes": {
+    "status": {
+      "from": null,
+      "to": "awaiting_user_acceptance"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "1215 passed; 0 failed; shell syntax and whitespace checks passed"
+    },
+    {
+      "kind": "device_validation",
+      "summary": "Native config dry-run, private backups, exact disk/live Agent readback; local multi-turn continuity, correct work-rate answer, explicit high-effort answer 391"
+    }
+  ],
+  "supersedes_event_id": null
+}

@@ -1,4 +1,4 @@
-# Independent local chat Agent — inventory and pending configuration
+# Independent local chat Agent — installed configuration and evidence
 
 Operator request, 2026-10-29: configure an independent ChatGPT-like conversational
 Agent in OpenClaw, preferably capable of deeper reasoning while responding
@@ -57,10 +57,79 @@ installed models and avoiding concurrent large-model loads.
 - Use official config validation, private prewrite backup, scoped mutation and
   disk/live readback, followed by actual ordinary-chat and reasoning checks.
 
-## Status at this checkpoint
+## Applied configuration
 
-Inventory and existing benchmark review complete. No new chat Agent has been
-created, and no model/configuration changes were made for this new request.
-Complete and verify the Git push first, then implement and validate this setup.
-Record the final chosen model, thinking settings, actual measured latency,
-user-facing usage instructions and remaining limitations in this document.
+The pre-configuration checkpoint was pushed first as `4cacf91`, with remote SHA
+verified. A new Agent is installed: **本地聊天** (`local-chat`), using
+`ollama/gpt-oss:20b`, embedded runtime, default `low` thinking, no fallback and
+an allowlist containing only this local model. Its independent workspace is
+`/Volumes/LunaDrive/DeveloperCache/openclaw-agents/local-chat`.
+
+Action tools, skills, delegation, heartbeat and cross-conversation memory search
+are disabled. Sessions retain their own conversation context. Fast mode is
+disabled: no claim that it accelerates local hardware. Short Chinese workspace
+instructions define a conversational role, separate from project execution.
+The helper validated the native schema, saved private prewrite backups and
+verified exact disk/live configuration. Existing Agent entries were unchanged.
+No Gateway restart, Worker update or model download was performed.
+
+An explicit high-effort request initially failed before inference because the
+installed GPT-OSS catalog record omitted reasoning support. The reviewed
+`--enable-thinking` helper added only `reasoning:true` and supported efforts
+`low/medium/high` to that existing model record. This is shared model capability
+metadata, not a change to other models, Agent selections, provider URLs,
+credentials or permissions. A second private backup and whole-config disk
+comparison confirmed this exact change.
+
+## Measurements and verification
+
+Serial native local API probes on this Mac:
+
+| Case | First visible answer | Total | Result |
+| --- | --- | --- | --- |
+| Gemma 26B greeting, thinking off | 11.22 s | 11.67 s | Natural Chinese |
+| Gemma 26B reasoning, thinking on | No final answer | 11.36 s | Hit deliberately small 384-token limit |
+| GPT-OSS greeting, thinking low | 8.70 s | 9.12 s | Natural Chinese |
+| GPT-OSS reasoning, thinking low | 4.06 s | 9.20 s | Correct: 10.5 days |
+
+These four bounded probes are not a general ranking. Gemma's capped probe does
+not prove inability to solve the problem. GPT-OSS generated about 32 tokens/s.
+Actual Gateway multi-turn chat took 23.82 s initially and 6.92 s next, retained
+the test conversation code, and solved the work-rate problem. Those turns
+preceded the metadata correction and do not verify a specific thinking level.
+After correction, explicit `--thinking high` succeeded with the correct answer
+391 for 17×23, taking 36.12 s. A separate explicit `--thinking low` greeting
+then succeeded in 15.96 s. These check accepted efforts and local inference,
+not a benchmark of difficult reasoning. Cold loading and thinking length matter.
+
+The prompt report lists generic lazy tool-discovery wrappers; the Agent's
+deny-all action policy remains configured. No computer/file/shell actions were
+requested in these chat tests. Full native regression: **1215/1215 passed**.
+Shell syntax and whitespace checks also pass.
+
+## Use
+
+In OpenClaw Chat select **本地聊天** (`local-chat`) and start a new conversation.
+Send `/think high` by itself for harder questions; send `/think low` by itself
+to return to everyday mode. Higher effort may take longer. The local model is
+not equivalent to hosted ChatGPT quality. It is currently text-only, with no
+browsing/computer actions or tool-based cross-chat memory.
+
+Inference uses neither paid model APIs nor Codex inference. Normal ChatGPT web
+use remains subject to that account's own plan limits. Thinking reference:
+https://docs.openclaw.ai/tools/thinking
+
+```bash
+cd "$HOME/Documents/workspace/ioant-AI-Agent-Local-MacOS"
+# Read-only inventory; the Agent is already configured:
+"$HOME/.openclaw/bin/openclaw" agents list --json
+# Optional real local-model chat:
+"$HOME/.openclaw/bin/openclaw" agent --agent local-chat --thinking low --message '你好' --json
+```
+
+`scripts/configure-local-chat-agent.mjs --dry-run|--apply` is a fixed one-time
+provisioner that refuses to overwrite an existing Agent. `--enable-thinking`
+only corrects the verified chat policy's GPT-OSS capability metadata. Inspect
+state after uncertain results rather than replay provisioning. Optional serial
+model probes require explicit `scripts/chat-model-probe.py --run`. Private
+reports, transcripts, config files and backups are excluded from Git.

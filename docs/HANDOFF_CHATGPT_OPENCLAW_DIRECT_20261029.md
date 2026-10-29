@@ -47,9 +47,13 @@ The operator requested a new independent OpenClaw conversational Agent with
 deep-thinking capability and fast everyday responses, then explicitly said to
 commit/push code and documentation **first**, before configuring OpenClaw.
 The inventory and existing benchmark review are documented in
-`docs/LOCAL_CHAT_AGENT_PLAN_20261029.md`. No new chat Agent exists yet at this
-checkpoint. After verifying the remote SHA, continue that configuration without
-replacing project Agents or switching to paid cloud/Codex model routes.
+`docs/LOCAL_CHAT_AGENT_PLAN_20261029.md`. The pre-configuration checkpoint was
+pushed and verified as `4cacf91`. Independent `local-chat` (本地聊天) is now
+installed with local GPT-OSS 20B, low default thinking and denied action tools.
+Gateway multi-turn chat and a reasoning answer passed. Missing GPT-OSS thinking
+capability metadata was corrected narrowly; an explicit high-effort request
+then succeeded. Existing project Agent entries were preserved. Full tests now
+pass 1215/1215. User acceptance in the OpenClaw Chat UI remains pending.
 
 The direct desktop integration remains at the acceptance boundary above:
 local project computer-task/readback passed; user-side ChatGPT tool catalog

@@ -210,3 +210,8 @@ This is **not Phase-1 browser auditing**. The separately invoked Stage-2 watcher
 ## AliceAI multi-Worker Project registration pilot (2026-10-27, source only)
 
 An independently supplied AliceAI ChatGPT Project/Chat URL has been added to `config/chat-projects.json` with the existing `alice-ai` Agent identity. See `docs/ALICE_MULTIWORKER_HANDOFF_PILOT_20261027.md`. This source-only registry change does not start a second Worker, operate the browser, change host privileges or imply actual cross-chat handoff; Mac regression and Chrome exact-tab verification remain pending.
+
+
+## Independent local chat Agent (2026-10-29)
+
+After the requested Git checkpoint was pushed and verified, a separate local-chat Agent (本地聊天) was configured using installed Ollama GPT-OSS 20B, default low thinking, separate private workspace/sessions and denied action tools. A narrow correction to the existing GPT-OSS reasoning capability metadata enabled explicit high-effort requests. Existing project Agent entries and running services were preserved. Actual Gateway multi-turn context and arithmetic checks passed, including an explicit high-effort request. Full regression: 1215/1215 passed. See docs/LOCAL_CHAT_AGENT_PLAN_20261029.md for measurements, cold-loading limits and commands. Operator UI acceptance and the original ChatGPT web computer-tool metadata refresh remain pending.
