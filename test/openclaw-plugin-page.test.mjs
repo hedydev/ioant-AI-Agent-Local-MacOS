@@ -108,5 +108,7 @@ test('connection settings require the exact plugin heading, not an unrelated sid
  assert.equal(pluginObservation(observation('AXLink')).originVerified,false);
  assert.equal(pluginObservation(observation('AXHeading')).originVerified,true);
  const raw=observation('AXHeading');raw.observation.elements.push({elementRef:'refresh-tools',role:'AXButton',label:'Refresh tools'});
+ raw.observation.elements.push({elementRef:'tool-row',role:'AXStaticText',label:'Tool openclaw_project_resume',value:'openclaw_projects'});
  assert.equal(pluginObservation(raw).refresh.length,1);
+ assert.deepEqual(pluginObservation(raw).tools,['openclaw_project_resume','openclaw_projects']);
 });

@@ -17,6 +17,7 @@ import {walkNativePayload} from './openclaw-cua-fixture-native-observe.mjs';
 import {scopedCloseRequest,knownPreAdmissionNativeFailure} from './openclaw-cua-owned-session-guard.mjs';
 const PLUGIN_URL='https://chatgpt.com/plugins',CLI=join(homedir(),'.openclaw/bin/openclaw');
 const parent=join(homedir(),'Library/Application Support/ioant-openclaw-ops');
+const TOOL_NAME=/\bopenclaw_(?:projects|agent_status|agent_message|computer_task|computer_result|project_resume|project_handoff)\b/g;
 const exec=promisify(execFile);
 const registeredTarget=async()=>JSON.parse(await readFile(new URL('../config/chat-projects.json',import.meta.url),'utf8'))
  .projects.find(p=>p.key==='alice-ai')?.chatUrl;
@@ -110,7 +111,7 @@ export function pluginObservation(raw){
    /refresh|tools?|more|menu|actions?|connect|edit|settings?|manage|details|version|update|installed|permissions?|刷新|工具|更多|菜单|设置|管理|连接/i.test(v.label??'')&&
    !/^(?:Project actions|Chat actions|Show more|Relaunch|MCSManager|Open profile|Account|Profile)/i.test(v.label??''))
    .slice(0,30).map(v=>({role:v.role,label:redactFeedback(v.label).slice(0,100)})):[],
-  tools:[...new Set(elements.map(v=>v.label).filter(v=>typeof v==='string'&&/^openclaw_[a-z_]+$/.test(v)))],
+  tools:[...new Set(elements.flatMap(v=>[v.label,v.value].filter(s=>typeof s==='string').flatMap(s=>s.match(TOOL_NAME)??[])))],
   publicLabels:[...new Set(elements.map(v=>v.label).filter(v=>typeof v==='string'&&/^(?:Plugins|Installed|OpenClaw Mac|Refresh|刷新|Tools|工具)$/.test(v)))]};
 }
 export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(join(homedir(),'.openclaw/openclaw.json')),
