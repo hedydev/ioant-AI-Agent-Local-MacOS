@@ -25,16 +25,35 @@ function envelope(raw){
   (v.details||v.observation||v.effect));
  if(!value||value.ok!==true)throw Error('native_action_not_verified');return value;
 }
-export function pluginWindow(raw){
- const rows=walkNativePayload(raw).filter(v=>v?.appName==='Google Chrome'&&typeof v.windowRef==='string'&&v.minimized!==true);
+export function windowInventory(raw){
+ const rows=walkNativePayload(raw).filter(v=>typeof v?.windowRef==='string');
  const unique=[...new Map(rows.map(v=>[v.windowRef,v])).values()];
+ const chrome=unique.filter(v=>v.appName==='Google Chrome');
+ const regular=v=>(v.bounds?.width??v.bounds?.w??0)>=400&&(v.bounds?.height??v.bounds?.h??0)>=250;
+ return {windowCount:unique.length,
+  chromeNames:[...new Set(unique.map(v=>v.appName).filter(v=>typeof v==='string'&&/chrome/i.test(v)&&v.length<80))],
+  exactChromeCount:unique.filter(v=>v.appName==='Google Chrome').length,
+  nonMinimizedChromeCount:unique.filter(v=>v.appName==='Google Chrome'&&v.minimized!==true).length,
+  onScreenChromeCount:chrome.filter(v=>v.isOnScreen===true).length,
+  regularChromeCount:chrome.filter(regular).length,
+  onScreenRegularChromeCount:chrome.filter(v=>v.isOnScreen===true&&regular(v)).length,
+  pluginsTitleHints:chrome.filter(v=>/plugins/i.test(v.title??'')).length,
+  unnamedWindows:unique.filter(v=>typeof v.appName!=='string').length};
+}
+function visibleChromeWindows(raw){
+ const rows=walkNativePayload(raw).filter(v=>v?.appName==='Google Chrome'&&typeof v.windowRef==='string'&&
+  v.minimized!==true&&v.isOnScreen===true&&(v.bounds?.width??v.bounds?.w??0)>=400&&
+  (v.bounds?.height??v.bounds?.h??0)>=250);
+ return [...new Map(rows.map(v=>[v.windowRef,v])).values()];
+}
+export function pluginWindow(raw){
+ const unique=visibleChromeWindows(raw);
  const plugins=unique.filter(v=>/plugins/i.test(v.title??''));
  const selected=plugins.length===1?plugins:unique;
  if(selected.length!==1)throw Error('unique_chrome_window_required');return selected[0].windowRef;
 }
 export async function selectPluginWindow(raw,readAddress,target){
- const rows=walkNativePayload(raw).filter(v=>v?.appName==='Google Chrome'&&typeof v.windowRef==='string'&&v.minimized!==true);
- const candidates=[...new Map(rows.map(v=>[v.windowRef,v])).values()];
+ const candidates=visibleChromeWindows(raw);
  if(candidates.length===1)return candidates[0].windowRef;
  if(candidates.length===0||candidates.length>8)throw Error('unique_chrome_window_required');
  const expected=new globalThis.URL(target);
@@ -75,13 +94,13 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
  pause=ms=>new Promise(ok=>setTimeout(ok,ms)),target=registeredTarget}={}){
  const base={audit:'IOANT_OPENCLAW_PLUGIN_PAGE',mode,modelInferenceInvoked:false,screenshotTaken:false,
   browserRelayUsed:false,chatMessageSent:false};
- let node,executionId,attempted=false,denied=false,claimed=false,inputAttempted=false,result;
+ let node,executionId,attempted=false,denied=false,claimed=false,inputAttempted=false,result,windowScan;
  let closeAcknowledged=false;
  try{
-  if(!['inspect','open','details','refresh'].includes(mode)||mode!=='inspect'&&!operationId.test(id??''))throw Error('explicit_step_required');
+  if(!['inspect','windows','open','details','refresh'].includes(mode)||!['inspect','windows'].includes(mode)&&!operationId.test(id??''))throw Error('explicit_step_required');
   if(['OPENCLAW_PROFILE','OPENCLAW_CONFIG_PATH','OPENCLAW_STATE_DIR'].some(k=>process.env[k]))throw Error('custom_profile_not_supported');
   if(!projectComputerPolicy(await load()))throw Error('workflow_computer_policy_required');
-  if(mode!=='inspect'){
+  if(!['inspect','windows'].includes(mode)){
    const digest=createHash('sha256').update(mode+'\n'+PLUGIN_URL).digest('hex');
    const claim=await store.begin(id,digest);
    if(!claim.created)return {...base,state:'inconclusive',operationId:id,reason:'step_reserved_do_not_repeat'};
@@ -90,7 +109,7 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
   const status=await call(['nodes','status','--json']);node=chooseConnectedMacNode(status);
   const host=(status.result??status).nodes.find(n=>(n.nodeId??n.id)===node.id);
   if(host?.computerUse?.contractVersion!==2||host.computerUse.provider?.id!=='cua-computer')throw Error('native_cua_required');
-  const needed=['list_windows','get_window_state',...(mode==='open'?['bring_to_front','key','type']:mode==='inspect'?[]:['left_click'])];
+  const needed=mode==='windows'?['list_windows']:['list_windows','get_window_state',...(mode==='open'?['bring_to_front','key','type']:mode==='inspect'?[]:['left_click'])];
   if(!needed.every(a=>host.computerUse.actions?.includes(a)))throw Error('native_actions_not_advertised');
   executionId=uuid();
   const act=async params=>{
@@ -100,6 +119,9 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
    catch(e){denied=knownPreAdmissionNativeFailure(e)&&!priorAttempted;throw e;}
   };
   const windows=await act({action:'list_windows'});
+  windowScan=windowInventory(windows);
+  if(mode==='windows')result={...base,state:'observed'};
+  else{
   const windowRef=await selectPluginWindow(windows,ref=>act({action:'get_window_state',windowRef:ref,
    includeScreenshot:false,maxElements:80,query:'Address and search bar'}),await target());
   const observe=async()=>pluginObservation(await act({action:'get_window_state',windowRef,includeScreenshot:false,maxElements:1600}));
@@ -124,6 +146,7 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
   result={...base,state:'observed',...(id?{operationId:id}:{}),originVerified:o.originVerified,
    pluginVisible:o.plugin.length>0,refreshControls:o.refresh.length,tools:o.tools,publicLabels:o.publicLabels,
    ...(mode==='refresh'?{refreshClickedOnce:true}: {})};
+  }
  }catch(e){result={...base,state:'inconclusive',...(id?{operationId:id}:{}),
   reason:/^[a-z_]+$/.test(e.message)?e.message:'native_step_failed_do_not_repeat'};}
  finally{
@@ -131,7 +154,7 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
    try{const closed=await call(scopedCloseRequest(node.id,executionId));closeAcknowledged=closed?.ok===true||closed?.result?.ok===true;}catch{}
   }
  }
- result={...result,thisInvocationInputAttempted:inputAttempted,ownExecutionCloseAcknowledged:closeAcknowledged};
+ result={...result,...(windowScan?{windowScan}:{}),thisInvocationInputAttempted:inputAttempted,ownExecutionCloseAcknowledged:closeAcknowledged};
  if(claimed){
   try{await store.finish(id,createHash('sha256').update(mode+'\n'+PLUGIN_URL).digest('hex'),result);}
   catch{return {...base,state:'inconclusive',operationId:id,reason:'step_receipt_persistence_failed_do_not_repeat'};}
@@ -140,6 +163,6 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const args=process.argv.slice(2);
- const result=await pluginPageStep(args.length===1&&args[0]==='inspect'?'inspect':args.length===2?args[0]:'',args[1]);
+ const result=await pluginPageStep(args.length===1&&['inspect','windows'].includes(args[0])?args[0]:args.length===2?args[0]:'',args[1]);
  console.log(JSON.stringify(result));if(result.state!=='observed')process.exitCode=1;
 }

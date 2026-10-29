@@ -1,19 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {pluginPageStep,pluginWindow,selectPluginWindow} from '../scripts/openclaw-plugin-page.mjs';
+import {pluginPageStep,pluginWindow,selectPluginWindow,windowInventory} from '../scripts/openclaw-plugin-page.mjs';
 import {projectBinding} from '../integrations/chatgpt-openclaw/project-binding.mjs';
 const config={agents:{defaults:{model:'ollama/local'},entries:{'openclaw-dev':{
  model:'ollama/gemma4:26b-a4b',workspace:projectBinding().workspace,tools:{allow:['computer']}}}},
  models:{providers:{ollama:{baseUrl:'http://127.0.0.1:11435',api:'ollama'}}}};
 const node={nodeId:'paired-mac',connected:true,platform:'macos',commands:['computer.act','screen.snapshot'],
  computerUse:{contractVersion:2,provider:{id:'cua-computer'},actions:['list_windows','get_window_state','bring_to_front','key','type','left_click']}};
+const chromeWindow=ref=>({windowRef:ref,appName:'Google Chrome',isOnScreen:true,bounds:{width:900,height:700}});
 function fixture({url='https://chatgpt.com/plugins',failType=false,duplicateRefresh=false,fakeAddress=false}={}){
  const calls=[],claims=new Set();let observation=0;
  const store={begin:async(id)=>{const created=!claims.has(id);claims.add(id);return {created};},finish:async()=>{}};
  const call=async args=>{
   if(args[0]==='nodes'&&args[1]==='status')return {nodes:[node]};
   const p=JSON.parse(args[args.indexOf('--params')+1]);calls.push(p);
-  if(p.action==='list_windows')return {ok:true,details:{windows:[{windowRef:'win-chrome',appName:'Google Chrome'}]}};
+  if(p.action==='list_windows')return {ok:true,details:{windows:[chromeWindow('win-chrome')]}};
   if(p.action==='get_window_state')return {ok:true,observation:{observationId:'obs-'+(++observation),elements:[
    {elementRef:'address',role:'text_field',label:'Address and search bar',value:url},
    ...(fakeAddress?[{elementRef:'fake-address',role:'text_field',label:'Address and search bar',value:'https://chatgpt.com/plugins'}]:[]),
@@ -55,11 +56,28 @@ test('ambiguous Chrome windows are not guessed and unsupported task modes do not
  const {calls,ctx}=fixture();assert.equal((await pluginPageStep('navigate-any-url','some_id_001',ctx)).state,'inconclusive');assert.equal(calls.length,0);
 });
 test('multiple Chrome windows require an exact registered address, with read-only query before selection',async()=>{
- const windows={ok:true,details:{windows:[{appName:'Google Chrome',windowRef:'one'},{appName:'Google Chrome',windowRef:'two'}]}};
+ const windows={ok:true,details:{windows:[chromeWindow('one'),chromeWindow('two')]}};
  const target='https://chatgpt.com/g/registered-project/c/registered-chat';
  const read=async ref=>({ok:true,observation:{observationId:'obs-'+ref,elements:[
   {elementRef:'address-'+ref,role:'text_field',label:'Address and search bar',value:ref==='one'?target:'https://example.com/'}]}});
  assert.equal(await selectPluginWindow(windows,read,target),'one');
  await assert.rejects(selectPluginWindow(windows,async()=>read('two'),target),/registered_chrome_window_unverified/);
  await assert.rejects(selectPluginWindow(windows,async()=>read('one'),target),/registered_chrome_window_unverified/);
+});
+test('off-screen windows and small Chrome panels cannot become keyboard targets',async()=>{
+ const windows={ok:true,details:{windows:[chromeWindow('target'),
+  ...Array.from({length:45},(_,i)=>({...chromeWindow('panel-'+i),bounds:{width:50,height:30}})),
+  {...chromeWindow('off-screen'),isOnScreen:false}]}};
+ const chosen=await selectPluginWindow(windows,async()=>{throw Error('unexpected_query');},'https://chatgpt.com/plugins');
+ assert.equal(chosen,'target');assert.equal(pluginWindow(windows),'target');
+});
+test('window diagnostics distinguish absent/name-mismatched/ambiguous inventory without revealing titles or refs',async()=>{
+ const scan=windowInventory({result:{ok:true,details:{windows:[{windowRef:'a',appName:'Chrome',title:'private chat title'},
+  {windowRef:'b',title:'another private title'}]}}});
+ assert.deepEqual(scan,{windowCount:2,chromeNames:['Chrome'],exactChromeCount:0,nonMinimizedChromeCount:0,
+  onScreenChromeCount:0,regularChromeCount:0,onScreenRegularChromeCount:0,pluginsTitleHints:0,unnamedWindows:1});
+ const {calls,ctx}=fixture();const r=await pluginPageStep('windows',undefined,ctx);
+ assert.equal(r.state,'observed');assert.equal(r.thisInvocationInputAttempted,false);
+ assert.deepEqual(calls.map(c=>c.action),['list_windows','__close_execution']);
+ assert.equal(JSON.stringify(r).includes('win-chrome'),false);
 });
