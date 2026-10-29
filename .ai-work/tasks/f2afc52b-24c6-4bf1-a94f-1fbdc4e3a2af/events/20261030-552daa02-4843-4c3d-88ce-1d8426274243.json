@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "event_id": "552daa02-4843-4c3d-88ce-1d8426274243",
+  "task_id": "f2afc52b-24c6-4bf1-a94f-1fbdc4e3a2af",
+  "event_type": "feedback_added",
+  "occurred_at": "2026-10-29T20:55:35.574364Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "2123fc39d9dbdc5a8874fd1e636661dd4a8d073c",
+  "message": "User reports web Chat still sees only workflow/Alice and proposes desktop probing for unregistered projects. Source confirms profile hardcodes two keys and catalog enum/snapshot routing. Continue generic dynamic registry plus workspace discovery/connect with independent no-tools native Agents and deterministic script execution; no AWS migration or production operations. User authorizes autonomous update/restart/plugin refresh and messages to an infrastructure Chat for testing. Credentials omitted. New usage rule: checkpoint near10%, pause near5%, automatically resume after reset; heartbeat created for this authorized task.",
+  "changes": {
+    "status": {
+      "from": "awaiting_device_validation",
+      "to": "in_progress"
+    }
+  },
+  "evidence": [],
+  "supersedes_event_id": null
+}

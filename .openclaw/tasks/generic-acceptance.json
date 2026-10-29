@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "title": "Generic MCP private-artifact acceptance",
+  "steps": [
+    {"name": "write_report", "runtime": "node", "script": "scripts/mcp-generic-acceptance.mjs", "timeoutSeconds": 30},
+    {"name": "write_archive", "runtime": "python", "script": "scripts/mcp-generic-acceptance-zip.py", "timeoutSeconds": 30}
+  ],
+  "artifacts": [
+    {"id": "summary", "file": "report.json", "format": "json"},
+    {"id": "summary_zip", "file": "report.zip", "format": "zip_json", "member": "report.json"}
+  ]
+}

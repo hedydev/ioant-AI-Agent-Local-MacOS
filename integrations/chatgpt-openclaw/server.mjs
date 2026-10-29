@@ -8,6 +8,7 @@ import {projectRoute,routedCatalog,routeCall,routeInstructions} from './project-
 import {projectHandoff,handoffTools} from './project-handoff.mjs';
 import {projectExecution,executionTools} from './project-execution.mjs';
 import {reportToolResult} from './project-report-contract.mjs';
+import {workspaceTool} from './workspace-tools.mjs';
 
 export const tools=[{
  name:'openclaw_agent_status',
@@ -55,11 +56,12 @@ export async function callTool(name,args,{status=inspectDirectAgent,message=mess
 
 export async function serve(binding=projectBinding(),route={shared:false,bindings:[binding]}){
  const {Server,StdioServerTransport,ListToolsRequestSchema,CallToolRequestSchema}=await loadSdk();
- const server=new Server({name:'ioant-openclaw-direct',version:'0.4.0'},
+ const server=new Server({name:'ioant-openclaw-direct',version:'0.5.0'},
   {capabilities:{tools:{}},instructions:routeInstructions(route)});
  server.setRequestHandler(ListToolsRequestSchema,async()=>({tools:routedCatalog(tools,route,[...handoffTools,...executionTools])}));
  server.setRequestHandler(CallToolRequestSchema,async request=>{
   try{return await routeCall(request.params.name,request.params.arguments??{},{route,
+   globalInvoke:async(name,args)=>{const result=await workspaceTool(name,args);return {content:[{type:'text',text:JSON.stringify(result)}],isError:['blocked','inconclusive'].includes(result.state)};},
    invoke:async(name,args,selected)=>{
     if(route.shared&&executionTools.some(t=>t.name===name)){
      const result=await projectExecution(name,args,{binding:selected});

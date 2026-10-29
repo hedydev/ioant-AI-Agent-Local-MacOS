@@ -3,6 +3,17 @@
 Updated 2026-10-30, Asia/Shanghai. This is the current direction and evidence
 summary for this implementation, superseding conflicting older plans.
 
+Latest 0.5.0 source supersedes the initial fixed project list: read
+GENERIC_WORKSPACE_ACCESS_20261030.md. Dynamic registered-mode per-call routing,
+global workspace discovery/connect and isolated deny-all native provisioning are
+implemented; full 1291 tests pass and native patch CLI dry-run passed. User
+explicitly authorized autonomous rollout and workflow Chat tests while sleeping.
+Never put credentials in logs/docs/test messages. AWS remains illustrative only.
+Usage follow-up heartbeat openclaw-mcp: checkpoint near10%, pause near5%, resume
+after reset unless user stops, remove heartbeat on completion. Source validation
+is separate from pending actual rollout and web test. Web helper refuses before
+input when exact browser tab is missing; do not bypass a host consent denial.
+
 Latest local rollout preparation: workflow generic grant dry-run/apply passed for
 this infrastructure repository only; existing Agent permissions and Alice fixed grant
 unchanged. Actual new local SDK connection confirms eleven tools, repository_task,

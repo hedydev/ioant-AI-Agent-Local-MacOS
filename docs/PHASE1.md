@@ -1,5 +1,13 @@
 # Phase 1 — Local read-only browser audits
 
+## Dynamic generic workspace source (2026-10-30)
+
+0.5.0 removes the startup project snapshot/enum in registered mode, adds global
+workspace discovery/connect, isolated deny-all native Agent provisioning and
+persistent at-most-once onboarding receipts. Same-connection third-project routing
+and all 1291 Node tests pass. Read GENERIC_WORKSPACE_ACCESS_20261030.md for cause,
+scope and pending actual rollout/web acceptance. No production example project runs.
+
 ## Generic MCP integration candidate (2026-10-30)
 
 0.4.0 source integrates generic repository tasks, data-driven independent project

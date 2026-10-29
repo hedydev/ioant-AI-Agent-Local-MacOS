@@ -11,7 +11,8 @@ const root=resolve(fileURLToPath(new URL('..',import.meta.url)));
 const parent=join(homedir(),'Library/Application Support/ioant-openclaw-ops/direct-tunnel');
 const file=join(parent,'ioant-openclaw-direct.yaml');
 const base=join(homedir(),'.openclaw/tools/node/bin/node')+' '+join(root,'integrations/chatgpt-openclaw/server.mjs');
-const next=base+' --shared-projects openclaw-workflow,alice-ai';
+const previous=base+' --shared-projects openclaw-workflow,alice-ai';
+const next=base+' --shared-projects registered';
 async function privatePath(path,directory=false){
  const st=await lstat(path);
  if((directory?!st.isDirectory():!st.isFile())||st.isSymbolicLink()||st.uid!==process.getuid()||
@@ -20,7 +21,7 @@ async function privatePath(path,directory=false){
 export function sharedTunnelProfile(c){
  if(c?.control_plane?.api_key!=='env:CONTROL_PLANE_API_KEY'||
   !Array.isArray(c?.mcp?.commands)||c.mcp.commands.length!==1||
-  c.mcp.commands[0].channel!=='main'||![base,next].includes(c.mcp.commands[0].command))
+  c.mcp.commands[0].channel!=='main'||![base,previous,next].includes(c.mcp.commands[0].command))
   throw Error('existing_profile_requires_review');
  const out=structuredClone(c);out.mcp.commands[0].command=next;return out;
 }
@@ -31,7 +32,7 @@ export async function configureSharedTunnel(mode){
   const require=createRequire(join(homedir(),'.openclaw/tools/node-v24.22.1/lib/node_modules/openclaw/package.json'));
   const YAML=require('yaml'),before=await readFile(file,'utf8'),c=YAML.parse(before),expected=sharedTunnelProfile(c);
   if(isDeepStrictEqual(c,expected))return {state:'already_prepared',restartPerformed:false};
-  if(mode==='--dry-run')return {state:'validated',projects:['openclaw-workflow','alice-ai'],restartPerformed:false};
+  if(mode==='--dry-run')return {state:'validated',projectRouting:'dynamic_registered',restartPerformed:false};
   const backup=join(parent,'profile-before-shared-'+randomUUID()+'.yaml');
   await writeFile(backup,before,{mode:0o600,flag:'wx'});
   if(await readFile(file,'utf8')!==before)throw Error('profile_changed_before_write');
@@ -39,7 +40,7 @@ export async function configureSharedTunnel(mode){
   await writeFile(temporary,YAML.stringify(expected),{mode:0o600,flag:'wx'});
   await rename(temporary,file);
   if(!isDeepStrictEqual(YAML.parse(await readFile(file,'utf8')),expected))throw Error('profile_readback_requires_review');
-  return {state:'prepared',projects:['openclaw-workflow','alice-ai'],backupSaved:true,
+  return {state:'prepared',projectRouting:'dynamic_registered',backupSaved:true,
    runtimeKeyRead:false,restartPerformed:false,foregroundRestartRequired:true};
  }catch(e){return {state:'blocked',reason:/^[a-z_]+$/.test(e.message)?e.message:'profile_requires_review'};}
 }

@@ -11,7 +11,7 @@ const profile=()=>({control_plane:{api_key:'env:CONTROL_PLANE_API_KEY',tunnel_id
 test('shared profile preparation changes only the fixed command args and preserves credential references',()=>{
  const c=profile(),before=structuredClone(c),p=sharedTunnelProfile(c);
  assert.deepEqual(c,before);
- assert.equal(p.mcp.commands[0].command,command+' --shared-projects openclaw-workflow,alice-ai');
+ assert.equal(p.mcp.commands[0].command,command+' --shared-projects registered');
  p.mcp.commands[0].command=command;assert.deepEqual(p,before);
  assert.deepEqual(sharedTunnelProfile(sharedTunnelProfile(c)),sharedTunnelProfile(c));
 });

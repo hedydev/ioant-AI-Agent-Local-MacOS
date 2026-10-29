@@ -1,5 +1,22 @@
 # AI Agent Rules — Local macOS Phase 1
 
+## Generic workspace onboarding and autonomous acceptance (2026-10-30)
+
+Read docs/GENERIC_WORKSPACE_ACCESS_20261030.md. The user explicitly authorized
+updating/restarting the existing Tunnel, refreshing OpenClaw Mac and sending
+infrastructure ChatGPT test messages while they sleep. Test only the workflow
+chat or owned acceptance repository; AWS remains an example, not production scope.
+Never commit/log/transmit runtime credentials in test messages or docs. A disclosed
+runtime key is authorized only for the existing Tunnel, not paid model inference.
+Use one shared registered dynamic connection. Workspace discovery/connect tools
+are global; do not require a pre-existing project key or use desktop terminal
+probing as an enrollment workaround. New project Agents remain independent and
+deny-all; deterministic repository tasks do not invoke models.
+Checkpoint/push near 10% remaining; the latest user instruction additionally
+requires pausing near 5%, then automatically resuming after usage reset without
+waiting for another user message. The current-thread heartbeat openclaw-mcp owns
+this follow-up. Honor a human stop; delete the heartbeat once work is finished.
+
 ## Latest operator clarification: generic conversation-driven execution (2026-10-30)
 
 AWS/Alice snippets are examples, not authority for new project-specific integration.

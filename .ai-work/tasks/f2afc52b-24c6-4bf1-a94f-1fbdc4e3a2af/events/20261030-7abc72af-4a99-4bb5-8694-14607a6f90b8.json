@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "event_id": "7abc72af-4a99-4bb5-8694-14607a6f90b8",
+  "task_id": "f2afc52b-24c6-4bf1-a94f-1fbdc4e3a2af",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T21:07:45.740761Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "2123fc39d9dbdc5a8874fd1e636661dd4a8d073c",
+  "message": "0.5.0 dynamic registered routing and global workspace discovery/connect implemented. Independent deny-all native Agent provisioning, additive grants and durable no-replay connection receipts. Same connection sees later third project without schema refresh. Complete1288/1288 source regression, shell syntax and diff checks pass. Authorized workflow Chat and Plugins tabs exist through existing OpenClaw browser relay; no new CUA/TCC grant needed. Rollout and real web acceptance still pending. Credentials excluded.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "test",
+      "result": "1288 passed, 0 failed/skipped/cancelled"
+    },
+    {
+      "kind": "document",
+      "path": "docs/GENERIC_WORKSPACE_ACCESS_20261030.md"
+    }
+  ],
+  "supersedes_event_id": null
+}
