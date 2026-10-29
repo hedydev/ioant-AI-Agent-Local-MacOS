@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// New stdio client/process per invocation; no model, desktop, web account or runtime key.
+// New stdio client/process per invocation. Defaults are model/desktop-free;
+// explicit --computer-read-test invokes one local model and native cursor read.
 import {fileURLToPath} from 'node:url';
 import {randomUUID} from 'node:crypto';
 import {loadClientSdk} from '../integrations/chatgpt-openclaw/sdk.mjs';
@@ -27,9 +28,9 @@ try{
  let operation;
  if(mode==='--computer-read-test'){
   if(status.toolsEnabled!==true)throw Error('computer_not_enabled');
-  operation='shared_cursor_'+randomUUID();
+  const nonce=randomUUID();operation='shared_cursor_'+nonce;
   const completed=await read('openclaw_computer_task',{project_key:key,operation_id:operation,
-   conversation_key:'shared_cursor_probe_'+randomUUID(),
+   conversation_key:'shared_cursor_probe_'+nonce,
    message:'Use the computer tool exactly once with action get_cursor_position. Do not take screenshots, list apps/windows, move the pointer, click, type, open apps, read files, send messages or change settings. Do not retry a refused action. Report the actual outcome.'});
   if(completed.state!=='returned'||completed.computerToolSucceeded!==true)throw Error('native_read_unverified');
   const saved=await read('openclaw_computer_result',{project_key:key,operation_id:operation});
