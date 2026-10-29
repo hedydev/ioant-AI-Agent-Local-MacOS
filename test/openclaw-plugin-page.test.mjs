@@ -86,3 +86,8 @@ test('native bare success inside node.invoke is accepted without treating transp
  assert.throws(()=>nativeEnvelope({ok:true}),/not_verified/);
  assert.throws(()=>nativeEnvelope({ok:true,command:'computer.act',payload:{ok:false}}),/not_verified/);
 });
+test('an explicitly resumed navigation stage does not replay the earlier foreground action',async()=>{
+ const {calls,ctx}=fixture();const r=await pluginPageStep('open-focused','continue_open_page_001',ctx);
+ assert.equal(r.state,'observed');assert.equal(calls.some(c=>c.action==='bring_to_front'),false);
+ assert.deepEqual(calls.filter(c=>c.action==='key').map(c=>c.keys),['CMD+T','ENTER']);
+});

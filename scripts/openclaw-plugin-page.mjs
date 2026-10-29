@@ -103,7 +103,7 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
  const completedActions=[];
  let closeAcknowledged=false;
  try{
-  if(!['inspect','windows','open','details','refresh'].includes(mode)||!['inspect','windows'].includes(mode)&&!operationId.test(id??''))throw Error('explicit_step_required');
+  if(!['inspect','windows','open','open-focused','details','refresh'].includes(mode)||!['inspect','windows'].includes(mode)&&!operationId.test(id??''))throw Error('explicit_step_required');
   if(['OPENCLAW_PROFILE','OPENCLAW_CONFIG_PATH','OPENCLAW_STATE_DIR'].some(k=>process.env[k]))throw Error('custom_profile_not_supported');
   if(!projectComputerPolicy(await load()))throw Error('workflow_computer_policy_required');
   if(!['inspect','windows'].includes(mode)){
@@ -115,7 +115,8 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
   const status=await call(['nodes','status','--json']);node=chooseConnectedMacNode(status);
   const host=(status.result??status).nodes.find(n=>(n.nodeId??n.id)===node.id);
   if(host?.computerUse?.contractVersion!==2||host.computerUse.provider?.id!=='cua-computer')throw Error('native_cua_required');
-  const needed=mode==='windows'?['list_windows']:['list_windows','get_window_state',...(mode==='open'?['bring_to_front','key','type']:mode==='inspect'?[]:['left_click'])];
+  const needed=mode==='windows'?['list_windows']:['list_windows','get_window_state',
+   ...(mode==='open'?['bring_to_front','key','type']:mode==='open-focused'?['key','type']:mode==='inspect'?[]:['left_click'])];
   if(!needed.every(a=>host.computerUse.actions?.includes(a)))throw Error('native_actions_not_advertised');
   executionId=uuid();
   const act=async params=>{
@@ -133,8 +134,8 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
   const windowRef=await selectPluginWindow(windows,ref=>act({action:'get_window_state',windowRef:ref,
    includeScreenshot:false,maxElements:80,query:'Address and search bar'}),await target());
   const observe=async()=>pluginObservation(await act({action:'get_window_state',windowRef,includeScreenshot:false,maxElements:1600}));
-  if(mode==='open'){
-   await act({action:'bring_to_front',windowRef});
+  if(mode==='open'||mode==='open-focused'){
+   if(mode==='open')await act({action:'bring_to_front',windowRef});
    await act({action:'key',windowRef,keys:'CMD+T',deliveryMode:'foreground'});
    let o=await observe();
    await act({action:'type',windowRef,observationId:o.observationId,text:PLUGIN_URL,deliveryMode:'foreground'});
