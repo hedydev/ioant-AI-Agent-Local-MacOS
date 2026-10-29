@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "event_id": "3d8a4250-cc4f-4ef8-a6ee-169b1e64c410",
+  "task_id": "daa543da-39dd-4c26-a9cf-3564647a42e2",
+  "event_type": "task_created",
+  "occurred_at": "2026-10-28T23:57:46.435283Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "03c7a7a7532e43d49af81c589000aa6e94ce8d72",
+  "message": "Implement passive inventory and explicit terminal acceptance without changing services, permissions or model configuration.",
+  "changes": {
+    "status": {
+      "from": null,
+      "to": "in_progress"
+    }
+  },
+  "evidence": [],
+  "supersedes_event_id": null
+}

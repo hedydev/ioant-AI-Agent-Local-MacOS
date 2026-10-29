@@ -12,6 +12,11 @@
 > below documents a **separate read-only site audit**, not the currently
 > active native CUA development objective.
 
+For the ChatGPT-led executor workflow, use the new
+[passive capability inventory and explicit terminal acceptance](docs/WORKFLOW_EXECUTOR_CAPABILITIES_20261029.md).
+These tools distinguish direct execution from model-backed Agent discussion;
+they neither change the running Worker nor grant desktop access.
+
 
 Phase 1: **human-controlled, read-only website audits** using the OpenClaw browser CLI for *snapshots* and a local Ollama model for *analysis*. No ChatDock dependency, cloud API, browser clicking, shell actions proposed by pages, or unattended account mutation.
 

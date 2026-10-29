@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "event_id": "21681d5d-169d-45eb-acbf-5a4de6dfdf72",
+  "task_id": "daa543da-39dd-4c26-a9cf-3564647a42e2",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-28T23:58:46.777063Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "03c7a7a7532e43d49af81c589000aa6e94ce8d72",
+  "message": "Full native Mac regression passed 1194/1194; shell syntax passed. Real passive inventory and terminal file write plus independent readback passed. Private Worker runtime unchanged; ChatGPT transport and GUI delivery not accepted by this test.",
+  "changes": {
+    "status": {
+      "from": "in_progress",
+      "to": "awaiting_user_acceptance"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "1194 passed; 0 failed; bash syntax passed"
+    },
+    {
+      "kind": "device_validation",
+      "summary": "Terminal smoke operation 803fc605-1c7b-48df-ab4f-a1c669494b9d passed; chatRoundtripVerified=false"
+    }
+  ],
+  "supersedes_event_id": null
+}

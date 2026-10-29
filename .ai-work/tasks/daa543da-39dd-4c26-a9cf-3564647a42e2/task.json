@@ -1,0 +1,32 @@
+{
+  "schema_version": 2,
+  "task_id": "daa543da-39dd-4c26-a9cf-3564647a42e2",
+  "created_at": "2026-10-28T23:57:46.435283Z",
+  "created_by": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "objective": "Expose passive executor capabilities and verify a model-free terminal file roundtrip",
+  "scope": [
+    "stage2/workflow-capabilities.mjs",
+    "scripts/workflow-capabilities.mjs",
+    "scripts/workflow-terminal-smoke.mjs",
+    "test/workflow-capabilities.test.mjs",
+    "test/workflow-terminal-smoke.test.mjs"
+  ],
+  "target_ids": [
+    "macos-audit-cli"
+  ],
+  "acceptance_criteria": [
+    "Report terminal and GUI authorization without exposing private contents or calling models",
+    "Distinguish model-backed Agent discussion from direct execution",
+    "Verify a real file write with independent readback through existing terminal executor",
+    "Pass regression checks and document remaining ChatGPT and GUI acceptance boundaries"
+  ],
+  "deduplication_key": "workflow-executor-capabilities-terminal-acceptance",
+  "parent_task_id": null,
+  "relations": []
+}

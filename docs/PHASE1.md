@@ -1,5 +1,16 @@
 # Phase 1 — Local read-only browser audits
 
+## Separate current executor acceptance (2026-10-29)
+
+The current ChatGPT-led Ops workflow is separate from this historical Phase-1
+audit. New passive capability inventory and explicit terminal fixture acceptance
+are documented in `WORKFLOW_EXECUTOR_CAPABILITIES_20261029.md`. The actual Mac
+terminal file write and independent readback passed without model inference,
+browser actions or chat sends. This does not validate a ChatGPT transport roundtrip
+or background message delivery, change Phase-1 behavior, or deploy/restart the
+private Worker runtime. Full regression evidence is recorded in the main task
+ledger for this additive change.
+
 ## Product scope (2026-10-23)
 
 **Implemented in repository:** explicit watchlist, exact tab matching, sequential OpenClaw snapshot collection, local Ollama analysis, SHA-256 change detection, redacted private Markdown report, correlated JSONL diagnostic events, opt-in watch loop, unit/integration test fixtures. One browser profile per site.
