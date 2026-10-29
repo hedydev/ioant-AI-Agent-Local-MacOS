@@ -34,8 +34,11 @@ summary for this implementation, superseding conflicting older plans.
 | Role / backup | Workflow AGENTS role updated for ChatGPT-led execution; private original role and config saved in `~/.openclaw/backups/` |
 | Native local capability | `mac-computer` test Agent invoked one native cursor read, verified from session history and activity audit |
 | Actual project Agent through MCP | `openclaw-dev` cursor task passed; saved receipt finished; readback cached; exact-session history contained only `get_cursor_position`; one successful computer audit |
-| Regression | Latest full suite 1234/1234 passed with concurrency 4; shell syntax and whitespace checks passed |
-| Remaining web acceptance | User's ChatGPT session still listed only the original two tools. New task/result metadata refresh remains pending |
+| Regression | Latest full suite 1241/1241 passed with concurrency 4; shell syntax and whitespace checks passed |
+| Shared Tunnel deployment | User restarted the foreground client; actual child argv confirmed shared two-project mode; positive cloud polls and no polling errors |
+| Plugin metadata refresh | Authorized native Chrome path Plugins → OpenClaw Mac → Manage → Refresh tools completed once; real cloud initialize/discover/tools-list calls returned 200 |
+| Shared local native acceptance | Project-key MCP cursor task plus cached result passed; exact session history contained only get_cursor_position |
+| Remaining web acceptance | User has the Alice new-Chat projects/status/resume prompt; actual chat-originated tools/call and web computer task remain pending |
 
 Initial computer task receipt:
 `cursor_7ad32407-1d7e-4bb1-8a65-b7f9c6da5013`.
@@ -60,9 +63,9 @@ default. Local API greeting and reasoning probes passed, with slower measured
 generation on this Mac. See the model document for Gateway acceptance limits.
 User acceptance in the OpenClaw Chat UI remains pending.
 
-The direct desktop integration remains at the acceptance boundary above:
-local project computer-task/readback passed; user-side ChatGPT tool catalog
-still showed only the original two tools and needs a verified metadata refresh.
+The direct desktop integration has passed local shared-project native task/readback
+and the actual cloud metadata refresh. A fresh ChatGPT chat must still exercise
+the new tools; do not infer that from the successful metadata scan alone.
 Shared-Tunnel routing and revisioned project handoffs are now implemented and
 locally verified. See `docs/CHATGPT_PROJECT_CONTINUITY_20261029.md`. The operator
 requires replacing a full ChatGPT chat without replacing the project Agent:
@@ -99,15 +102,13 @@ use expected_revision conflicts and fresh referenced receipts. An actual local
 save followed by a fresh-process resume passed; Alice remained independently
 empty. These are local MCP tests, not actual ChatGPT web new-chat acceptance.
 
-Latest: workflow handoff revision 2 and separately seeded Alice connection-only
-revision 1 both resume in new local MCP processes. Shared private profile is
-already backed up/prepared. Source is pushed through 4681f5a. The old foreground
-tunnel PID was still running at the last check; user has been asked to restart
-only it and privately enter the Runtime Key. Do not take Chrome focus while the
-user may be entering that key. The first fixed native page-open step stopped
-before input because several Chrome windows were present; a tested exact
-registered-address selector is now in source but has not yet passed real UI
-acceptance. Do not claim Refresh or the web seven-tool rollout succeeded.
+Latest: workflow handoff revision 4 and separately seeded Alice connection-only
+revision 1 resume in new local MCP processes. Shared private profile is deployed,
+the user-entered key remains private, and native plugin Refresh tools completed.
+Native setup scripts were exercised without model inference, screenshots,
+browser Relay/CDP, permission changes, plugin version changes or chat sends.
+Source validation details and the genuine local-vs-web boundary are in the
+continuity document. Await the user's actual Alice new-chat tool results.
 
 The project task store persists privately under the local app-support root,
 separately for each project. An unfinished/uncertain receipt means investigate,
@@ -116,31 +117,27 @@ independent proof that an application's intended visible effect occurred.
 
 ## Exact next actions
 
-1. Verify the operator's foreground tunnel is running with successful cloud
-   polls, not merely local `/readyz`. Its loopback health port changes on restart.
-   Read metrics; never inspect a process's environment or retrieve its runtime key.
-2. Prepare the existing private shared profile using the reviewed helper,
-   restart ONLY the user's foreground tunnel, privately entering its Runtime Key.
-   Do not retrieve that key from the old process environment. See the continuity
-   document for exact commands. No new Tunnel is required.
-3. In ChatGPT **Plugins**, open OpenClaw Mac details and **Refresh** its tool
-   metadata. The `@` composer menu only lists the plugin name, not its internal
-   tools. Use a new conversation after refresh. Shared mode advertises seven
-   tools; a stale conversation can still show two or four.
-4. If a tunnel reload is actually needed, the user presses Ctrl-C in only that
-   foreground tunnel and runs the command below, entering the runtime key
-   privately. No Gateway/Worker/Coordinator restart is required.
-5. Have ChatGPT first call openclaw_projects and the selected project's status,
-   then issue one explicitly read-only `openclaw_computer_task` for
-   `get_cursor_position`, with a unique operation ID, no screenshots/pointer
-   movement/clicks/typing/file changes. Verify the return and query its saved
-   receipt with `openclaw_computer_result` instead of rerunning it.
-6. Only then move to a harmless user-authorized application task with effect
-   readback. Configure further project scopes deliberately; Alice remains
-   independently text-only until its own rollout.
-7. Save a factual project handoff, then verify a new Chat can resume it without
-   invoking a model/desktop action or repeating an old operation. Alice stays
-   independently text-only until its own user-authorized rollout.
+1. The shared profile, foreground restart and native Refresh tools step are
+   already done. Do not replay them as a health check. If checking health, use
+   positive recent cloud polls, not just /readyz; the loopback port is dynamic.
+   Never inspect a process environment or retrieve its Runtime Key.
+2. Await the user's Alice **new Chat** projects/status/resume test. They have a
+   copy-ready prompt and an asynchronous result question. It must report
+   project/Agent alice-ai and handoff revision >=1. The @ menu lists the plugin
+   name; the model's actual tool call confirms function availability.
+3. Correlate genuine ChatGPT tool results with the tunnel's tools/call count.
+   initialize/tools/list 200 from metadata refresh alone does not prove a chat
+   invoked a tool. Do not send messages into Alice Chat on behalf of its owner
+   or replay the old Coordinator handshake.
+4. In the **workflow** project, separately verify one web-originated read-only
+   get_cursor_position task and cached computer_result, with a fresh operation
+   ID and conversation_key. Do not reuse the completed local cursor ID or let
+   an Alice chat silently route to the workflow's computer-enabled Agent.
+5. Exercise a factual handoff/save and new-chat resume as appropriate; a fresh
+   chat uses a new conversation_key and current expected_revision. Unsaved old
+   chat context cannot be reconstructed automatically.
+6. Only then move to a harmless authorized application task with independent
+   effect readback. Alice remains text-only until its own authorized rollout.
 
 ## Mac Terminal commands
 
@@ -149,6 +146,9 @@ cd "$HOME/Documents/workspace/ioant-AI-Agent-Local-MacOS"
 # Readiness only; no model invocation:
 bash scripts/dev-env.sh exec node scripts/direct-openclaw-mcp-smoke.mjs --status
 bash scripts/dev-env.sh exec node scripts/direct-openclaw-mcp-smoke.mjs --status --project alice-ai
+# Shared-mode readiness and persisted Alice handoff, also no model/desktop:
+bash scripts/dev-env.sh exec node scripts/direct-openclaw-shared-smoke.mjs --status
+bash scripts/dev-env.sh exec node scripts/direct-openclaw-shared-smoke.mjs --resume alice-ai
 # Only when restarting the user's foreground tunnel is needed:
 bash scripts/direct-openclaw-tunnel.sh
 ```

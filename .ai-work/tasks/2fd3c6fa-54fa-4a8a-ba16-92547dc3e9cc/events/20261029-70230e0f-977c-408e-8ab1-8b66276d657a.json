@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "event_id": "70230e0f-977c-408e-8ab1-8b66276d657a",
+  "task_id": "2fd3c6fa-54fa-4a8a-ba16-92547dc3e9cc",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T12:10:33.333483Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "586c608",
+  "message": "User restarted foreground tunnel and privately entered Runtime Key. Actual new child loaded shared-project flags; cloud polling passed with no errors. Authorized OpenClaw native setup navigated a new Chrome tab, opened plugin details, followed Manage to scoped settings, and clicked exact Refresh tools once. Cloud initialize/discover/tools-list returned 200; no chat-originated tools/call observed yet. Shared local cursor task and cached receipt passed; independent history proved exactly one computer/get_cursor_position. Workflow handoff revision 4 and Alice connection-only revision 1 persist. Latest full suite 1241/1241. Await user Alice new-Chat read-only projects/status/resume result; do not claim complete web or computer acceptance.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "Latest full suite 1241 passed, 0 failed; syntax and whitespace passed"
+    },
+    {
+      "kind": "device_validation",
+      "summary": "Real shared tunnel/cloud tool metadata refresh; exact native fixed-step receipts; local shared cursor/readback and exact session history passed"
+    }
+  ],
+  "supersedes_event_id": null
+}

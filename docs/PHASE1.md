@@ -225,3 +225,8 @@ The operator requested a Qwen supplement. The installed qwen3.8:27b-mlx alias pa
 ## Shared direct MCP and project chat continuity (2026-10-29)
 
 Explicit --shared-projects mode adds seven-tool routing and immutable revisioned handoffs while retaining fixed-mode compatibility. Workflow and Alice local MCP status passed independently. An actual workflow handoff saved through MCP was resumed by a new client/process with current operation receipts; Alice stayed empty. Native plugin-page setup steps use fixed, authorized OpenClaw actions without local-model planning, screenshots, browser Relay/CDP or chat sends. Full suite passed 1233/1233 at test-concurrency=4; a default-concurrency legacy Worker wait-window failure was preserved, its isolated rerun passed, and no assertions/timeouts/Worker logic were changed. Final targeted follow-up passed. Shared Tunnel deployment, actual fixed native UI steps, and ChatGPT web acceptance remain pending. See docs/CHATGPT_PROJECT_CONTINUITY_20261029.md.
+
+
+## Shared MCP live metadata rollout (2026-10-29)
+
+Foreground tunnel restarted by user with private Runtime Key entry; actual shared-project child and successful cloud polls verified. Native OpenClaw Chrome setup completed Plugins → OpenClaw Mac → Manage → Refresh tools once; cloud initialize/discover/tools-list responses were 200. No permission/auth/version changes or chat sends. Shared local project-key cursor task and cached receipt passed, with independent history confirming only get_cursor_position. Full suite 1241/1241. Actual Alice new-Chat projects/status/resume and web computer-task acceptance remain pending user results. See docs/CHATGPT_PROJECT_CONTINUITY_20261029.md.

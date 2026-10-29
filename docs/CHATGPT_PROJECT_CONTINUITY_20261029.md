@@ -91,15 +91,41 @@ OpenClaw 是两套独立授权；本工作流不要求补前者的截图/扩展�
 本次插件页面所在窗口的识别，不成为 MCP 项目绑定，也不假定未来 Chat URL 固定。
 相关原生步骤测试 5/5 通过，后续实际执行待用户完成终端密钥输入。
 
-最新完整回归已通过：`node --test --test-concurrency=4`，1234/1234。初次默认
+最新完整回归已通过：`node --test --test-concurrency=4`，1241/1241。初次默认
 并发运行中，旧 Worker 夹具的 17 秒等待
 窗口未收到反馈；该测试单项复核通过，随后完整四并发套件通过。未修改其测试
 断言/时限或旧 Worker 生产逻辑；原失败日志保留在本机私有验证目录。
 源码已提交并推送（功能 `458a1e6`、多窗口识别 `4681f5a`），私有共享 Tunnel
 配置已通过 dry-run、备份、写入和语义读回检查；这不代表旧进程已重新加载。
-当前等待用户在原终端重启并私下输入 Runtime Key；期间不切走用户焦点。
-尚待：新进程共享模式/云端轮询确认、更新后的原生页面步骤实际验证、插件
-Refresh 至七个工具，以及 ChatGPT 网页的项目和新 Chat 接续验收。
+用户随后已完成重启及私下密钥输入。实际新进程和其 MCP 子进程已加载共享
+两项目参数，云端轮询成功、无轮询错误。不要再次为这些安装步骤重启隧道。
+
+原生安装实际验证已完成：可见常规 Chrome 窗口为 5 个（总 Chrome 窗口项 46），
+只在这些窗口中查询地址栏；新标签导航到 Plugins 成功，Alice 原标签保留。
+打开 OpenClaw Mac 详情后，More actions 只有版本操作；实际连接管理入口为
+Manage，进入 `/settings/...` 后以 OpenClaw Mac 的 AXHeading 校验目标。
+按钮实际标签是 **Refresh tools**。已精确点击一次，刷新时按钮暂时消失，
+随后只读检查确认恢复。隧道观测到了这次真实云端 initialize、server/discover、
+tools/list、notifications/initialized，均返回 200。连接设置未展示可直接读取的
+逐工具名称列表，因此不将“已点击刷新”伪称为“逐个工具的网页调用已经通过”。
+
+已修复并测试原生返回解析：node.invoke 的 transport ACK 与嵌套 payload 分开；
+嵌套 `{ok:true}` 是无 details/effect 时的有效原生动作回执，不能误报为权限问题。
+它仍不是应用效果的独立证明。每一步记录完成动作、最后阶段和当前调用是否
+尝试输入；不明确步骤不重放。旧焦点步骤核对后，余下导航使用 open-focused，
+不再次执行先前 foreground 动作。全部路径不使用截图、Relay/CDP 或聊天发送。
+
+共享模式真实本机电脑验收也通过：
+`shared_cursor_f76721fa-4553-4185-8649-fb406d270eb9`。
+通过带 project_key 的 MCP task 调用，然后读取同一 operation_id 的缓存回执。
+独立 Agent session history 确认唯一工具动作为 computer/get_cursor_position，
+没有窗口枚举、截图、鼠标移动、点击或键盘输入。该条是本机共享 stdio 验收，
+不是 ChatGPT 网页发起的电脑任务。
+
+当前待办仅为真实网页 Chat 的调用验收：用户已收到在 Alice 项目新 Chat 中启用
+OpenClaw Mac、依次调用 projects/status/resume 的只读指令。应以真实返回和云端
+tools/call 证据确认，而不是模型口头声称。之后可在工作流项目中验证一次只读
+cursor 与同 ID 回执；不要让 Alice 通过其它项目键越权。Alice 当前仍无电脑工具。
 同一个 Tunnel 原进程的 Runtime Key 只存在内存中，未保存；新进程需要用户在
 终端私下输入，不能从旧进程环境取回密钥，也不能在 Chat 中提交。
 
@@ -114,14 +140,25 @@ bash scripts/dev-env.sh exec node scripts/direct-openclaw-project-state.mjs resu
 # 一次性准备已有私有 Tunnel 配置（先 dry-run，已经 prepared 后不需重做）：
 bash scripts/dev-env.sh exec node scripts/configure-direct-shared-tunnel.mjs --dry-run
 bash scripts/dev-env.sh exec node scripts/configure-direct-shared-tunnel.mjs --apply
-# 在原 Tunnel 前台终端 Ctrl-C 后启动；仅此组件重启：
+# 仅当实际需要重启时，在原前台终端 Ctrl-C 后启动；本次已经完成：
 bash scripts/direct-openclaw-tunnel.sh
 ```
 
-不重启 Gateway、原 Worker 或 Alice Coordinator。隧道就绪后，在 ChatGPT Plugins
-打开 OpenClaw Mac，Refresh，确认七个工具，再在新 Chat 验证。固定原生页面脚本
-`scripts/openclaw-plugin-page.mjs` 的 `open/details/refresh <operation_id>` 都是
-显式、一次性的界面操作；`inspect` 只读。不要把这些操作当作一般健康检查重跑。
+不重启 Gateway、原 Worker 或 Alice Coordinator。本次共享配置已加载且 Refresh
+已执行，直接在新 Chat 验证即可。固定原生页面脚本 `scripts/openclaw-plugin-page.mjs`
+的 open/open-focused/details/menu/manage/refresh 都是显式的一次性界面步骤；
+inspect/windows 为只读。不要把安装步骤当作一般健康检查重跑。
+
+用户新 Chat 的只读验收文本：
+
+```text
+请只使用 OpenClaw Mac 插件，依次实际调用：
+1. openclaw_projects，参数 {}
+2. openclaw_agent_status，参数 {"project_key":"alice-ai"}
+3. openclaw_project_resume，参数 {"project_key":"alice-ai","minimum_revision":1}
+这次仅做只读验收，不调用本地模型、不操作电脑。
+请报告实际工具返回的项目、Agent、状态和交接 revision。
+```
 
 官方刷新步骤：
 https://developers.openai.com/plugins/deploy/connect-chatgpt#refresh-metadata

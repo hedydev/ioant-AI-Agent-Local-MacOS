@@ -38,7 +38,7 @@ try{
  }
  console.log(JSON.stringify({state:'passed',project:key,agent:status.agent,tools:catalog.tools.map(t=>t.name),
   modelInferenceInvoked:mode==='--computer-read-test',desktopActionsInvoked:mode==='--computer-read-test',chatgptConnectionVerified:false,
-  ...(operation?{operationId:operation,nativeReadAndCachedReceiptVerified:true}:{}),
+  ...(operation?{operationId:operation,computerToolAndCachedReceiptVerified:true,effectIndependentlyVerified:false}:{}),
   ...(result?{handoffState:result.state,revision:result.revision,referencedOperations:result.operations??[]}: {})}));
 }catch{
  console.log(JSON.stringify({state:'inconclusive',reason:'shared_mcp_acceptance_failed',chatgptConnectionVerified:false}));process.exitCode=1;
