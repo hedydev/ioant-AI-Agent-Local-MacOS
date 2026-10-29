@@ -220,3 +220,8 @@ After the requested Git checkpoint was pushed and verified, a separate local-cha
 ## Local chat Qwen supplement (2026-10-29)
 
 The operator requested a Qwen supplement. The installed qwen3.8:27b-mlx alias passed the same bounded local API greeting and work-rate probes, with generation around 7.4–7.8 tokens/s and correct 10.5-day answer. It was added as an explicit session-selectable alternative for local-chat, preserving GPT-OSS as default, all existing Agent entries and denied action tools. Native config dry-run, private backup, exact disk comparison and four live config layers passed. Full regression: 1216/1216. Details and Gateway acceptance limitations are in docs/LOCAL_CHAT_AGENT_PLAN_20261029.md.
+
+
+## Shared direct MCP and project chat continuity (2026-10-29)
+
+Explicit --shared-projects mode adds seven-tool routing and immutable revisioned handoffs while retaining fixed-mode compatibility. Workflow and Alice local MCP status passed independently. An actual workflow handoff saved through MCP was resumed by a new client/process with current operation receipts; Alice stayed empty. Native plugin-page setup steps use fixed, authorized OpenClaw actions without local-model planning, screenshots, browser Relay/CDP or chat sends. Full suite passed 1233/1233 at test-concurrency=4; a default-concurrency legacy Worker wait-window failure was preserved, its isolated rerun passed, and no assertions/timeouts/Worker logic were changed. Final targeted follow-up passed. Shared Tunnel deployment, actual fixed native UI steps, and ChatGPT web acceptance remain pending. See docs/CHATGPT_PROJECT_CONTINUITY_20261029.md.

@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "event_id": "e7dad6e0-d25c-4ffb-b02d-0492b1ab1568",
+  "task_id": "2fd3c6fa-54fa-4a8a-ba16-92547dc3e9cc",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T11:10:37.848237Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "78c414d",
+  "message": "Full suite 1233/1233 passed with test-concurrency=4; final targeted follow-up 15/15. Initial default concurrency hit an existing legacy Worker fixture wait deadline; isolated rerun passed, failure log preserved, no assertion/timeout or Worker production changes. Local seven-tool catalog and both status checks passed; actual workflow revision 1 resumed in a new process and Alice stayed empty. Ready to commit, prepare private shared profile and perform authorized native page steps. Web acceptance and foreground tunnel restart remain pending.",
+  "changes": {
+    "status": {
+      "from": "in_progress",
+      "to": "validation"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "1233/1233 full suite, 15/15 final targeted checks; shell syntax/whitespace passed"
+    },
+    {
+      "kind": "device_validation",
+      "summary": "Real local MCP status/project-state roundtrip and exact config-profile dry-run passed; actual browser refresh not claimed"
+    }
+  ],
+  "supersedes_event_id": null
+}

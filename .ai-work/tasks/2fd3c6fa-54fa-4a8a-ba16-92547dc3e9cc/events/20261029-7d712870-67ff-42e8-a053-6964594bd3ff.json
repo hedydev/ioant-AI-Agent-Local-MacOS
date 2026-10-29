@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "event_id": "7d712870-67ff-42e8-a053-6964594bd3ff",
+  "task_id": "2fd3c6fa-54fa-4a8a-ba16-92547dc3e9cc",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T11:06:58.089152Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "78c414d",
+  "message": "Implemented explicit shared-mode routing plus immutable revisioned project handoffs. Local seven-tool MCP and both project statuses passed; a new process resumed actual workflow revision 1 and referenced receipts while Alice remained empty. Native plugin-page step scripts have targeted safety tests; full suite and web rollout pending. Previous model-driven UI attempts timed out; history showed only reads/focus, no Refresh. User explicitly authorized the plugin page operation.",
+  "changes": {
+    "status": {
+      "from": null,
+      "to": "in_progress"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "Targeted routing, handoff, profile and native-step tests passed; full suite running"
+    },
+    {
+      "kind": "device_validation",
+      "summary": "Actual local MCP initialization/catalog/status and cross-process handoff roundtrip passed; no ChatGPT web proof claimed"
+    }
+  ],
+  "supersedes_event_id": null
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 2,
+  "task_id": "2fd3c6fa-54fa-4a8a-ba16-92547dc3e9cc",
+  "created_at": "2026-10-29T11:06:58.089152Z",
+  "created_by": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "objective": "Share one explicit-project MCP transport and preserve project handoffs across replacement ChatGPT chats",
+  "scope": [
+    "integrations/chatgpt-openclaw/project-router.mjs",
+    "integrations/chatgpt-openclaw/project-handoff-store.mjs",
+    "integrations/chatgpt-openclaw/project-handoff.mjs",
+    "integrations/chatgpt-openclaw/server.mjs",
+    "scripts/configure-direct-shared-tunnel.mjs",
+    "scripts/direct-openclaw-project-state.mjs",
+    "scripts/openclaw-plugin-page.mjs"
+  ],
+  "target_ids": [
+    "macos-audit-cli"
+  ],
+  "acceptance_criteria": [
+    "Every scoped shared-mode tool requires a registered explicit project key",
+    "Project Agents, sessions, receipts and handoff revisions remain separate",
+    "A fresh MCP process resumes durable state without executing prior tasks",
+    "Stale or concurrent handoffs cannot overwrite newer revisions",
+    "Private Tunnel setup is backed up and contains only environment credential references",
+    "Actual web tool refresh and per-project read/receipt acceptance are recorded separately from local tests"
+  ],
+  "deduplication_key": "shared-tunnel-explicit-routing-and-project-chat-continuity",
+  "parent_task_id": "f3084777-82a5-42e2-a9c3-0a2671787561",
+  "relations": []
+}

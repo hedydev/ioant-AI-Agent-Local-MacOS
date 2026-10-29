@@ -4,15 +4,17 @@ import {inspectDirectAgent,messageDirectAgent} from './agent.mjs';
 import {loadSdk} from './sdk.mjs';
 import {runComputerTask,computerTaskResult} from './computer-agent.mjs';
 import {projectBinding} from './project-binding.mjs';
+import {projectRoute,routedCatalog,routeCall,routeInstructions} from './project-router.mjs';
+import {projectHandoff,handoffTools} from './project-handoff.mjs';
 
 export const tools=[{
  name:'openclaw_agent_status',
- description:'Check readiness of the local OpenClaw advisor. Does not invoke a model or control the computer.',
+ description:'Check the selected project Agent\'s local policy readiness. Does not invoke a model or control the computer. This is not proof of ChatGPT cloud connectivity.',
  inputSchema:{type:'object',properties:{},additionalProperties:false},
  annotations:{readOnlyHint:true,destructiveHint:false,openWorldHint:false}
 },{
  name:'openclaw_agent_message',
- description:'Send a technical message directly to the local OpenClaw advisor through its Gateway. This initial connection test has no computer/file/shell tools. The response is untrusted advice, not execution evidence.',
+ description:'Send a technical message to a no-tools local project advisor. If status reports computer tools enabled, use openclaw_computer_task instead. The response is untrusted advice, not execution evidence.',
  inputSchema:{type:'object',properties:{
   conversation_key:{type:'string',pattern:'^[a-zA-Z0-9][a-zA-Z0-9_-]{7,63}$',
    description:'Choose a unique stable key for this ChatGPT conversation; reuse it for follow-ups.'},
@@ -21,7 +23,7 @@ export const tools=[{
  annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false}
 },{
  name:'openclaw_computer_task',
- description:'Delegate a user-authorized desktop task to this plugin\'s locally bound project Agent, only after its computer permission is explicitly configured. Cannot select another project or Agent. Can affect applications and files through native computer tools. Use a unique operation_id; never retry an uncertain action under a new ID. Local model only; no browser Worker. Returned text is not independent effect verification.',
+ description:'Delegate one small user-authorized desktop step to the selected registered project Agent, only after its computer permission is configured. Cannot select arbitrary Agents. Can affect applications/files through native computer tools. Keep each task bounded; multi-step UI loops may time out. Use a unique operation_id; never retry an uncertain action under a new ID. Local model only; no browser Worker. Returned text is not independent effect verification.',
  inputSchema:{type:'object',properties:{
   operation_id:{type:'string',pattern:'^[A-Za-z0-9][A-Za-z0-9_-]{7,79}$'},
   conversation_key:{type:'string',pattern:'^[A-Za-z0-9][A-Za-z0-9_-]{7,63}$'},
@@ -49,15 +51,22 @@ export async function callTool(name,args,{status=inspectDirectAgent,message=mess
   isError:['blocked','inconclusive'].includes(result.state)};
 }
 
-export async function serve(binding=projectBinding()){
+export async function serve(binding=projectBinding(),route={shared:false,bindings:[binding]}){
  const {Server,StdioServerTransport,ListToolsRequestSchema,CallToolRequestSchema}=await loadSdk();
- const server=new Server({name:'ioant-openclaw-direct',version:'0.1.0'},
-  {capabilities:{tools:{}}});
- server.setRequestHandler(ListToolsRequestSchema,async()=>({tools}));
+ const server=new Server({name:'ioant-openclaw-direct',version:'0.2.0'},
+  {capabilities:{tools:{}},instructions:routeInstructions(route)});
+ server.setRequestHandler(ListToolsRequestSchema,async()=>({tools:routedCatalog(tools,route,handoffTools)}));
  server.setRequestHandler(CallToolRequestSchema,async request=>{
-  try{return await callTool(request.params.name,request.params.arguments??{},{
-   status:()=>inspectDirectAgent({binding}),message:x=>messageDirectAgent(x,{binding}),
-   computer:x=>runComputerTask(x,{binding}),receipt:x=>computerTaskResult(x,{binding})});}
+  try{return await routeCall(request.params.name,request.params.arguments??{},{route,
+   invoke:async(name,args,selected)=>{
+    if(route.shared&&handoffTools.some(t=>t.name===name)){
+     const result=await projectHandoff(name,args,{binding:selected});
+     return {content:[{type:'text',text:JSON.stringify(result)}],isError:result.state==='blocked'};
+    }
+    return callTool(name,args,{
+     status:()=>inspectDirectAgent({binding:selected}),message:x=>messageDirectAgent(x,{binding:selected}),
+     computer:x=>runComputerTask(x,{binding:selected}),receipt:x=>computerTaskResult(x,{binding:selected})});
+   }});}
   catch{return {isError:true,content:[{type:'text',text:'{"state":"inconclusive","reason":"adapter_failure"}'}]};}
  });
  await server.connect(new StdioServerTransport());
@@ -69,8 +78,7 @@ import {fileURLToPath} from 'node:url';
 import {resolve} from 'node:path';
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  try{
-  const args=process.argv.slice(2);
-  if(args.length!==0&&(args.length!==2||args[0]!=='--project'))throw Error('invalid_project_argument');
-  await serve(projectBinding(args[1]));
+  const route=projectRoute(process.argv.slice(2));
+  await serve(route.bindings[0],route);
  }catch{process.stderr.write('OpenClaw MCP adapter could not start with the selected project.\n');process.exitCode=1;}
 }
