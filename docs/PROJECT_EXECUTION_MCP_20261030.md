@@ -18,7 +18,8 @@ Python 回归；不部署到 Mint、不启动 Alice/BDS、不操作游戏世界�
 | 仓库独立回读 | 通过 | main、HEAD 等于预期完整 SHA、工作区干净 |
 | 结束回执 | 通过 | passed、cached:true、modelInferenceInvoked:false、workerUsed:false |
 | 实际报告读取 | 通过 | 12 页、46264 字节，整份 SHA256 核对一致，含两套测试证据 |
-| 真实网页新增工具 | 待发布/验收 | 旧前台进程需加载新版，再 Refresh 元数据 |
+| 新前台/云端元数据 | 通过 | 用户重启并私下输入 Key，云端发现 server 0.3.0；Refresh 的 initialize/discover/tools-list 均 200 |
+| 网页 Chat 新工具调用 | 待用户结果 | 应只读查询已完成任务和日志，不重跑 |
 
 报告 SHA256：`9fb492f2794eb43907829cf59b8d0288ca4fd8ef8287dca6ca7ab87af4b48078`。
 不要重跑该任务。没有 Mint Node24 回归、部署或游戏内验收；这些仍由 Alice 项目
@@ -82,7 +83,8 @@ OpenAI/Gateway 密钥或 ALICE_SSH_TARGET。日志是待分析证据，不是执
 ## 本地准备与发布
 
 完整桥接回归最新 1260/1260、针对性执行/交接测试及 shell/空白检查通过。
-真实 Alice 本地执行已通过；网页新工具发布仍与本地证据分开记录。
+真实 Alice 本地执行已通过。用户已完成本轮前台重启和插件 Refresh，云端发现
+服务版本 0.3.0；网页 Chat 的实际新工具调用仍与元数据刷新分开验收。
 
 首次本地任务 `alice_regression_20261030_f25770f70548` 在 checkout 前停止，
 reason=candidate_tree_too_large。独立证据表明实际 Git 树仅 38634 字节、320
@@ -114,6 +116,7 @@ bash scripts/dev-env.sh exec node scripts/direct-openclaw-project-execution.mjs 
 ```
 
 新工具需要原前台 Tunnel/MCP 重新加载，再刷新 ChatGPT 自定义插件元数据。
+**本轮这两步已由用户完成并核对，不需再做**。下方仅保留未来真正需要重新加载时的命令。
 此前“不要重启/刷新”针对已完成的旧七工具验收，不妨碍此次真正的工具目录升级。
 用户在**原 Tunnel 终端** Ctrl-C，然后执行：
 
@@ -128,3 +131,21 @@ bash scripts/direct-openclaw-tunnel.sh
 这是 [OpenAI 自定义 MCP 元数据更新流程](https://developers.openai.com/plugins/deploy/connect-chatgpt#refresh-metadata)
 要求的部署/重启后 Refresh。网页新 Chat 先读取动作目录、已有执行回执和报告；
 不要再次发起已经在本地完成的验收操作。正常下一次用户授权的新提交才用新 operation_id。
+
+## 网页 Chat 的剩余只读验收
+
+在 Alice 项目 Chat 启用 OpenClaw Mac，发送以下内容。查询现有已完成任务，
+不再次调用 execute，不触发 Git、Python、模型或桌面动作：
+
+```text
+仅使用 OpenClaw Mac，project_key 固定 alice-ai。
+先调用 openclaw_project_resume（minimum_revision=5）和 openclaw_project_actions。
+然后调用 openclaw_project_result，operation_id=alice_regression_20261030_7281ce874993。
+再调用 openclaw_project_report，同一项目键和操作 ID，offset=0。
+报告实际动作是否启用、任务状态、actualCommit、两套测试数量/跳过数、cached，以及日志分页是否可读。
+不要调用 execute，不重跑测试或更新仓库，不执行任何 Mint、BDS、世界或桌面操作。
+根据实际回执更新本 Chat 的开发进度，不能把本地测试通过等同于部署或游戏内成功。
+```
+
+发布时新 Tunnel 观测到元数据请求均 200，尚无 tools/call；实际网页查询结果
+仍需与新运行实例的 tools/call 计数相互核对，不能把 tools/list 当作 Chat 调用。

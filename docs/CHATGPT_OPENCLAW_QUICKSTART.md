@@ -5,7 +5,8 @@
 `openclaw_project_actions` → `openclaw_project_execute` → `openclaw_project_result`
 → `openclaw_project_report`，不再让用户搬运终端命令。只允许本机登记动作，
 execute 需要完整预期提交 SHA；accepted/running 是待完成状态，不是成功。
-新增工具尚需本次前台 MCP 重新加载与插件 Refresh，详见该文档实际发布状态。
+本次前台 MCP 已重新加载、插件已 Refresh，云端发现版本 0.3.0。
+网页 Chat 新工具的实际回执/日志读取待核对，详见该文档实际发布状态。
 
 当前状态：工作流和 Alice 都已启用各自独立的 computer-only Agent。
 共享 Tunnel、七工具插件、项目交接、工作流网页只读任务及 Alice 本地只读任务

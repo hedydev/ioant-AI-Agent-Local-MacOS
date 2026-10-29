@@ -19,10 +19,13 @@ Mac Python 225 tests (3 skipped) passed. Actual main/HEAD/clean worktree indepen
 verified; result cached:true and 12 report pages/46264 bytes reconstructed with
 matching SHA256. First pre-checkout blocked ID alice_regression_20261030_f25770f70548
 is preserved. No operation ID should be replayed. Source/enrollment is on this Mac;
-foreground Tunnel still needs the requested user restart/private key entry and
-new-tool Refresh. Before that, preserve old handoff shape without execution_ids.
-The current user Alice development handoff is revision 4; preserve its facts
-when appending Mac results. No Mint Node24, deployment, BDS or world work occurred.
+foreground Tunnel was restarted by the user with private key entry, then plugin
+Refresh completed. Actual new source child and recent cloud polls passed;
+cloud MCP observation reports ioant-openclaw-direct 0.3.0 and metadata requests
+initialize/discover/tools-list returned 200. No genuine new-tool Chat call yet.
+Alice revision 4 development facts were preserved in revision 5 with Mac results
+and same-project execution references. Read latest before any further write.
+No Mint Node24, deployment, BDS or world work occurred.
 
 Latest checkpoint: at approximately 10% remaining usage, preparation was pushed
 and verified as 567dbbd. The user then explicitly approved Alice computer tools.

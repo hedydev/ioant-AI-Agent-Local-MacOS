@@ -325,3 +325,17 @@ regression 1260/1260. Old blocked ID preserved. Foreground/cloud eleven-tool
 rollout awaits user restart/private key entry, then metadata Refresh; not yet
 claimed as actual web execution acceptance. Current Alice revision 4 development
 handoff must be preserved, not replaced by connection-only summary.
+
+## Eleven-tool foreground and cloud metadata rollout (2026-10-30)
+
+User restarted the original foreground client and privately entered Runtime Key,
+then confirmed Refresh tools. New client PID 39855 / source MCP child 39876 were
+observed with shared two-project flags; loopback port changed to 59383, recent
+cloud polling and readiness passed. Cloud MCP observation reported
+ioant-openclaw-direct version 0.3.0, and initialize/discover/tools-list returned
+200. No chat-originated tools/call yet at rollout observation. Native setup
+inspection could not identify a unique registered plugin window, performed no
+input/clicks and closed only its own execution; user performed Refresh instead.
+Alice revision 4 development facts were preserved in revision 5, with actual Mac
+results and separate execution_ids now safe after source reload. New-tool web
+queries remain pending user report; do not replay the completed Git/test job.

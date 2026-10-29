@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "event_id": "217ecdd5-2318-437c-bb2e-47959bfd5ea9",
+  "task_id": "586a6aa6-8b91-4c18-b61c-120999b3c343",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T16:33:41.632006Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "b85e5d68cb341e803f93bb7e3370f211a2a95b7f",
+  "message": "User restarted foreground Tunnel with private key entry, then confirmed Refresh tools. Actual new shared source child and recent cloud polling passed; health MCP discovery reports ioant-openclaw-direct 0.3.0, cloud initialize/discover/tools-list all 200. Eleven-tool local catalog verified, generic cloud tools/call still zero at observation. Native refresh inspection found no uniquely registered plugin window, so no input/clicks; user completed Refresh. Alice revision 4 development context preserved in revision 5 with actual Mac results and existing same-project job references after source reload. Remaining genuine web validation only reads actions/result/report for completed job, never reruns it. No human task-completion event inferred.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "device_validation",
+      "summary": "Actual restarted foreground two-project source child, recent cloud polls, cloud MCP version 0.3.0 and successful metadata calls"
+    },
+    {
+      "kind": "manual_review",
+      "summary": "User confirmed restart/private key entry and Refresh; prepared read-only web query prompt for passed job; first blocked receipt retained"
+    }
+  ],
+  "supersedes_event_id": null
+}
