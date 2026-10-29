@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Explicit bounded serial chat probe of two installed local models; no tools."""
+"""Explicit bounded serial chat probes of installed local models; no tools."""
 import json
 import sys
 import time
 import urllib.request
 from pathlib import Path
 
-if sys.argv[1:] != ["--run"]:
-    raise SystemExit("Use --run for four bounded local-only inference requests.")
+if sys.argv[1:] not in (["--run"], ["--run", "--qwen"]):
+    raise SystemExit("Use --run, optionally --qwen for the installed Qwen supplement.")
+qwen_only = "--qwen" in sys.argv
 
 results = []
-for model in ["gemma4:26b-a4b", "gpt-oss:20b"]:
+for model in (["qwen3.8:27b-mlx"] if qwen_only else ["gemma4:26b-a4b", "gpt-oss:20b"]):
     cases = [
         ("chat", "你好，今天想找你聊聊，先用20字以内自然地回应我。", 128),
         ("reasoning", "A独立完成任务需12天，B需18天。合作3天后A离开，B还需几天？用中文给答案和两步计算，80字以内。", 384),
@@ -56,6 +57,7 @@ for model in ["gemma4:26b-a4b", "gpt-oss:20b"]:
         results.append(result)
         print(json.dumps(result, ensure_ascii=False), flush=True)
 
-destination = Path("/Volumes/LunaDrive/DeveloperCache/projects/ioant-ai-agent-local-macos/verification/chat-model-probe-20261029.json")
+name = "chat-model-probe-qwen-20261029.json" if qwen_only else "chat-model-probe-20261029.json"
+destination = Path("/Volumes/LunaDrive/DeveloperCache/projects/ioant-ai-agent-local-macos/verification") / name
 destination.write_text(json.dumps(results, ensure_ascii=False, indent=2) + "\n")
 destination.chmod(0o600)

@@ -1,8 +1,15 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {chatPatch,CHAT,thinkingMetadataPatch} from '../scripts/configure-local-chat-agent.mjs';
+import {chatPatch,CHAT,thinkingMetadataPatch,qwenChatPatch} from '../scripts/configure-local-chat-agent.mjs';
 const config=()=>({agents:{entries:{main:{model:'ollama/gemma4:26b-a4b'}}},
  models:{providers:{ollama:{baseUrl:'http://127.0.0.1:11435',api:'ollama'}}}});
+test('Qwen selection adds only the fixed local option and retains default and tool policy',()=>{
+ const c=config();c.agents.entries['local-chat']=structuredClone(CHAT);
+ const before=structuredClone(c),p=qwenChatPatch(c);
+ assert.deepEqual(c,before);
+ assert.deepEqual(p,{agents:{entries:{'local-chat':{modelPolicy:{allow:['ollama/gpt-oss:20b','ollama/qwen3.8:27b-mlx']}}}}});
+ c.agents.entries['local-chat'].tools.deny=[];assert.throws(()=>qwenChatPatch(c),/chat_policy/);
+});
 test('chat provisioning preserves existing fleet and rejects reuse',()=>{
  const c=config(),before=structuredClone(c),p=chatPatch(c);
  assert.deepEqual(c,before);assert.deepEqual(Object.keys(p.agents.entries),['local-chat']);

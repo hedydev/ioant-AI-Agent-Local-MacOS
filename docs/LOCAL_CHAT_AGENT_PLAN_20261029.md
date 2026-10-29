@@ -62,7 +62,8 @@ installed models and avoiding concurrent large-model loads.
 The pre-configuration checkpoint was pushed first as `4cacf91`, with remote SHA
 verified. A new Agent is installed: **本地聊天** (`local-chat`), using
 `ollama/gpt-oss:20b`, embedded runtime, default `low` thinking, no fallback and
-an allowlist containing only this local model. Its independent workspace is
+an allowlist initially containing only this local model. The later Qwen
+supplement below adds one explicit local alternative. Its independent workspace is
 `/Volumes/LunaDrive/DeveloperCache/openclaw-agents/local-chat`.
 
 Action tools, skills, delegation, heartbeat and cross-conversation memory search
@@ -91,6 +92,8 @@ Serial native local API probes on this Mac:
 | Gemma 26B reasoning, thinking on | No final answer | 11.36 s | Hit deliberately small 384-token limit |
 | GPT-OSS greeting, thinking low | 8.70 s | 9.12 s | Natural Chinese |
 | GPT-OSS reasoning, thinking low | 4.06 s | 9.20 s | Correct: 10.5 days |
+| Qwen 27B greeting, thinking off | 18.64 s | 20.27 s | Natural Chinese |
+| Qwen 27B reasoning, thinking on | 26.99 s | 35.80 s | Correct: 10.5 days |
 
 These four bounded probes are not a general ranking. Gemma's capped probe does
 not prove inability to solve the problem. GPT-OSS generated about 32 tokens/s.
@@ -133,3 +136,44 @@ only corrects the verified chat policy's GPT-OSS capability metadata. Inspect
 state after uncertain results rather than replay provisioning. Optional serial
 model probes require explicit `scripts/chat-model-probe.py --run`. Private
 reports, transcripts, config files and backups are excluded from Git.
+
+## Qwen supplement (operator request, 2026-10-29)
+
+The explicit `--run --qwen` probe uses the same two prompts, system instruction,
+8192 context and 128/384 output limits as the original probes. Qwen answered
+both, generating 7.39/7.75 tokens/s. GPT-OSS had about 32 tokens/s in the earlier
+same-protocol sample. These are sequential samples taken at different times,
+not a controlled general ranking; GPT-OSS low effort and Qwen boolean thinking
+are different backend controls. This evidence favors retaining GPT-OSS for
+responsive everyday conversation on this Mac, while keeping Qwen available.
+
+`--enable-qwen` validated and backed up the private configuration, added only
+`ollama/qwen3.8:27b-mlx` to `local-chat`'s model-policy allowlist, and updated its
+private role's fixed GPT-OSS self-description to a model-neutral local role.
+Exact config comparison preserved the default GPT-OSS selection and all action
+permissions/other Agents. In a new 本地聊天 conversation, select
+**qwen3.8:27b-mlx** in the model picker to use it; model changes stay session
+scoped with the existing OpenClaw default scope. Do not mix these two large
+models concurrently for this comparison.
+
+Actual OpenClaw Gateway acceptance also passed with the explicit Qwen model
+and `--thinking high`: provider `ollama`, model `qwen3.8:27b-mlx`, correct
+`17 × 23 = 391`, total CLI wall time **123.47 seconds**. This verifies the
+selected local route and accepted High setting, not that Qwen offers the same
+graded effort semantics as GPT-OSS or that the delay was all reasoning. The
+Gateway system prompt/loading differs from the short direct API probes. No
+claim of fast deep thinking is supported by this sample; the default remains
+GPT-OSS. Native regression after adding the option: **1216/1216 passed**; shell
+syntax and whitespace checks passed. Disk and all four live config layers
+confirmed the two-model allowlist, original default, and deny-all action policy.
+
+The name is the installed local alias. The server advertises vision, tools and
+thinking, 27.8B parameters, NVFP4, and architecture `qwen3_5`. The alias alone
+does not establish the original upstream model version; weights provenance was
+not independently audited here. No weights were downloaded or renamed.
+
+Reproduce the two local API probes with:
+
+```bash
+bash scripts/dev-env.sh exec python3 scripts/chat-model-probe.py --run --qwen
+```

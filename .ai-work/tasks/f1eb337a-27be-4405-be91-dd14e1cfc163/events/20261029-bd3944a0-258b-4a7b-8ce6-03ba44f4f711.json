@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "event_id": "bd3944a0-258b-4a7b-8ce6-03ba44f4f711",
+  "task_id": "f1eb337a-27be-4405-be91-dd14e1cfc163",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T01:15:21.164065Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "55f1755",
+  "message": "Operator requested Qwen supplement. Same bounded local API probes passed: greeting 20.273s, reasoning 35.799s, correct 10.5 days, 7.39/7.75 generation tokens per second. Added only local Qwen option to chat allowlist with private role correction/backups and exact disk/live readback; preserved default GPT-OSS and other Agents. Explicit Qwen high Gateway call succeeded with answer 391 but took 123.47s. Full regression 1216/1216; user UI acceptance pending.",
+  "changes": {
+    "status": {
+      "from": "awaiting_user_acceptance",
+      "to": "awaiting_user_acceptance"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "1216 passed, 0 failed; shell syntax and whitespace checks passed"
+    },
+    {
+      "kind": "device_validation",
+      "summary": "Local model API and actual Gateway high turn passed; four live config layers matched intended selection policy"
+    }
+  ],
+  "supersedes_event_id": null
+}

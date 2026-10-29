@@ -215,3 +215,8 @@ An independently supplied AliceAI ChatGPT Project/Chat URL has been added to `co
 ## Independent local chat Agent (2026-10-29)
 
 After the requested Git checkpoint was pushed and verified, a separate local-chat Agent (本地聊天) was configured using installed Ollama GPT-OSS 20B, default low thinking, separate private workspace/sessions and denied action tools. A narrow correction to the existing GPT-OSS reasoning capability metadata enabled explicit high-effort requests. Existing project Agent entries and running services were preserved. Actual Gateway multi-turn context and arithmetic checks passed, including an explicit high-effort request. Full regression: 1215/1215 passed. See docs/LOCAL_CHAT_AGENT_PLAN_20261029.md for measurements, cold-loading limits and commands. Operator UI acceptance and the original ChatGPT web computer-tool metadata refresh remain pending.
+
+
+## Local chat Qwen supplement (2026-10-29)
+
+The operator requested a Qwen supplement. The installed qwen3.8:27b-mlx alias passed the same bounded local API greeting and work-rate probes, with generation around 7.4–7.8 tokens/s and correct 10.5-day answer. It was added as an explicit session-selectable alternative for local-chat, preserving GPT-OSS as default, all existing Agent entries and denied action tools. Native config dry-run, private backup, exact disk comparison and four live config layers passed. Full regression: 1216/1216. Details and Gateway acceptance limitations are in docs/LOCAL_CHAT_AGENT_PLAN_20261029.md.

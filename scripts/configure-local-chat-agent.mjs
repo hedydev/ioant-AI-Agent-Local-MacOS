@@ -62,13 +62,38 @@ async function enableThinking(){
  if(!isDeepStrictEqual(await readPrivateJson(CONFIG),expected))throw Error('metadata_readback_requires_review');
  return {agent:'local-chat',state:'applied',scope:'gpt_oss_capability_metadata_only',backupSaved:true};
 }
+export function qwenChatPatch(c){
+ if(!isDeepStrictEqual(c?.agents?.entries?.['local-chat'],CHAT)||
+  c?.models?.providers?.ollama?.baseUrl!=='http://127.0.0.1:11435')throw Error('chat_policy_required');
+ return {agents:{entries:{'local-chat':{modelPolicy:{allow:[...CHAT.modelPolicy.allow,'ollama/qwen3.8:27b-mlx']}}}}};
+}
+async function enableQwen(){
+ const before=await readPrivateJson(CONFIG),p=qwenChatPatch(before);
+ await patch(p,['--dry-run','--json']);
+ const role=join(CHAT.workspace,'AGENTS.md');await privateDir(CHAT.workspace);
+ const st=await lstat(role);if(!st.isFile()||st.isSymbolicLink()||(st.mode&0o077)!==0||st.uid!==process.getuid())throw Error('private_role_required');
+ const text=await readFile(role,'utf8');
+ const marker='你使用本地 GPT-OSS，不是 ChatGPT';
+ if(text.split(marker).length!==2)throw Error('role_review_required');
+ const dir=join(homedir(),'.openclaw/backups','chat-qwen-'+randomUUID());
+ await privateDir(join(homedir(),'.openclaw/backups'));await mkdir(dir,{mode:0o700});
+ await writeFile(join(dir,'openclaw.json'),await readFile(CONFIG),{mode:0o600,flag:'wx'});
+ await writeFile(join(dir,'AGENTS.md'),text,{mode:0o600,flag:'wx'});
+ if(!isDeepStrictEqual(await readPrivateJson(CONFIG),before)||await readFile(role,'utf8')!==text)throw Error('prewrite_state_changed');
+ await writeFile(role,text.replace(marker,'你使用本地开源模型，并非 ChatGPT'),{mode:0o600});
+ await patch(p);
+ const expected=structuredClone(before);expected.agents.entries['local-chat'].modelPolicy=p.agents.entries['local-chat'].modelPolicy;
+ if(!isDeepStrictEqual(await readPrivateJson(CONFIG),expected))throw Error('qwen_readback_requires_review');
+ return {agent:'local-chat',state:'applied',qwenSelectable:true,defaultModel:CHAT.model.primary,backupSaved:true};
+}
 export async function configureChat(mode){
  const out={agent:'local-chat',model:CHAT.model.primary};
  try{
-  if(!['--dry-run','--apply','--enable-thinking'].includes(mode))throw Error('explicit_mode_required');
+  if(!['--dry-run','--apply','--enable-thinking','--enable-qwen'].includes(mode))throw Error('explicit_mode_required');
   if(['OPENCLAW_PROFILE','OPENCLAW_CONFIG_PATH','OPENCLAW_STATE_DIR'].some(k=>process.env[k]))
    throw Error('custom_profile_not_supported');
   if(mode==='--enable-thinking')return await enableThinking();
+  if(mode==='--enable-qwen')return await enableQwen();
   const before=await readPrivateJson(CONFIG),p=chatPatch(before);
   await privateDir(ROOT);await patch(p,['--dry-run','--json']);
   if(mode==='--dry-run')return {...out,state:'validated'};

@@ -53,7 +53,11 @@ installed with local GPT-OSS 20B, low default thinking and denied action tools.
 Gateway multi-turn chat and a reasoning answer passed. Missing GPT-OSS thinking
 capability metadata was corrected narrowly; an explicit high-effort request
 then succeeded. Existing project Agent entries were preserved. Full tests now
-pass 1215/1215. User acceptance in the OpenClaw Chat UI remains pending.
+pass 1216/1216 after the Qwen supplement. `qwen3.8:27b-mlx` is additionally
+allowed as a session-selected alternative in 本地聊天; GPT-OSS stays the
+default. Local API greeting and reasoning probes passed, with slower measured
+generation on this Mac. See the model document for Gateway acceptance limits.
+User acceptance in the OpenClaw Chat UI remains pending.
 
 The direct desktop integration remains at the acceptance boundary above:
 local project computer-task/readback passed; user-side ChatGPT tool catalog
