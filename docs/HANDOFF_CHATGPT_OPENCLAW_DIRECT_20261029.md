@@ -3,6 +3,15 @@
 Updated 2026-10-29, Asia/Shanghai. This is the current direction and evidence
 summary for this implementation, superseding conflicting older plans.
 
+2026-10-30 priority: the user requested ChatGPT Git commits → pinned local
+fast-forward → registered tests/scripts → actionable receipts/reports. Read
+`docs/PROJECT_EXECUTION_MCP_20261030.md`. New source adds four shared tools
+(eleven total), asynchronous fixed-action jobs and optional handoff execution_ids.
+First action is Alice local main update + Mac Python regression; no Agent shell
+grant, model inference, browser Worker, Mint/BDS operation or arbitrary command.
+Source regression 1259/1259 passed. Local actual-job and foreground/cloud rollout
+must be recorded separately; old seven-tool cursor acceptance remains historical.
+
 Latest checkpoint: at approximately 10% remaining usage, preparation was pushed
 and verified as 567dbbd. The user then explicitly approved Alice computer tools.
 The fixed Alice-only migration is now applied with private backup and exact

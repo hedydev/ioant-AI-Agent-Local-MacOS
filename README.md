@@ -1,5 +1,11 @@
 # Ioant AI Agent — Local macOS
 
+> **Registered Git/test execution (2026-10-30):**
+> [Pinned project update, asynchronous receipts and readable reports](docs/PROJECT_EXECUTION_MCP_20261030.md)
+> adds four shared-mode tools, with Alice Mac regression as the first enrolled
+> action. This is a fixed MCP executor without model inference or generic Agent
+> shell permission. Local and web rollout evidence are tracked separately there.
+
 > **New operator-selected integration direction (2026-10-29):**
 > [ChatGPT directly calling OpenClaw Agent through MCP](docs/CHATGPT_DIRECT_OPENCLAW_MCP.md).
 > Shared ChatGPT web project routing, persistent handoff and workflow native

@@ -289,3 +289,16 @@ LunaDrive project cache, not Git. Both projects now have actual web native-read/
 cache evidence. Arbitrary application effects and project-development acceptance
 remain separate; no human completion event inferred from a pasted model report.
 Documentation-only update; executable source regression remains 1244/1244.
+
+## Registered asynchronous project execution (2026-10-30, source validated)
+
+User requested pinned Git update, registered local scripts/tests and usable
+receipts through MCP. Added fixed Alice main/clean-origin/ff-only action, targeted
+and full Mac Python test evidence, durable asynchronous claims/project lease,
+bounded streaming redacted logs and paginated report tool. No raw shell/path/argv
+input, model inference, Agent permission changes or legacy Worker integration.
+Shared catalog is eleven tools; fixed mode stays four. Optional handoff
+execution_ids persist same-project job references separately from computer IDs.
+Full source suite 1259/1259 passed; shell syntax/whitespace and actual local
+config dry-run passed. Actual Alice job and web metadata rollout remain pending
+at this source checkpoint. See docs/PROJECT_EXECUTION_MCP_20261030.md.

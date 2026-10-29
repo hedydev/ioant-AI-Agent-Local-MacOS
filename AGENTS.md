@@ -1,5 +1,19 @@
 # AI Agent Rules — Local macOS Phase 1
 
+## Registered project execution (operator, 2026-10-30)
+
+The user explicitly requested ChatGPT Git commit → local fast-forward → registered
+script/tests → receipts/reports over MCP. Read
+`docs/PROJECT_EXECUTION_MCP_20261030.md`. This new shared-mode fixed action
+executor is separate from native desktop tasks and the legacy browser Worker.
+First enrolled action: Alice main pinned update and Mac Python regression.
+It does not grant generic shell, Mint/SSH/BDS/game operations or access to other
+project repositories. Source tests are trusted repository code executed as the
+current user, not sandboxed. Durable execution IDs and project-wide locks prevent
+automatic replay; new handoff execution_ids must stay separate from computer IDs.
+The eleven-tool catalog requires a genuine foreground MCP reload and plugin
+metadata refresh; that rollout is not a repeat of old cursor/setup probes.
+
 ## Current direct-Agent direction and usage handoff (operator, 2026-10-29)
 
 Read `docs/HANDOFF_CHATGPT_OPENCLAW_DIRECT_20261029.md` before continuing the

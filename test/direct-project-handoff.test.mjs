@@ -72,3 +72,20 @@ test('unsafe or corrupt newest handoffs block recovery instead of silently using
  await symlink(join(ctx.store.dir,'handoff-001.json'),join(other.store.dir,'handoff-001.json'));
  await assert.rejects(other.store.latest(),/unsafe_handoff_record/);
 });
+test('execution references survive new chat resume separately from computer receipts',async t=>{
+ const ctx=await fixture(t,'alice-ai');
+ let state='running',reads=0;
+ const execution=async(name,args,{binding})=>{
+  reads++;assert.equal(name,'openclaw_project_result');assert.equal(binding.projectKey,'alice-ai');
+  return {project:'alice-ai',agent:'alice-ai',operationId:args.operation_id,state,
+   action:'alice_mac_regression',actualCommit:'a'.repeat(40),cached:state==='passed'};
+ };
+ const saved=await projectHandoff('openclaw_project_handoff',{...input,operation_ids:[],execution_ids:['execution_job_0001']},{...ctx,execution});
+ assert.equal(saved.state,'handoff_saved');state='passed';
+ const resumed=await projectHandoff('openclaw_project_resume',{}, {...ctx,execution});
+ assert.equal(resumed.executions[0].state,'passed');assert.equal(resumed.executions[0].cached,true);
+ assert.deepEqual(resumed.operations,[]);assert.equal(reads,2);
+ const bad=await projectHandoff('openclaw_project_handoff',{...input,expected_revision:1,execution_ids:['execution_job_0001']},
+  {...ctx,execution:async()=>({state:'not_found'})});
+ assert.equal(bad.reason,'referenced_task_unavailable');
+});

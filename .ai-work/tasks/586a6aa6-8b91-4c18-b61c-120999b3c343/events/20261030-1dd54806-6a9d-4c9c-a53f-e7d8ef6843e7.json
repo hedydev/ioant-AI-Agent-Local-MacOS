@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "event_id": "1dd54806-6a9d-4c9c-a53f-e7d8ef6843e7",
+  "task_id": "586a6aa6-8b91-4c18-b61c-120999b3c343",
+  "event_type": "task_created",
+  "occurred_at": "2026-10-29T16:13:16.693073Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "ec0de11dff87a58656a8ea28d15aff2ceca5aae3",
+  "message": "User requested continuing development for ChatGPT Git commits -> local update -> registered script/tests -> actionable receipts, using Alice Mac regression as first supported action. Implement fixed async MCP executor without local-model inference or old browser Worker; prepare local enrollment, tests, logs and explicit rollout. AWS example remains a separate project registration/action, not implicit access.",
+  "changes": {
+    "status": {
+      "from": null,
+      "to": "in_progress"
+    }
+  },
+  "evidence": [],
+  "supersedes_event_id": null
+}

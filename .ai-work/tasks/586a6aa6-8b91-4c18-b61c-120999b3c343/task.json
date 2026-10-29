@@ -1,0 +1,34 @@
+{
+  "schema_version": 2,
+  "task_id": "586a6aa6-8b91-4c18-b61c-120999b3c343",
+  "created_at": "2026-10-29T16:13:16.693073Z",
+  "created_by": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "objective": "Execute pinned local project Git updates and registered regressions through MCP with durable asynchronous receipts and readable reports",
+  "scope": [
+    "integrations/chatgpt-openclaw/project-execution*.mjs",
+    "integrations/chatgpt-openclaw/project-handoff*.mjs",
+    "integrations/chatgpt-openclaw/server.mjs",
+    "scripts/direct-openclaw-project-*.mjs",
+    "scripts/configure-project-execution.mjs"
+  ],
+  "target_ids": [
+    "macos-audit-cli"
+  ],
+  "acceptance_criteria": [
+    "Remote callers choose registered project/action and exact commit, never arbitrary commands/paths",
+    "Git origin/main/clean worktree/ancestry and exact expected commit verified before checkout",
+    "One durable asynchronous job per operation ID; project lock prevents overlapping updates, uncertain jobs are not replayed",
+    "Targeted and full Mac Python tests require positive test counts, with persisted actual SHA and exit codes",
+    "Bounded redacted log pages and job references survive Chat/MCP replacement",
+    "Local Alice end-to-end execution and distinct real web rollout boundary recorded; no Mint/BDS or other project mutation"
+  ],
+  "deduplication_key": "mcp-pinned-project-execution-async-receipts-reports",
+  "parent_task_id": "2fd3c6fa-54fa-4a8a-ba16-92547dc3e9cc",
+  "relations": []
+}

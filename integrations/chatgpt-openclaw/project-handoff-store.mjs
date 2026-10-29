@@ -5,7 +5,10 @@ import {randomUUID} from 'node:crypto';
 import {operationId} from './computer-task-store.mjs';
 const key=/^[A-Za-z0-9][A-Za-z0-9_-]{7,63}$/;
 export function validHandoffInput(x){
- return x&&typeof x==='object'&&!Array.isArray(x)&&Object.keys(x).sort().join(',')==='conversation_key,expected_revision,operation_ids,summary'&&
+ return x&&typeof x==='object'&&!Array.isArray(x)&&
+  Object.keys(x).filter(k=>k!=='execution_ids').sort().join(',')==='conversation_key,expected_revision,operation_ids,summary'&&
+  (x.execution_ids===undefined||Array.isArray(x.execution_ids)&&x.execution_ids.length<=20&&
+   new Set(x.execution_ids).size===x.execution_ids.length&&x.execution_ids.every(id=>typeof id==='string'&&operationId.test(id)))&&
   typeof x.conversation_key==='string'&&key.test(x.conversation_key)&&Number.isInteger(x.expected_revision)&&x.expected_revision>=0&&x.expected_revision<100&&
   typeof x.summary==='string'&&x.summary.trim().length>0&&x.summary.length<=1800&&Buffer.byteLength(x.summary)<=6000&&
   !/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(x.summary)&&

@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "event_id": "1e84ae8e-14bd-4358-b436-3bab13bfeef2",
+  "task_id": "586a6aa6-8b91-4c18-b61c-120999b3c343",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T16:19:34.102919Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "ec0de11dff87a58656a8ea28d15aff2ceca5aae3",
+  "message": "Registered action executor source ready. Full suite 1259/1259 passed, focused tests cover strict inputs/enrollment/claims/concurrency/Git pinning/test failures/zero counts/timeouts/redaction/links/report integrity and cross-Chat execution references. Actual Mac Alice repo preflight dry-run validated old d075c2f main with clean tree and registered origin. Native local shared catalog exposes eleven tools; fixed mode unchanged. Actual job/enrollment and web rollout not yet claimed.",
+  "changes": {
+    "status": {
+      "from": "in_progress",
+      "to": "validation"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "1259 passed, 0 failed; shell syntax and whitespace passed"
+    },
+    {
+      "kind": "device_validation",
+      "summary": "Alice repository/config dry-run validated without writes; local shared MCP eleven-tool readiness passed"
+    }
+  ],
+  "supersedes_event_id": null
+}

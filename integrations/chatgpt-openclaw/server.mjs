@@ -6,6 +6,7 @@ import {runComputerTask,computerTaskResult} from './computer-agent.mjs';
 import {projectBinding} from './project-binding.mjs';
 import {projectRoute,routedCatalog,routeCall,routeInstructions} from './project-router.mjs';
 import {projectHandoff,handoffTools} from './project-handoff.mjs';
+import {projectExecution,executionTools} from './project-execution.mjs';
 
 export const tools=[{
  name:'openclaw_agent_status',
@@ -53,12 +54,16 @@ export async function callTool(name,args,{status=inspectDirectAgent,message=mess
 
 export async function serve(binding=projectBinding(),route={shared:false,bindings:[binding]}){
  const {Server,StdioServerTransport,ListToolsRequestSchema,CallToolRequestSchema}=await loadSdk();
- const server=new Server({name:'ioant-openclaw-direct',version:'0.2.0'},
+ const server=new Server({name:'ioant-openclaw-direct',version:'0.3.0'},
   {capabilities:{tools:{}},instructions:routeInstructions(route)});
- server.setRequestHandler(ListToolsRequestSchema,async()=>({tools:routedCatalog(tools,route,handoffTools)}));
+ server.setRequestHandler(ListToolsRequestSchema,async()=>({tools:routedCatalog(tools,route,[...handoffTools,...executionTools])}));
  server.setRequestHandler(CallToolRequestSchema,async request=>{
   try{return await routeCall(request.params.name,request.params.arguments??{},{route,
    invoke:async(name,args,selected)=>{
+    if(route.shared&&executionTools.some(t=>t.name===name)){
+     const result=await projectExecution(name,args,{binding:selected});
+     return {content:[{type:'text',text:JSON.stringify(result)}],isError:result.state==='blocked'};
+    }
     if(route.shared&&handoffTools.some(t=>t.name===name)){
      const result=await projectHandoff(name,args,{binding:selected});
      return {content:[{type:'text',text:JSON.stringify(result)}],isError:result.state==='blocked'};
