@@ -4,6 +4,37 @@ The operator selected this direction on 2026-10-29: ChatGPT web chat is the
 project lead; OpenClaw Agent is the local execution participant. The existing
 Ops Worker is preserved for transition, not a mandatory part of the new path.
 
+## Per-project ownership (operator clarification)
+
+Each ChatGPT Project needs its own OpenClaw Agent, workspace, memory/session
+history, permissions and task receipts. A shared global computer Agent must not
+become every project's brain. The bridge code is shared, but each local MCP
+launch profile pins a project. Remote tool arguments cannot switch Agents.
+
+| Local project binding | OpenClaw Agent | Current scope |
+| --- | --- | --- |
+| `openclaw-workflow` | `openclaw-dev` | Actual ChatGPT text roundtrip accepted |
+| `alice-ai` | `alice-ai` | Local status checked; separate ChatGPT connection not provisioned here |
+
+Use a separate MCP connection/tunnel profile and plugin per project. The current
+OpenClaw Mac plugin is the workflow project only. Do not enable that same plugin
+in unrelated Projects and assume it provides project isolation. Launches use:
+
+```text
+node integrations/chatgpt-openclaw/server.mjs --project openclaw-workflow
+node integrations/chatgpt-openclaw/server.mjs --project alice-ai
+```
+
+No argument defaults to the existing workflow binding for the accepted installed
+profile. Unregistered names fail. Workspace checks reject unexpected paths,
+overlapping project workspace roots and explicitly shared Agent state dirs.
+Session keys include project identity even if callers reuse a conversation key;
+computer-task receipts use separate private per-project directories and include
+project/Agent identity in the request digest. Tests cover same-key and same-ID
+cross-project cases. This is application/session isolation, not a separate OS
+user or sandbox. Physical desktop and local model compute remain shared; native
+execution leases must coordinate access without releasing another actor's lease.
+
 ```text
 ChatGPT custom MCP tool
   -> OpenAI Secure MCP Tunnel
@@ -19,7 +50,7 @@ OpenAI model API requests. It does not replace the Agent's execution logic.
 
 ## Current acceptance boundary
 
-The initial adapter deliberately targets the existing **no-tools**
+The initially accepted adapter deliberately targets the existing **no-tools**
 `openclaw-dev` Agent and pinned local `ollama/gemma4:26b-a4b`. Its two MCP tools
 are `openclaw_agent_status` and `openclaw_agent_message`. It accepts a bounded
 message and conversation key; the caller cannot select agents, backend models,
@@ -31,13 +62,44 @@ passed, 0 failed. The local Agent receipt identified Ollama and the expected
 model. No Worker was used. A local-model turn still processes tokens and uses
 Mac compute; it is not a paid cloud-model call or Codex inference call.
 
-**Not yet verified:** actual ChatGPT-to-tunnel call, computer control, project
-file edits or background ChatGPT delivery. The advisor reply is explicitly
+**Current boundary:** the actual ChatGPT text roundtrip is accepted as recorded
+below. Project computer control, file edits and background ChatGPT delivery are
+not yet accepted. The advisor reply is explicitly
 untrusted analysis, not execution evidence. This text-only initial scope is
 intentional: an uncertain request cannot replay a desktop action. Broader
 execution needs a separate configured tool policy and persistent operation
 identity/receipts before enabling actions. Do not grant tools to this advisor
 silently or equate successful communication with computer-control acceptance.
+
+### Project computer-task admission (source implementation)
+
+Two additional tools are implemented: `openclaw_computer_task` and
+`openclaw_computer_result`. They use the **bound project's own Agent**, never
+the global `mac-computer` test Agent. A task requires an explicit computer-only
+policy on that project Agent; current no-tools workflow/Alice Agents reject it
+until project-specific permissions are configured. This update does not change
+those live permissions.
+
+The local private ledger reserves an operation ID before inference. A repeat
+returns the saved result; conflicting content under the same ID is blocked.
+Crash/timeout/uncertain receipts never trigger a retry. Receipt reads do not
+execute actions. Each project's ledger is bounded at 500 entries and refuses
+new admissions when full; it does not delete history automatically. Responses
+are bounded/redacted; raw prompts and transport secrets are not stored.
+Computer tools are labeled mutating in MCP. Returned model text and successful
+tool names are not independent proof of the intended application effect.
+
+Separate actual Mac capability evidence: the pre-existing `mac-computer` Agent
+completed one local `get_cursor_position` call through the native computer tool.
+Exact-session history showed that action, and activity audit recorded computer
+tool success. This proved the local Agent/tool path without moving the pointer
+or typing. It was a capability test, not permission for every project or proof
+of a ChatGPT-originated desktop task.
+
+After a planned adapter reload/ChatGPT metadata refresh, the catalog contains
+four tools. Existing tunnel processes may retain the accepted two-tool catalog.
+Do not restart an active tunnel just to expose disabled project permissions;
+stage the catalog update with the next project's permission rollout.
 
 The status tool only reads local policy, not live Gateway availability.
 The message tool validates the local-only config before invoking and checks
@@ -49,6 +111,8 @@ without automatic retry or routing to another model.
 ```bash
 cd "$HOME/Documents/workspace/ioant-AI-Agent-Local-MacOS"
 bash scripts/dev-env.sh exec node scripts/direct-openclaw-mcp-smoke.mjs --status
+# Check the separate Alice binding without contacting its ChatGPT conversation:
+bash scripts/dev-env.sh exec node scripts/direct-openclaw-mcp-smoke.mjs --status --project alice-ai
 # Explicit local-model text inference; no computer tools:
 bash scripts/dev-env.sh exec node scripts/direct-openclaw-mcp-smoke.mjs --message-test
 ```
@@ -139,3 +203,56 @@ Actual post-restart evidence: two completed cloud polls labeled `error=false`,
 a positive last-successful-poll timestamp, and no poll-error series observed.
 This resolves the measured cloud connectivity failure. ChatGPT app creation
 and an actual tool response remain independent acceptance steps.
+
+## Actual ChatGPT web acceptance (2026-10-29)
+
+The operator enabled OpenClaw Mac in ChatGPT web and reported successful
+`openclaw_agent_status` followed by `openclaw_agent_message`, receiving exactly
+`DIRECT_CHATGPT_OPENCLAW_READY`. The returned backend was local Ollama /
+`gemma4:26b-a4b`, with Worker unused and tools/computer control disabled.
+The tunnel independently showed successful cloud polls and forwarded commands.
+This accepts the direct **communication** path; it does not accept computer use.
+The status tool's initial hard-coded `chatgptConnectionVerified:false` is a
+conservative local-check marker and does not negate an observed caller roundtrip.
+
+Per-project implementation validation: full native Mac regression 1210/1210
+passed, shell syntax passed, and separate Alice local MCP readiness passed.
+No project Agent tool policy was expanded by these source changes.
+
+## Current workflow project's computer rollout
+
+The operator then explicitly requested continuing execution setup. The fixed
+`scripts/configure-workflow-computer-agent.mjs` now provides `--dry-run` and
+`--apply` for **openclaw-workflow only**. It validates the existing no-tools
+policy and distinct private workspace, uses OpenClaw's own config dry run,
+saves private before-images of config and role text, checks prewrite state,
+and changes only `openclaw-dev.tools` plus its project role description.
+The granted allowlist is exactly `computer`; exec, elevation and cross-Agent
+calls remain disabled. Other project entries, model routes and Gateway settings
+must be unchanged on readback. An unexpected or uncertain write is reported,
+never retried. Existing local backups are the recovery evidence.
+
+Once this policy is applied, generic `openclaw_agent_message` refuses calls for
+that capable Agent: use `openclaw_computer_task` with an operation ID, including
+for plain messages to that Agent. Status reports the preferred tool. This keeps
+desktop-capable requests behind durable task admission. The old text-only
+Worker discussion guard is expected to reject the newly capable Agent; the
+direct MCP path is its intended replacement. The old Worker transport and fixed
+command actions are not reconfigured here.
+
+Mac commands (only the explicit apply command changes configuration):
+
+```bash
+cd "$HOME/Documents/workspace/ioant-AI-Agent-Local-MacOS"
+bash scripts/dev-env.sh exec node scripts/configure-workflow-computer-agent.mjs --dry-run
+bash scripts/dev-env.sh exec node scripts/configure-workflow-computer-agent.mjs --apply
+bash scripts/dev-env.sh exec node scripts/direct-openclaw-mcp-smoke.mjs --status
+# One explicit local-model native cursor-read test, no pointer movement or input:
+bash scripts/dev-env.sh exec node scripts/direct-openclaw-mcp-smoke.mjs --computer-read-test
+```
+
+After local acceptance, refresh the MCP adapter and ChatGPT plugin tool catalog
+at a controlled point. If a foreground tunnel restart is required, Ctrl-C only
+that tunnel and run `scripts/direct-openclaw-tunnel.sh` again with private key
+input. No OpenClaw Gateway, existing Worker or Alice Coordinator restart is
+requested. Actual ChatGPT computer-task acceptance remains a separate test.

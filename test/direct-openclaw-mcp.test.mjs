@@ -55,9 +55,11 @@ test('timeout or unexpected backend does not retry or expose raw metadata',async
  assert.equal(r.state,'inconclusive');assert.equal(JSON.stringify(r).includes('secret'),false);
 });
 
-test('MCP exposes two bounded tools and requires no model for readiness',async()=>{
- assert.equal(tools.length,2);
+test('MCP separates advisor, desktop task and read-only receipt tools',async()=>{
+ assert.equal(tools.length,4);
  assert.equal(tools[1].annotations.readOnlyHint,false);
+ assert.equal(tools[2].annotations.destructiveHint,true);
+ assert.equal(tools[3].annotations.readOnlyHint,true);
  let calls=0;
  const r=await callTool('openclaw_agent_status',{},
   {status:async()=>({state:'ready'}),message:async()=>{calls++;}});

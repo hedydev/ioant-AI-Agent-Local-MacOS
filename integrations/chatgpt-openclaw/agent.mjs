@@ -7,6 +7,8 @@ import {join} from 'node:path';
 import {readPrivateJson} from '../../stage2/workflow-capabilities.mjs';
 import {invokeDevCli} from '../../stage2/openclaw-alice-dev-discuss.mjs';
 import {redactFeedback} from '../../stage2/protocol.mjs';
+import {projectBinding,projectWorkspacePolicy} from './project-binding.mjs';
+import {inspectBoundWorkspace} from '../../stage2/development-agent-route.mjs';
 
 const AGENT='openclaw-dev';
 const MODEL='ollama/gemma4:26b-a4b';
@@ -26,28 +28,44 @@ export function spawnAgentWithoutTransportSecrets(file,args,options,spawnImpl=sp
 const invokeDirectCli=(args,body)=>invokeDevCli(args,body,
  {spawnImpl:spawnAgentWithoutTransportSecrets});
 
-export function directAgentPolicy(config){
+export function localModelPolicy(config,agentId){
  const defaults=config?.agents?.defaults;
- const a=config?.agents?.entries?.[AGENT];
+ const a=config?.agents?.entries?.[agentId];
  const p=config?.models?.providers?.ollama;
  return model(a?.model)===MODEL&&noFallback(a.model)&&noFallback(defaults?.model)&&
-  p?.baseUrl==='http://127.0.0.1:11435'&&p?.api==='ollama'&&
-  a?.tools?.deny?.includes('*')===true&&a?.tools?.exec?.mode==='deny';
+  p?.baseUrl==='http://127.0.0.1:11435'&&p?.api==='ollama';
 }
 
-export async function inspectDirectAgent({load=()=>readPrivateJson(
+export function directAgentPolicy(config,agentId=AGENT){
+ const a=config?.agents?.entries?.[agentId];
+ return localModelPolicy(config,agentId)&&
+  a?.tools?.deny?.includes('*')===true&&a?.tools?.exec?.mode==='deny';
+}
+export function projectComputerPolicy(c,binding=projectBinding()){
+ const a=c?.agents?.entries?.[binding.agentId];
+ return localModelPolicy(c,binding.agentId)&&projectWorkspacePolicy(c,binding)&&
+  Array.isArray(a?.tools?.allow)&&a.tools.allow.length===1&&
+  a.tools.allow[0]==='computer'&&!a.tools.deny?.includes('*')&&!a.tools.alsoAllow?.length;
+}
+
+export async function inspectDirectAgent({binding=projectBinding(),workspace=inspectBoundWorkspace,load=()=>readPrivateJson(
  join(homedir(),'.openclaw/openclaw.json'))}={}){
  try{
   if(['OPENCLAW_PROFILE','OPENCLAW_CONFIG_PATH','OPENCLAW_STATE_DIR']
    .some(k=>process.env[k]))throw Error('custom_profile');
-  const ready=directAgentPolicy(await load());
-  return {state:ready?'ready':'blocked',agent:AGENT,localModelOnly:true,
-   toolsEnabled:false,computerControlEnabled:false,
-   workerRequired:false,chatgptConnectionVerified:false};
+  const config=await load();
+  const computer=projectComputerPolicy(config,binding);
+  const ready=(directAgentPolicy(config,binding.agentId)||computer)&&projectWorkspacePolicy(config,binding)&&
+   await workspace(binding.agentId)==='present_private';
+  return {state:ready?'ready':'blocked',agent:binding.agentId,project:binding.projectKey,localModelOnly:true,
+   toolsEnabled:computer,computerControlEnabled:computer,
+   preferredMessageTool:computer?'openclaw_computer_task':'openclaw_agent_message',
+   workerRequired:false,readinessScope:'local_configuration_only'};
  }catch{return {state:'blocked',reason:'local_agent_policy_unverified'};}
 }
 
-export async function messageDirectAgent(input,{inspect=inspectDirectAgent,
+export async function messageDirectAgent(input,{binding=projectBinding(),
+ inspect=()=>inspectDirectAgent({binding}),
  invoke=invokeDirectCli}={}){
  if(!input||Object.keys(input).sort().join(',')!=='conversation_key,message'||
   !KEY.test(input.conversation_key??'')||typeof input.message!=='string'||
@@ -55,10 +73,12 @@ export async function messageDirectAgent(input,{inspect=inspectDirectAgent,
   /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(input.message))
   return {state:'blocked',reason:'invalid_message'};
  const policy=await inspect();
+ if(policy?.state==='ready'&&policy.toolsEnabled===true)
+  return {state:'blocked',reason:'use_operation_id_and_openclaw_computer_task'};
  if(policy?.state!=='ready'||policy.toolsEnabled!==false)
   return {state:'blocked',reason:'local_agent_policy_unverified'};
- const key=createHash('sha256').update(input.conversation_key).digest('hex').slice(0,24);
- const args=['agent','--agent',AGENT,'--session-key','agent:'+AGENT+':direct-'+key,
+ const key=createHash('sha256').update(binding.projectKey+'\n'+input.conversation_key).digest('hex').slice(0,24);
+ const args=['agent','--agent',binding.agentId,'--session-key','agent:'+binding.agentId+':direct-'+key,
   '--model',MODEL,'--thinking','off','--message-file','/dev/stdin','--timeout','120','--json'];
  let reply;
  try{reply=await invoke(args,input.message);}
@@ -73,7 +93,7 @@ export async function messageDirectAgent(input,{inspect=inspectDirectAgent,
   return {state:'inconclusive',reason:'reply_unavailable'};
  const text=redactFeedback(payloads.map(x=>x.text).join('\n')).trim();
  if(!text)return {state:'inconclusive',reason:'reply_unavailable'};
- return {state:'answered',agent:AGENT,provider:'ollama',model:'gemma4:26b-a4b',
+ return {state:'answered',agent:binding.agentId,project:binding.projectKey,provider:'ollama',model:'gemma4:26b-a4b',
   workerUsed:false,toolsEnabled:false,computerControlEnabled:false,
   text,outputIsUntrusted:true};
 }

@@ -1,0 +1,31 @@
+{
+  "schema_version": 2,
+  "task_id": "f3084777-82a5-42e2-a9c3-0a2671787561",
+  "created_at": "2026-10-29T00:38:20.663927Z",
+  "created_by": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "objective": "Pin independent per-project OpenClaw Agents and durable project-scoped computer task receipts",
+  "scope": [
+    "integrations/chatgpt-openclaw",
+    "test/direct-project-binding.test.mjs",
+    "test/direct-computer-agent.test.mjs"
+  ],
+  "target_ids": [
+    "macos-audit-cli"
+  ],
+  "acceptance_criteria": [
+    "Remote requests cannot select a different project Agent",
+    "Same conversation keys and operation IDs remain separate across project bindings",
+    "Unexpected or overlapping project workspace/state paths are rejected",
+    "Computer execution requires a project-specific policy and reservations prevent replay",
+    "Existing advisor and other project permissions are preserved"
+  ],
+  "deduplication_key": "direct-project-agent-binding-and-at-most-once-computer-tasks",
+  "parent_task_id": "45c6373e-4172-44a4-bee1-b1c29348c3bf",
+  "relations": []
+}

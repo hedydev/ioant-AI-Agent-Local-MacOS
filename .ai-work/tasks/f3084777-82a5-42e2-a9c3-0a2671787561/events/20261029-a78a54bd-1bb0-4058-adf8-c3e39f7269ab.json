@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "event_id": "a78a54bd-1bb0-4058-adf8-c3e39f7269ab",
+  "task_id": "f3084777-82a5-42e2-a9c3-0a2671787561",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T00:38:20.663927Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "ffae7e8",
+  "message": "1210/1210 native Mac tests and shell syntax passed. Workflow and Alice local SDK status passed; no Agent permissions changed. Independent native mac-computer capability test invoked exactly get_cursor_position, with successful audit. New project computer task tools remain inactive for no-tools Agents; cloud metadata rollout is deferred until project permission configuration.",
+  "changes": {
+    "status": {
+      "from": null,
+      "to": "awaiting_user_acceptance"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "1210 passed; 0 failed; cross-project, durable replay, concurrent admission and privacy tests included"
+    },
+    {
+      "kind": "device_validation",
+      "summary": "Alice local MCP status passed; exact native test action verified from session history and computer tool success audit"
+    }
+  ],
+  "supersedes_event_id": null
+}

@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "event_id": "10dfdefd-13b5-4cc4-bdf9-d3ac7e39b4ab",
+  "task_id": "45c6373e-4172-44a4-bee1-b1c29348c3bf",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T00:25:24.912864Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "ffae7e8",
+  "message": "Operator reports successful ChatGPT web openclaw_agent_status and openclaw_agent_message calls, exact DIRECT_CHATGPT_OPENCLAW_READY response, ollama/gemma4:26b-a4b, Worker unused, tools and computer control disabled. Cloud polling and forwarded-command counters independently observed. Communication phase accepted as a reported real-device test; execution-agent work remains separate.",
+  "changes": {
+    "status": {
+      "from": "awaiting_device_validation",
+      "to": "awaiting_user_acceptance"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "operator_report",
+      "summary": "Exact ChatGPT tool result answered with DIRECT_CHATGPT_OPENCLAW_READY; provider ollama; local model; workerUsed=false; toolsEnabled=false"
+    },
+    {
+      "kind": "runtime_metrics",
+      "summary": "Positive cloud poll timestamp, successful polls and nonzero forwarded-command counts"
+    }
+  ],
+  "supersedes_event_id": null
+}
