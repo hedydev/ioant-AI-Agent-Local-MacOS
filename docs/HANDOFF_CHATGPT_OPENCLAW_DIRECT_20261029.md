@@ -3,6 +3,15 @@
 Updated 2026-10-29, Asia/Shanghai. This is the current direction and evidence
 summary for this implementation, superseding conflicting older plans.
 
+Latest checkpoint: the account's five-hour window reached approximately 10%
+remaining. Alice computer rollout code and review plan are prepared, **not
+applied**. Native dry-run returned validated with config/role writes false;
+full regression passed 1244/1244. Read
+`docs/ALICE_COMPUTER_AGENT_ROLLOUT_20261029.md` before any Alice permission
+change. Await explicit scoped rollout approval, then apply once, read live
+status and validate a new bounded Alice task. Existing Tunnel/plugin rollout
+and workflow cursor acceptance are already done; do not replay them.
+
 ## Operator's required working model
 
 - Official ChatGPT web chat owns conversation, requirements, reasoning,
@@ -14,8 +23,8 @@ summary for this implementation, superseding conflicting older plans.
 - A Tunnel is a transport to the Mac, not a project identity. One Tunnel may
   carry an explicitly enabled multi-project router. One Tunnel per project is
   not required. Fixed --project mode remains; new --shared-projects mode has
-  passed local seven-tool/dual-project MCP checks. Cloud rollout still requires
-  preparing/restarting the foreground tunnel and refreshing its plugin metadata.
+  passed local seven-tool/dual-project MCP checks and actual web acceptance.
+  The shared foreground Tunnel and plugin metadata refresh are already deployed.
 - During active work, check usage. At about 10% remaining in an available
   relevant window, notify the user, commit scoped code and `docs` handoff,
   push and verify Git. Do not publish credentials or private runtime artifacts.
@@ -34,7 +43,7 @@ summary for this implementation, superseding conflicting older plans.
 | Role / backup | Workflow AGENTS role updated for ChatGPT-led execution; private original role and config saved in `~/.openclaw/backups/` |
 | Native local capability | `mac-computer` test Agent invoked one native cursor read, verified from session history and activity audit |
 | Actual project Agent through MCP | `openclaw-dev` cursor task passed; saved receipt finished; readback cached; exact-session history contained only `get_cursor_position`; one successful computer audit |
-| Regression | Latest full suite 1241/1241 passed with concurrency 4; shell syntax and whitespace checks passed |
+| Regression | Latest full suite 1244/1244 passed with concurrency 4, including three Alice migration policy tests |
 | Shared Tunnel deployment | User restarted the foreground client; actual child argv confirmed shared two-project mode; positive cloud polls and no polling errors |
 | Plugin metadata refresh | Authorized native Chrome path Plugins → OpenClaw Mac → Manage → Refresh tools completed once; real cloud initialize/discover/tools-list calls returned 200 |
 | Shared local native acceptance | Project-key MCP cursor task plus cached result passed; exact session history contained only get_cursor_position |

@@ -234,4 +234,14 @@ Foreground tunnel restarted by user with private Runtime Key entry; actual share
 
 ## Shared MCP actual ChatGPT web acceptance (2026-10-29)
 
-Alice new-Chat projects/status/resume returned the correct independent Agent and handoff revision 1, matched by three successful cloud calls. Workflow web status/task/result then completed web_cursor_accept_20261029_a7c4d9e2 and returned cached:true, computerToolSucceeded:true, workerUsed:false. Cloud calls increased from 3 to 6, all 200. Independent exact-session history contained one get_cursor_position and its native coordinates matched the user report. No action was repeated for audit. The direct routing/chat-continuity/native-read/cache phase is ready for user acceptance. Arbitrary app/file effects and Alice computer permissions are not implied; Alice remains a no-tools advisor. Full regression remains 1241/1241.
+Alice new-Chat projects/status/resume returned the correct independent Agent and handoff revision 1, matched by three successful cloud calls. Workflow web status/task/result then completed web_cursor_accept_20261029_a7c4d9e2 and returned cached:true, computerToolSucceeded:true, workerUsed:false. Cloud calls increased from 3 to 6, all 200. Independent exact-session history contained one get_cursor_position and its native coordinates matched the user report. No action was repeated for audit. The direct routing/chat-continuity/native-read/cache phase is ready for user acceptance. Arbitrary app/file effects and Alice computer permissions are not implied; Alice remains a no-tools advisor. Full regression at that phase was 1241/1241.
+
+## Alice computer rollout preparation and 10% usage checkpoint (2026-10-29)
+
+Prepared fixed Alice-only config/role migration and three policy tests. Native CLI
+dry-run on the actual Mac returned validated, configurationWritten:false and
+roleWritten:false. Full regression passed 1244/1244 at concurrency 4. No Alice
+permissions, running services, Tunnel metadata or existing Workers were changed.
+The five-hour usage window reached 10% remaining; source/docs are being committed
+and pushed with remote-SHA verification. Concrete scope, commands and remaining
+approval/live acceptance are in docs/ALICE_COMPUTER_AGENT_ROLLOUT_20261029.md.

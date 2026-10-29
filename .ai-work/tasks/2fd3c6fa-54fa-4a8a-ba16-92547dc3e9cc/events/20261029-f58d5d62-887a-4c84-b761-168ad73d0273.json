@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "event_id": "f58d5d62-887a-4c84-b761-168ad73d0273",
+  "task_id": "2fd3c6fa-54fa-4a8a-ba16-92547dc3e9cc",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T14:33:18.256493Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "f577c75abd67a3b7367898c0f7f06b0f1016f8a0",
+  "message": "At approximately 10% remaining five-hour usage, prepared Alice-only computer policy migration and review document. Native config dry-run validated without config or role writes; three policy tests and full 1244-test suite passed. No Alice permissions applied. Existing direct integration awaits human acceptance; next rollout requires explicit Alice permission approval and fresh live validation. Existing Tunnel/plugin/cursor successes must not be replayed.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "1244 passed, 0 failed, concurrency 4"
+    },
+    {
+      "kind": "device_validation",
+      "summary": "Actual native config dry-run validated; configurationWritten:false, roleWritten:false"
+    }
+  ],
+  "supersedes_event_id": null
+}
