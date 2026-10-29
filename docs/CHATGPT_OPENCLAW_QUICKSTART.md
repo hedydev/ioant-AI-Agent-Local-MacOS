@@ -1,5 +1,10 @@
 # ChatGPT 网页 + OpenClaw：项目使用入口
 
+最新：0.4.0 通用任务/产物版本源码和本机 workflow 登记已准备，1278 回归通过；
+原前台隧道尚需一次重启和插件 Refresh。详见
+`CONVERSATIONAL_LOCAL_EXECUTION_20261030.md` 顶部上线步骤。下面 0.3.1 已验收
+描述是上一版本记录，不意味着 0.4.0 已在网页生效，也不要重做旧任务。
+
 2026-10-30 新增 [Git 更新、脚本测试与报告通道](PROJECT_EXECUTION_MCP_20261030.md)：
 共享目录升级到十一工具后，Alice 的代码更新/回归应优先使用
 `openclaw_project_actions` → `openclaw_project_execute` → `openclaw_project_result`

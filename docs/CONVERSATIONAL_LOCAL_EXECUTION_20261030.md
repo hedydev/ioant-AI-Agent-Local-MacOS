@@ -47,6 +47,23 @@ bash scripts/direct-openclaw-tunnel.sh
 完整回归：1278/1278 通过，0 失败/跳过/取消；全部 scripts/*.sh 语法检查和
 git diff --check 通过。原始验证日志保留在本机 LunaDrive verification 下。
 
+## 本机登记与实际 SDK 目录核对
+
+已为 `openclaw-workflow` / `openclaw-dev` 登记当前基础设施仓库：
+`ioant-AI-Agent-Local-MacOS` 的 main、明确 origin、scripts 根目录及已存在的
+node/python/bash 解释器。私有输入由实施 AI 准备；dry-run、apply 和读取核对
+均通过，Agent 权限没有改变，也未登记 Alice/AWS 的新通用任务范围。
+没有启动模型、提交运行任务或改业务项目。旧 Alice 固定 grant 原样保留。
+
+实际新建的本地 stdio MCP SDK 连接确认 11 工具、repository_task、artifact_id
+以及 workflow enabled:true；这不是现有前台 Tunnel 的网页验收。
+代码提交 `c25dc14d45aa8352f4de5c9e428896f64b6b78c0` 已推送并核对远端一致。
+当前只差原前台隧道统一重启、插件 Refresh 和网页新工具只读发现验收。
+任务状态为 awaiting_device_validation，不声明已获得最终人类验收。
+
+网页上线后先只读列出 workflow actions，确认 repository_task enabled:true、
+execute 支持 task_file、report 支持 artifact_id。无需重跑旧 Alice 回归任务或坐标探针。
+
 ## 历史：初始内核检查点
 
 

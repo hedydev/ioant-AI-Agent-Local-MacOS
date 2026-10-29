@@ -3,6 +3,14 @@
 Updated 2026-10-30, Asia/Shanghai. This is the current direction and evidence
 summary for this implementation, superseding conflicting older plans.
 
+Latest local rollout preparation: workflow generic grant dry-run/apply passed for
+this infrastructure repository only; existing Agent permissions and Alice fixed grant
+unchanged. Actual new local SDK connection confirms eleven tools, repository_task,
+artifact_id and enabled workflow action, without inference/jobs. Full 1278/1278 passed.
+Source c25dc14 pushed and remote verified. Task f2afc52b is awaiting_device_validation:
+remaining foreground restart, plugin Refresh, and actual web read-only discovery.
+Do not confuse the new local SDK child with the still-running old cloud connection.
+
 Latest source checkpoint: 0.4.0 generic repository task admission/runner, separate
 data grants and independent project bindings, bounded text/JSON/ZIP-member artifacts,
 and natural conversation tool instructions are implemented. Two temporary real Git

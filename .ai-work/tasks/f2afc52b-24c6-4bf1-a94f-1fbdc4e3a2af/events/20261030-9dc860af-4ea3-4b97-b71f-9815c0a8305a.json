@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "event_id": "9dc860af-4ea3-4b97-b71f-9815c0a8305a",
+  "task_id": "f2afc52b-24c6-4bf1-a94f-1fbdc4e3a2af",
+  "event_type": "status_changed",
+  "occurred_at": "2026-10-29T19:07:29.533648Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "c25dc14d45aa8352f4de5c9e428896f64b6b78c0",
+  "message": "Source pushed and remote SHA verified. Enrolled only current infrastructure workflow repository through the new local dry-run/apply helper. Independent configured Agent readiness, clean repository and runtimes passed. Actual fresh local MCP SDK confirms eleven tools, repository_task/task_file/artifact_id and enabled workflow action; no inference/job submitted. Existing foreground/cloud remains old until user privately re-enters Runtime Key on coordinated restart and refreshes plugin. Pending actual web catalog discovery; no old task replay.",
+  "changes": {
+    "status": {
+      "from": "in_progress",
+      "to": "awaiting_device_validation"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "git",
+      "commit": "c25dc14d45aa8352f4de5c9e428896f64b6b78c0"
+    },
+    {
+      "kind": "local_readback",
+      "result": "enrolled; local_mcp_catalog_verified; no Agent permission change; no job/model invocation"
+    }
+  ],
+  "supersedes_event_id": null
+}
