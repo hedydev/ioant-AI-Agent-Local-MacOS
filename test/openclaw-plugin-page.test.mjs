@@ -20,6 +20,7 @@ function fixture({url='https://chatgpt.com/plugins',failType=false,duplicateRefr
    ...(fakeAddress?[{elementRef:'fake-address',role:'text_field',label:'Address and search bar',value:'https://chatgpt.com/plugins'}]:[]),
    {elementRef:'plugin',role:'link',label:'OpenClaw Mac'},
    {elementRef:'more-actions',role:'AXPopUpButton',label:'More actions'},
+   {elementRef:'manage',role:'AXLink',label:'Manage'},
    {elementRef:'refresh',role:'button',label:'Refresh'},
    ...(duplicateRefresh?[{elementRef:'refresh2',role:'button',label:'Refresh'}]:[])]}};
   if(p.action==='type'&&failType)throw Error('uncertain_native_input');
@@ -95,4 +96,8 @@ test('an explicitly resumed navigation stage does not replay the earlier foregro
 test('plugin controls menu targets exactly More actions after origin/plugin verification',async()=>{
  const {calls,ctx}=fixture();const r=await pluginPageStep('menu','plugin_controls_menu_001',ctx);
  assert.equal(r.state,'observed');assert.equal(calls.find(c=>c.action==='left_click').elementRef,'more-actions');
+});
+test('connection management targets only the exact Manage link',async()=>{
+ const {calls,ctx}=fixture();const r=await pluginPageStep('manage','plugin_manage_link_001',ctx);
+ assert.equal(r.state,'observed');assert.equal(calls.find(c=>c.action==='left_click').elementRef,'manage');
 });

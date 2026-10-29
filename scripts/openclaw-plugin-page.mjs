@@ -92,8 +92,10 @@ export function pluginObservation(raw){
  const plugin=exact('OpenClaw Mac');
  const refresh=elements.filter(v=>/^(?:Refresh|刷新)$/.test(v.label??'')&&v.enabled!==false&&/button|menu.?item/i.test(v.role??''));
  const menu=elements.filter(v=>v.label==='More actions'&&v.enabled!==false&&/button/i.test(v.role??''));
- return {observationId:observationIds[0],originVerified,addressUrl,plugin,refresh,menu,
-  buttonHints:originVerified?elements.filter(v=>/button|link|menu.?item/i.test(v.role??'')&&
+ const manage=elements.filter(v=>v.label==='Manage'&&v.enabled!==false&&/button|link/i.test(v.role??''));
+ const popupOpen=elements.some(v=>/menu.?item/i.test(v.role??''));
+ return {observationId:observationIds[0],originVerified,addressUrl,plugin,refresh,menu,manage,popupOpen,
+  buttonHints:originVerified?elements.filter(v=>(/button|menu.?item/i.test(v.role??'')||/link/i.test(v.role??'')&&/^(?:Manage|Learn more)$/.test(v.label??''))&&
    /refresh|tools?|more|menu|actions?|connect|edit|settings?|manage|details|version|update|installed|permissions?|刷新|工具|更多|菜单|设置|管理|连接/i.test(v.label??'')&&
    !/^(?:Project actions|Chat actions|Show more|Relaunch|MCSManager|Open profile|Account|Profile)/i.test(v.label??''))
    .slice(0,30).map(v=>({role:v.role,label:redactFeedback(v.label).slice(0,100)})):[],
@@ -109,7 +111,7 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
  const completedActions=[];
  let closeAcknowledged=false;
  try{
-  if(!['inspect','windows','open','open-focused','details','menu','refresh'].includes(mode)||!['inspect','windows'].includes(mode)&&!operationId.test(id??''))throw Error('explicit_step_required');
+  if(!['inspect','windows','open','open-focused','details','menu','manage','refresh'].includes(mode)||!['inspect','windows'].includes(mode)&&!operationId.test(id??''))throw Error('explicit_step_required');
   if(['OPENCLAW_PROFILE','OPENCLAW_CONFIG_PATH','OPENCLAW_STATE_DIR'].some(k=>process.env[k]))throw Error('custom_profile_not_supported');
   if(!projectComputerPolicy(await load()))throw Error('workflow_computer_policy_required');
   if(!['inspect','windows'].includes(mode)){
@@ -122,7 +124,7 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
   const host=(status.result??status).nodes.find(n=>(n.nodeId??n.id)===node.id);
   if(host?.computerUse?.contractVersion!==2||host.computerUse.provider?.id!=='cua-computer')throw Error('native_cua_required');
   const needed=mode==='windows'?['list_windows']:['list_windows','get_window_state',
-   ...(mode==='open'?['bring_to_front','key','type']:mode==='open-focused'?['key','type']:mode==='inspect'?[]:['left_click'])];
+   ...(mode==='open'?['bring_to_front','key','type']:mode==='open-focused'?['key','type']:mode==='inspect'?[]:mode==='manage'?['left_click','key']:['left_click'])];
   if(!needed.every(a=>host.computerUse.actions?.includes(a)))throw Error('native_actions_not_advertised');
   executionId=uuid();
   const act=async params=>{
@@ -148,11 +150,16 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
    o=await observe();
    await act({action:'key',windowRef,observationId:o.observationId,keys:'ENTER',deliveryMode:'foreground'});
    await pause(1800);
-  }else if(mode==='details'||mode==='menu'||mode==='refresh'){
-   const o=await observe();
+  }else if(['details','menu','manage','refresh'].includes(mode)){
+   let o=await observe();
    if(!o.originVerified)throw Error('plugins_origin_unverified');
    if(mode!=='details'&&o.plugin.length===0)throw Error('plugin_identity_unverified');
-   const targets=mode==='details'?o.plugin.filter(v=>/button|link/i.test(v.role??'')):mode==='menu'?o.menu:o.refresh;
+   if(mode==='manage'&&o.popupOpen){
+    await act({action:'key',windowRef,observationId:o.observationId,keys:'ESC',deliveryMode:'foreground'});
+    o=await observe();
+    if(!o.originVerified||!o.plugin.length)throw Error('plugin_identity_unverified');
+   }
+   const targets=mode==='details'?o.plugin.filter(v=>/button|link/i.test(v.role??'')):mode==='menu'?o.menu:mode==='manage'?o.manage:o.refresh;
    if(targets.length!==1)throw Error('unique_control_required');
    await act({action:'left_click',windowRef,observationId:o.observationId,elementRef:targets[0].elementRef,deliveryMode:'foreground'});
    await pause(1200);
