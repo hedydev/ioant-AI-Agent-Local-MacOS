@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "event_id": "550da108-fbe2-42ba-99b5-8723a116ee36",
+  "task_id": "2fd3c6fa-54fa-4a8a-ba16-92547dc3e9cc",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T14:07:55.700437Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "0f6b705",
+  "message": "User returned actual Alice new-chat OpenClaw Mac results: projects found 2, alice-ai local policy ready, persisted handoff_found revision 1, tools/computer disabled as configured, no local inference or computer action. Independently correlated cloud tools/call count increase from 0 to 3, all 200. This confirms actual web project routing and handoff reads. Full Alice project development history and computer permissions are not implied. Remaining web acceptance is a workflow-only native cursor task plus cached result; no repeated Alice test needed.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "device_validation",
+      "summary": "User supplied actual ChatGPT tools results; independent three successful cloud calls match the test"
+    }
+  ],
+  "supersedes_event_id": null
+}

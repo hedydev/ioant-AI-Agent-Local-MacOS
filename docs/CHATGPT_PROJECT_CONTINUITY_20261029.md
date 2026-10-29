@@ -122,10 +122,15 @@ tools/list、notifications/initialized，均返回 200。连接设置未展示�
 没有窗口枚举、截图、鼠标移动、点击或键盘输入。该条是本机共享 stdio 验收，
 不是 ChatGPT 网页发起的电脑任务。
 
-当前待办仅为真实网页 Chat 的调用验收：用户已收到在 Alice 项目新 Chat 中启用
-OpenClaw Mac、依次调用 projects/status/resume 的只读指令。应以真实返回和云端
-tools/call 证据确认，而不是模型口头声称。之后可在工作流项目中验证一次只读
-cursor 与同 ID 回执；不要让 Alice 通过其它项目键越权。Alice 当前仍无电脑工具。
+真实 Alice 网页新 Chat 验收现已通过：用户提供三个实际调用的完整结果，
+projects 返回两个项目、status 返回 alice-ai/ready、resume 返回 handoff_found/
+revision 1。隧道 tools/call 从 0 增至 3，全部 200，与这次用户结果相符。
+未调用本地模型或电脑工具；这证明项目路由及持久化交接的真实 Chat 读取链路。
+它不证明已经恢复 Alice 项目的完整开发历史，也不证明 Alice 具备电脑权限。
+
+当前待办是工作流项目的一次网页只读 cursor 与同 ID 回执验收。不要让 Alice
+通过其它项目键越权；Alice 当前仍无电脑工具。保存交接/新 Chat 恢复时，应
+使用当前修订号，不能因本次 revision 1 的示例而在未来固定写死该值。
 同一个 Tunnel 原进程的 Runtime Key 只存在内存中，未保存；新进程需要用户在
 终端私下输入，不能从旧进程环境取回密钥，也不能在 Chat 中提交。
 

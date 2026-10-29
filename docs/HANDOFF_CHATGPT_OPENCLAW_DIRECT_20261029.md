@@ -38,7 +38,8 @@ summary for this implementation, superseding conflicting older plans.
 | Shared Tunnel deployment | User restarted the foreground client; actual child argv confirmed shared two-project mode; positive cloud polls and no polling errors |
 | Plugin metadata refresh | Authorized native Chrome path Plugins → OpenClaw Mac → Manage → Refresh tools completed once; real cloud initialize/discover/tools-list calls returned 200 |
 | Shared local native acceptance | Project-key MCP cursor task plus cached result passed; exact session history contained only get_cursor_position |
-| Remaining web acceptance | User has the Alice new-Chat projects/status/resume prompt; actual chat-originated tools/call and web computer task remain pending |
+| Alice web new-chat acceptance | User returned actual projects/status/resume results: two projects, alice-ai ready, handoff_found revision 1; correlated cloud tools/call count increased from 0 to 3, all 200 |
+| Remaining web acceptance | Workflow project's web-originated native cursor task and same-ID cached receipt; Alice remains no-tools |
 
 Initial computer task receipt:
 `cursor_7ad32407-1d7e-4bb1-8a65-b7f9c6da5013`.
@@ -108,7 +109,9 @@ the user-entered key remains private, and native plugin Refresh tools completed.
 Native setup scripts were exercised without model inference, screenshots,
 browser Relay/CDP, permission changes, plugin version changes or chat sends.
 Source validation details and the genuine local-vs-web boundary are in the
-continuity document. Await the user's actual Alice new-chat tool results.
+continuity document. Alice's actual web new-chat result is now confirmed by
+the user and three successful cloud tools/call requests. Only the workflow web
+computer-task/readback leg remains before broader desktop work.
 
 The project task store persists privately under the local app-support root,
 separately for each project. An unfinished/uncertain receipt means investigate,
@@ -121,10 +124,9 @@ independent proof that an application's intended visible effect occurred.
    already done. Do not replay them as a health check. If checking health, use
    positive recent cloud polls, not just /readyz; the loopback port is dynamic.
    Never inspect a process environment or retrieve its Runtime Key.
-2. Await the user's Alice **new Chat** projects/status/resume test. They have a
-   copy-ready prompt and an asynchronous result question. It must report
-   project/Agent alice-ai and handoff revision >=1. The @ menu lists the plugin
-   name; the model's actual tool call confirms function availability.
+2. Alice new-chat projects/status/resume acceptance passed: actual Agent/project
+   alice-ai, ready, revision 1, matched to three successful cloud calls. Do not
+   rerun it merely because an older asynchronous result question remains open.
 3. Correlate genuine ChatGPT tool results with the tunnel's tools/call count.
    initialize/tools/list 200 from metadata refresh alone does not prove a chat
    invoked a tool. Do not send messages into Alice Chat on behalf of its owner
