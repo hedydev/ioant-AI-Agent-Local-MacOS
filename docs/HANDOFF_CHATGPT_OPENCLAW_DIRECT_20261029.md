@@ -27,7 +27,7 @@ summary for this implementation, superseding conflicting older plans.
 | ChatGPT custom MCP plugin | User created and connected OpenClaw Mac through an actual Platform Tunnel |
 | Transport | Official tunnel-client v0.0.18; cloud polls succeeded after explicit existing system HTTPS proxy was configured |
 | Text roundtrip from ChatGPT | User called status/message and received exactly `DIRECT_CHATGPT_OPENCLAW_READY`; local Ollama / Gemma; no Worker |
-| Per-project routing | Fixed local `--project` binding; workflow → `openclaw-dev`, Alice → `alice-ai`; remote arguments cannot switch Agents |
+| Per-project routing | Fixed and explicit shared modes; workflow → openclaw-dev, Alice → alice-ai. Shared calls select an enabled project_key, never an arbitrary Agent/path |
 | Project isolation checks | Distinct expected workspaces, private/canonical workspace admission, project-scoped session digests and separate receipt directories; tests passed |
 | Root project permissions | Fixed helper returned `applied`; `openclaw-dev` allows only `computer`; direct exec/elevation/cross-Agent calls disabled |
 | Other live config | Whole-config readback matched the expected single-tools-entry change; Alice and other entries unchanged |
@@ -39,7 +39,8 @@ summary for this implementation, superseding conflicting older plans.
 | Plugin metadata refresh | Authorized native Chrome path Plugins → OpenClaw Mac → Manage → Refresh tools completed once; real cloud initialize/discover/tools-list calls returned 200 |
 | Shared local native acceptance | Project-key MCP cursor task plus cached result passed; exact session history contained only get_cursor_position |
 | Alice web new-chat acceptance | User returned actual projects/status/resume results: two projects, alice-ai ready, handoff_found revision 1; correlated cloud tools/call count increased from 0 to 3, all 200 |
-| Remaining web acceptance | Workflow project's web-originated native cursor task and same-ID cached receipt; Alice remains no-tools |
+| Workflow web computer acceptance | User's actual status/task/result passed; web_cursor_accept_20261029_a7c4d9e2 returned with cached:true and computerToolSucceeded:true. Independent history proved one get_cursor_position; cloud tools/call increased 3→6, all 200 |
+| Acceptance boundary | Project routing, new-chat handoff read, native cursor task and cached readback passed. Arbitrary app/file effects and Alice computer permissions are not included |
 
 Initial computer task receipt:
 `cursor_7ad32407-1d7e-4bb1-8a65-b7f9c6da5013`.
@@ -110,8 +111,10 @@ Native setup scripts were exercised without model inference, screenshots,
 browser Relay/CDP, permission changes, plugin version changes or chat sends.
 Source validation details and the genuine local-vs-web boundary are in the
 continuity document. Alice's actual web new-chat result is now confirmed by
-the user and three successful cloud tools/call requests. Only the workflow web
-computer-task/readback leg remains before broader desktop work.
+the user and three successful cloud tools/call requests. The subsequent workflow
+web computer-task/readback also passed, corroborated by cloud tools/call 3→6,
+the exact local receipt and an independent one-action session history. No more
+installation or acceptance probes need to be replayed.
 
 The project task store persists privately under the local app-support root,
 separately for each project. An unfinished/uncertain receipt means investigate,
@@ -131,15 +134,14 @@ independent proof that an application's intended visible effect occurred.
    initialize/tools/list 200 from metadata refresh alone does not prove a chat
    invoked a tool. Do not send messages into Alice Chat on behalf of its owner
    or replay the old Coordinator handshake.
-4. In the **workflow** project, separately verify one web-originated read-only
-   get_cursor_position task and cached computer_result, with a fresh operation
-   ID and conversation_key. Do not reuse the completed local cursor ID or let
-   an Alice chat silently route to the workflow's computer-enabled Agent.
-5. Exercise a factual handoff/save and new-chat resume as appropriate; a fresh
+4. Workflow web cursor acceptance also passed. Do not reuse completed local or
+   web operation IDs. A new actual user task needs its own explicit scope,
+   project key and operation ID; application effects need separate readback.
+5. Use factual handoff/save and new-chat resume during normal work; a fresh
    chat uses a new conversation_key and current expected_revision. Unsaved old
    chat context cannot be reconstructed automatically.
-6. Only then move to a harmless authorized application task with independent
-   effect readback. Alice remains text-only until its own authorized rollout.
+6. The integration is ready for a concrete authorized project task. Alice
+   remains text-only until its own authorized computer-permission rollout.
 
 ## Mac Terminal commands
 

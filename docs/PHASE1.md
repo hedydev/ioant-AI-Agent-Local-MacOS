@@ -230,3 +230,8 @@ Explicit --shared-projects mode adds seven-tool routing and immutable revisioned
 ## Shared MCP live metadata rollout (2026-10-29)
 
 Foreground tunnel restarted by user with private Runtime Key entry; actual shared-project child and successful cloud polls verified. Native OpenClaw Chrome setup completed Plugins → OpenClaw Mac → Manage → Refresh tools once; cloud initialize/discover/tools-list responses were 200. No permission/auth/version changes or chat sends. Shared local project-key cursor task and cached receipt passed, with independent history confirming only get_cursor_position. Full suite 1241/1241. Actual Alice new-Chat projects/status/resume and web computer-task acceptance remain pending user results. See docs/CHATGPT_PROJECT_CONTINUITY_20261029.md.
+
+
+## Shared MCP actual ChatGPT web acceptance (2026-10-29)
+
+Alice new-Chat projects/status/resume returned the correct independent Agent and handoff revision 1, matched by three successful cloud calls. Workflow web status/task/result then completed web_cursor_accept_20261029_a7c4d9e2 and returned cached:true, computerToolSucceeded:true, workerUsed:false. Cloud calls increased from 3 to 6, all 200. Independent exact-session history contained one get_cursor_position and its native coordinates matched the user report. No action was repeated for audit. The direct routing/chat-continuity/native-read/cache phase is ready for user acceptance. Arbitrary app/file effects and Alice computer permissions are not implied; Alice remains a no-tools advisor. Full regression remains 1241/1241.

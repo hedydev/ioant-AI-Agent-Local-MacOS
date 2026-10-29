@@ -1,5 +1,6 @@
-// Selected by the local launcher, never by a ChatGPT tool argument.
-// Separate MCP plugin/tunnel profiles pin each ChatGPT Project to its Agent.
+// Local project registry. Fixed mode pins one key at startup; shared mode
+// admits only locally enabled keys through project-router. Remote callers
+// cannot supply arbitrary Agent IDs, paths or authenticated-project claims.
 const BINDINGS=Object.freeze({
  'openclaw-workflow':Object.freeze({projectKey:'openclaw-workflow',agentId:'openclaw-dev',
   workspace:'/Volumes/LunaDrive/DeveloperCache/openclaw-agents/openclaw-dev'}),

@@ -128,8 +128,26 @@ revision 1。隧道 tools/call 从 0 增至 3，全部 200，与这次用户结�
 未调用本地模型或电脑工具；这证明项目路由及持久化交接的真实 Chat 读取链路。
 它不证明已经恢复 Alice 项目的完整开发历史，也不证明 Alice 具备电脑权限。
 
-当前待办是工作流项目的一次网页只读 cursor 与同 ID 回执验收。不要让 Alice
-通过其它项目键越权；Alice 当前仍无电脑工具。保存交接/新 Chat 恢复时，应
+工作流网页只读验收现也通过：用户实际调用 status/task/result，操作 ID 为
+`web_cursor_accept_20261029_a7c4d9e2`、conversation_key 为
+`workflow_web_probe_a7c4d9e2`。本机回执确认 returned、computerToolSucceeded:true、
+cached:true、workerUsed:false。云端 tools/call 从 3 增至 6，全部 200。
+独立读取该精确会话的历史，只有一次 computer/get_cursor_position，原生结果
+坐标与用户收到的 Agent 报告一致；未为核对而额外执行电脑动作。
+
+回执仍保留 effectIndependentlyVerified:false：本次没有宣称任何任意应用/文件
+效果已获独立验收；该字段不否定工具调用和缓存读取的成功。无需为了改成 true
+而重做、截图或移动指针。实际项目任务的效果回读是后续各任务自己的要求。
+
+| 验收项 | 状态 | 证据 |
+| --- | --- | --- |
+| Alice 网页项目路由/交接读取 | 通过 | 用户真实三调用、Agent alice-ai、revision 1，云端三次 200 |
+| 工作流网页原生只读任务 | 通过 | 真实任务回执，独立历史仅一次 cursor 读取，原生坐标一致 |
+| 同 ID 缓存回读 | 通过 | cached:true，未重复执行；云端调用累计六次 200 |
+| 本机回归 | 通过 | 1241/1241 |
+
+当前直连基础通路可用，等待用户对本阶段验收的确认。Alice 当前仍无电脑工具，
+原有独立顾问角色保持不变；不能让 Alice 通过其它项目键越权。保存交接/新 Chat 恢复时，应
 使用当前修订号，不能因本次 revision 1 的示例而在未来固定写死该值。
 同一个 Tunnel 原进程的 Runtime Key 只存在内存中，未保存；新进程需要用户在
 终端私下输入，不能从旧进程环境取回密钥，也不能在 Chat 中提交。
@@ -167,3 +185,8 @@ inspect/windows 为只读。不要把安装步骤当作一般健康检查重跑�
 
 官方刷新步骤：
 https://developers.openai.com/plugins/deploy/connect-chatgpt#refresh-metadata
+
+正常交接时，可以直接告诉旧 Chat：“先读取本项目最新修订号，把当前目标、进展、
+证据、待办和已有操作 ID 保存到 OpenClaw 项目交接，再给我 handoff_text。”
+在同一项目的新 Chat 启用 OpenClaw Mac 并粘贴该文本即可；不能把连接配置交接
+误当成旧 Alice Chat 的完整开发历史。
