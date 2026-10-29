@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "event_id": "6abe1746-5e67-4456-b850-827185bf3d01",
+  "task_id": "45c6373e-4172-44a4-bee1-b1c29348c3bf",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T00:19:26.409957Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "b089be5",
+  "message": "After operator restart with the supported explicit existing system proxy, the tunnel reports a positive last-successful poll timestamp and two completed cloud polls labeled error=false. The former cloud connection timeout is resolved; ChatGPT app creation and actual tool call remain pending.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "runtime_metrics",
+      "summary": "Two successful cloud polls; positive last-successful timestamp; no poll error series observed"
+    },
+    {
+      "kind": "shell_syntax",
+      "summary": "bash -n scripts/direct-openclaw-tunnel.sh passed"
+    }
+  ],
+  "supersedes_event_id": null
+}

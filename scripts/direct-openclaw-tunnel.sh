@@ -23,5 +23,12 @@ if [[ -z "$CONTROL_PLANE_API_KEY" ]]; then
   exit 1
 fi
 export CONTROL_PLANE_API_KEY
-"$client" doctor --profile-dir "$profile_dir" --profile "$profile" --explain
-exec "$client" run --profile-dir "$profile_dir" --profile "$profile"
+# This Mac's configured system HTTPS proxy was independently verified:
+# direct api.openai.com timed out; this existing proxy returned an HTTP response.
+# Go's outbound client does not automatically consume macOS scutil proxy state.
+# Scope it only to the control plane, never local OpenClaw/Ollama/MCP traffic.
+control_proxy='http://127.0.0.1:7897'
+"$client" doctor --profile-dir "$profile_dir" --profile "$profile" \
+  --control-plane.http-proxy "$control_proxy" --explain
+exec "$client" run --profile-dir "$profile_dir" --profile "$profile" \
+  --control-plane.http-proxy "$control_proxy"

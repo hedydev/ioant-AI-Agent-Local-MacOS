@@ -103,6 +103,26 @@ No account API key has been read or configured by the assistant. Tunnel readines
 and account permissions remain prerequisites. This setup does not establish
 pricing or availability beyond what the account UI and official service expose.
 
+### Network diagnosis during initial connection
+
+The first foreground client's local `/healthz` and `/readyz` returned 200, but
+its counters showed zero successful cloud polls and repeated 30-second polling
+failures. **Local readiness alone is not proof of a connected tunnel.** The
+ChatGPT setup also displayed a rate-limit error; do not infer its exact cause
+from that UI message alone or repeatedly retry app creation.
+
+Independent network probes on this Mac found direct `api.openai.com:443`
+connection timeout, while the already configured macOS HTTP(S) proxy
+`127.0.0.1:7897` returned an HTTP response in about half a second. The launcher
+now passes the official `--control-plane.http-proxy` flag for doctor and run.
+It does not change the system proxy or proxy local Agent/MCP/Ollama requests.
+This is an explicit host transport configuration, not a silent fallback.
+
+After updating the launcher, stop only its existing foreground process with
+Ctrl-C and run the same command again, entering the key privately. Verify a
+positive `commands_poll_last_successful_timestamp_seconds` and successful poll
+counts, then an actual ChatGPT discovery/call before reporting connection.
+
 ## Delivery and later execution
 
 These are additive source files; no existing Agent, Gateway, Worker or Alice
@@ -114,3 +134,8 @@ execution Agent and test one harmless local action plus independent readback.
 Preserve the current native CUA consent and exact-window/noninterference gates.
 Do not use the Ops path as a second AliceAI Chat writer or replay its pending
 Coordinator handshake.
+
+Actual post-restart evidence: two completed cloud polls labeled `error=false`,
+a positive last-successful-poll timestamp, and no poll-error series observed.
+This resolves the measured cloud connectivity failure. ChatGPT app creation
+and an actual tool response remain independent acceptance steps.

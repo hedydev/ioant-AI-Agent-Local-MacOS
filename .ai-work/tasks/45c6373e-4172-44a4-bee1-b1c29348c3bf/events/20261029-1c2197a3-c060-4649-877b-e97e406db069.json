@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "event_id": "1c2197a3-c060-4649-877b-e97e406db069",
+  "task_id": "45c6373e-4172-44a4-bee1-b1c29348c3bf",
+  "event_type": "blocker_recorded",
+  "occurred_at": "2026-10-29T00:18:09.611337Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "b089be5",
+  "message": "First tunnel reports local live/ready but zero successful cloud polls and repeated 30-second transport failures. Direct API connectivity times out; existing macOS system proxy returns HTTP. Applied supported control-plane-only proxy flag; awaiting actual restarted-client poll evidence. ChatGPT setup rate-limit symptom has not been independently attributed.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "metrics",
+      "summary": "commands_poll_last_successful_timestamp_seconds=0; all completed polls failed"
+    },
+    {
+      "kind": "network_probe",
+      "summary": "Direct TCP timeout at 4 seconds; existing system HTTPS proxy returned HTTP in about 0.5 seconds"
+    }
+  ],
+  "supersedes_event_id": null
+}
