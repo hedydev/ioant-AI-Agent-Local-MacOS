@@ -20,7 +20,12 @@ const exec=promisify(execFile);
 const registeredTarget=async()=>JSON.parse(await readFile(new URL('../config/chat-projects.json',import.meta.url),'utf8'))
  .projects.find(p=>p.key==='alice-ai')?.chatUrl;
 const cli=async args=>JSON.parse((await exec(CLI,args,{timeout:25000,maxBuffer:4*1024*1024,shell:false})).stdout);
-function envelope(raw){
+export function nativeEnvelope(raw){
+ // node.invoke's transport ACK is distinct from the nested native result.
+ // CUA actionEnvelope intentionally returns {ok:true} when there is no detail/effect.
+ if(raw?.command==='computer.act'&&raw.payload&&typeof raw.payload==='object'){
+  if(raw.payload.ok!==true)throw Error('native_action_not_verified');return raw.payload;
+ }
  const value=walkNativePayload(raw).find(v=>typeof v?.ok==='boolean'&&
   (v.details||v.observation||v.effect));
  if(!value||value.ok!==true)throw Error('native_action_not_verified');return value;
@@ -94,7 +99,8 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
  pause=ms=>new Promise(ok=>setTimeout(ok,ms)),target=registeredTarget}={}){
  const base={audit:'IOANT_OPENCLAW_PLUGIN_PAGE',mode,modelInferenceInvoked:false,screenshotTaken:false,
   browserRelayUsed:false,chatMessageSent:false};
- let node,executionId,attempted=false,denied=false,claimed=false,inputAttempted=false,result,windowScan;
+ let node,executionId,attempted=false,denied=false,claimed=false,inputAttempted=false,result,windowScan,lastAction;
+ const completedActions=[];
  let closeAcknowledged=false;
  try{
   if(!['inspect','windows','open','details','refresh'].includes(mode)||!['inspect','windows'].includes(mode)&&!operationId.test(id??''))throw Error('explicit_step_required');
@@ -114,8 +120,10 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
   executionId=uuid();
   const act=async params=>{
    const priorAttempted=attempted;attempted=true;
+   lastAction=params.action;
    if(['bring_to_front','key','type','left_click'].includes(params.action))inputAttempted=true;
-   try{return envelope(await call(['nodes','invoke','--node',node.id,'--command','computer.act','--params',JSON.stringify({...params,executionId}),'--json']));}
+   try{const r=nativeEnvelope(await call(['nodes','invoke','--node',node.id,'--command','computer.act','--params',JSON.stringify({...params,executionId}),'--json']));
+    completedActions.push(params.action);return r;}
    catch(e){denied=knownPreAdmissionNativeFailure(e)&&!priorAttempted;throw e;}
   };
   const windows=await act({action:'list_windows'});
@@ -154,7 +162,8 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
    try{const closed=await call(scopedCloseRequest(node.id,executionId));closeAcknowledged=closed?.ok===true||closed?.result?.ok===true;}catch{}
   }
  }
- result={...result,...(windowScan?{windowScan}:{}),thisInvocationInputAttempted:inputAttempted,ownExecutionCloseAcknowledged:closeAcknowledged};
+ result={...result,...(windowScan?{windowScan}:{}),...(lastAction?{lastAction}:{}),completedActions,
+  thisInvocationInputAttempted:inputAttempted,ownExecutionCloseAcknowledged:closeAcknowledged};
  if(claimed){
   try{await store.finish(id,createHash('sha256').update(mode+'\n'+PLUGIN_URL).digest('hex'),result);}
   catch{return {...base,state:'inconclusive',operationId:id,reason:'step_receipt_persistence_failed_do_not_repeat'};}

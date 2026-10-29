@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {pluginPageStep,pluginWindow,selectPluginWindow,windowInventory} from '../scripts/openclaw-plugin-page.mjs';
+import {pluginPageStep,pluginWindow,selectPluginWindow,windowInventory,nativeEnvelope} from '../scripts/openclaw-plugin-page.mjs';
 import {projectBinding} from '../integrations/chatgpt-openclaw/project-binding.mjs';
 const config={agents:{defaults:{model:'ollama/local'},entries:{'openclaw-dev':{
  model:'ollama/gemma4:26b-a4b',workspace:projectBinding().workspace,tools:{allow:['computer']}}}},
@@ -80,4 +80,9 @@ test('window diagnostics distinguish absent/name-mismatched/ambiguous inventory 
  assert.equal(r.state,'observed');assert.equal(r.thisInvocationInputAttempted,false);
  assert.deepEqual(calls.map(c=>c.action),['list_windows','__close_execution']);
  assert.equal(JSON.stringify(r).includes('win-chrome'),false);
+});
+test('native bare success inside node.invoke is accepted without treating transport ACK as native proof',()=>{
+ assert.deepEqual(nativeEnvelope({ok:true,command:'computer.act',payload:{ok:true}}),{ok:true});
+ assert.throws(()=>nativeEnvelope({ok:true}),/not_verified/);
+ assert.throws(()=>nativeEnvelope({ok:true,command:'computer.act',payload:{ok:false}}),/not_verified/);
 });
