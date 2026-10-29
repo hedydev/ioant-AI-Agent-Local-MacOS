@@ -1,5 +1,16 @@
 # Phase 1 — Local read-only browser audits
 
+## Generic conversational execution checkpoint (2026-10-30)
+
+The operator clarified that AWS/Alice are examples, not requests for additional
+project-specific bridge code. Read `CONVERSATIONAL_LOCAL_EXECUTION_20261030.md`.
+A project-independent, pinned Git task-definition/script kernel and five tests
+are now implemented; full Node regression passed 1270/1270. This is an offline
+source checkpoint, not deployment: online MCP remains 0.3.1, with its existing
+registered actions only. Data-driven workspace grants, generic MCP dispatch and
+bounded declared-artifact reading remain in progress. No AWS project registration,
+remote diagnostic, live job replay, Tunnel restart or plugin Refresh occurred.
+
 ## Separate current executor acceptance (2026-10-29)
 
 The current ChatGPT-led Ops workflow is separate from this historical Phase-1

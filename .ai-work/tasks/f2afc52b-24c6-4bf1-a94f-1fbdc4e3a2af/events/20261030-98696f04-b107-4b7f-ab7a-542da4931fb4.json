@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "event_id": "98696f04-b107-4b7f-ab7a-542da4931fb4",
+  "task_id": "f2afc52b-24c6-4bf1-a94f-1fbdc4e3a2af",
+  "event_type": "task_created",
+  "occurred_at": "2026-10-29T18:36:13.881355Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "a12b2ab936cf5969fe3bc4b4cf343c21945e98f8",
+  "message": "User corrected scope: AWS and Alice were examples, not requests for project-specific integration. Withdrawn uncommitted AWS archive parser; no AWS checkout/Agent/remote service changes. Implement project-independent repository task definitions, one-time bindings and generic execution/report capabilities behind ordinary ChatGPT tool selection. Existing legacy Alice fixed action stays compatible during transition.",
+  "changes": {
+    "status": {
+      "from": null,
+      "to": "in_progress"
+    }
+  },
+  "evidence": [],
+  "supersedes_event_id": null
+}

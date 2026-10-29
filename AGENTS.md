@@ -1,5 +1,18 @@
 # AI Agent Rules — Local macOS Phase 1
 
+## Latest operator clarification: generic conversation-driven execution (2026-10-30)
+
+AWS/Alice snippets are examples, not authority for new project-specific integration.
+The user wants normal ChatGPT conversation to select MCP tools automatically for
+local work. Read docs/CONVERSATIONAL_LOCAL_EXECUTION_20261030.md. New project/script
+support must be data-driven workspace enrollment and committed task definitions,
+not hardcoded project branches in the bridge. ChatGPT authors internal task data;
+never require the human to write task JSON or relay terminal commands each turn.
+Do not register/configure/execute AWS from the illustrative snippet. The withdrawn
+uncommitted AWS parser must not be restored as the proposed generic solution.
+Current generic task kernel is not yet integrated into online MCP dispatch; do
+not claim an unpublished capability or replay the already accepted legacy tests.
+
 ## Registered project execution (operator, 2026-10-30)
 
 The user explicitly requested ChatGPT Git commit → local fast-forward → registered

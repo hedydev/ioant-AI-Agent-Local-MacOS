@@ -3,6 +3,15 @@
 Updated 2026-10-29, Asia/Shanghai. This is the current direction and evidence
 summary for this implementation, superseding conflicting older plans.
 
+Latest human clarification (2026-10-30): AWS and Alice were illustrative examples.
+Do not build project-specific bridge code or configure AWS. Ordinary conversation
+should let ChatGPT discover/select MCP capabilities; local execution and reports
+should be generic, with one-time data-driven workspace enrollment. Read
+docs/CONVERSATIONAL_LOCAL_EXECUTION_20261030.md. The initial repository-task kernel
+has five isolated Git/script tests (full regression 1270/1270) but is not yet integrated into live MCP dispatch,
+grants or artifact reading. Online 0.3.1 remains unchanged and usable for its
+already registered actions. Do not ask for another restart for this kernel.
+
 Current report status: actual web 0.3.1 first/tail queries passed. User received
 logText pages of 4000/64 characters, total 46264, matching the original local
 report's prefix/tail and unchanged SHA. Cloud observes server 0.3.1 and successful
