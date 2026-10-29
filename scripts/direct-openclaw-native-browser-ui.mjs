@@ -29,6 +29,16 @@ export function nativeBrowserControls(raw){
  })).filter(x=>x.labels.some(v=>/OpenClaw|Extension|扩展|Debug|调试|Browser|浏览器|Settings|设置|Address|地址/i.test(v))).slice(0,80);
 }
 async function cli(args){return JSON.parse((await exec(CLI,args,{env:executionEnvironment(),timeout:30000,maxBuffer:2097152})).stdout);}
+export function extensionPopupControls(raw){
+ const lists=nativeObjects(raw).filter(x=>Array.isArray(x.elements)&&x.elements.some(e=>typeof e.elementRef==='string')).map(x=>x.elements);
+ for(const list of lists){
+  const start=list.findIndex(e=>e.role==='AXWebArea'&&e.label==='OpenClaw');
+  if(start<0)continue;
+  return list.slice(start,start+80).map(e=>({role:e.role,label:e.label,
+   ...(typeof e.value==='boolean'||['0','1'].includes(e.value)?{value:e.value}:{})}));
+ }
+ return [];
+}
 export function extensionToolbarTarget(raw){
  const all=[...new Map(nativeObjects(raw).filter(x=>typeof x.elementRef==='string').map(x=>[x.elementRef,x])).values()];
  const address=all.filter(x=>x.role==='AXTextField'&&x.label==='Address and search bar');
@@ -38,11 +48,22 @@ export function extensionToolbarTarget(raw){
  if(rows.length!==1||observations.length!==1)throw Error('unique_extension_toolbar_target_required');
  return {elementRef:rows[0].elementRef,observationId:observations[0]};
 }
-export async function nativeBrowserInspect({openExtensionOperation}={}){
+export function pluginTabAllowTarget(raw){
+ extensionToolbarTarget(raw);
+ const list=nativeObjects(raw).find(x=>Array.isArray(x.elements)&&x.elements.some(e=>e.role==='AXWebArea'&&e.label==='OpenClaw'))?.elements;
+ if(!list)throw Error('openclaw_extension_popup_required');
+ const start=list.findIndex(e=>e.role==='AXWebArea'&&e.label==='OpenClaw');
+ const rows=list.slice(start).filter(e=>e.role==='AXButton'&&e.label==='Allow on this tab');
+ const observations=[...new Set(nativeObjects(raw).map(x=>x.observationId).filter(x=>typeof x==='string'))];
+ if(rows.length!==1||observations.length!==1)throw Error('unique_tab_allow_control_required');
+ return {elementRef:rows[0].elementRef,observationId:observations[0]};
+}
+export async function nativeBrowserInspect({openExtensionOperation,allowPluginOperation}={}){
  let node,id,attempted=false,skipClose=false,result,journal,clickAttempted=false;
- if(openExtensionOperation){
-  if(!/^[A-Za-z0-9][A-Za-z0-9_-]{7,79}$/.test(openExtensionOperation))throw Error('native_operation_id_required');
-  journal=join('/Volumes/LunaDrive/DeveloperCache/projects/ioant-ai-agent-local-macos/verification',openExtensionOperation+'.json');
+ const operation=openExtensionOperation??allowPluginOperation;
+ if(operation){
+  if(!/^[A-Za-z0-9][A-Za-z0-9_-]{7,79}$/.test(operation))throw Error('native_operation_id_required');
+  journal=join('/Volumes/LunaDrive/DeveloperCache/projects/ioant-ai-agent-local-macos/verification',operation+'.json');
   try{const old=JSON.parse(await readFile(journal,'utf8'));return {...old,cached:true,doNotRepeat:true};}catch(e){if(e.code!=='ENOENT')throw e;}
  }
  try{
@@ -59,16 +80,16 @@ export async function nativeBrowserInspect({openExtensionOperation}={}){
   const target=windows.filter(w=>w.isOnScreen===true&&/^Plugins(?: \| ChatGPT)?/.test(w.title??''));
   if(target.length===1){
    let raw=await native('get_window_state',{windowRef:target[0].windowRef,includeScreenshot:false});
-   if(openExtensionOperation){
-    const proof=extensionToolbarTarget(raw);
+   if(operation){
+    const proof=allowPluginOperation?pluginTabAllowTarget(raw):extensionToolbarTarget(raw);
     await writeFile(journal,JSON.stringify({state:'click_intent',doNotRepeat:true})+'\n',{mode:0o600,flag:'wx'});
     clickAttempted=true;
     await native('left_click',{windowRef:target[0].windowRef,...proof,deliveryMode:'foreground'});
     raw=await native('get_window_state',{windowRef:target[0].windowRef,includeScreenshot:false});
-    result.desktopInput=true;result.toolbarClickAttempted=true;
+    result.desktopInput=true;result.uiClickAttempted=allowPluginOperation?'allow_plugins_tab':'open_extension';
    }
-   result.controls=nativeBrowserControls(raw);result.targetClass='plugins';
-  }else if(openExtensionOperation)throw Error('unique_plugin_window_required');
+   result.controls=nativeBrowserControls(raw);result.popupControls=extensionPopupControls(raw);result.knownWorkflowTabs=[...new Map(nativeObjects(raw).filter(e=>typeof e.elementRef==='string'&&/安全重新绑定平台主管 Worker/.test(e.label??'')).map(e=>[e.elementRef,{role:e.role,label:e.label}])).values()];result.targetClass='plugins';
+  }else if(operation)throw Error('unique_plugin_window_required');
  }catch(e){
   skipClose=knownPreAdmissionNativeFailure(e);
   const raw=String(e.stderr??'')+' '+String(e.stdout??'');
@@ -85,6 +106,6 @@ export async function nativeBrowserInspect({openExtensionOperation}={}){
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  if(process.argv.length===2)console.log(JSON.stringify(await nativeBrowserInspect()));
- else if(process.argv.length===4&&process.argv[2]==='--open-extension')console.log(JSON.stringify(await nativeBrowserInspect({openExtensionOperation:process.argv[3]})));
+ else if(process.argv.length===4&&['--open-extension','--allow-plugin-tab'].includes(process.argv[2]))console.log(JSON.stringify(await nativeBrowserInspect(process.argv[2]==='--open-extension'?{openExtensionOperation:process.argv[3]}:{allowPluginOperation:process.argv[3]})));
  else{console.log('{"state":"blocked","reason":"invalid_native_ui_action"}');process.exitCode=1;}
 }
