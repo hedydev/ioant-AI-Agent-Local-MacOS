@@ -1,5 +1,15 @@
 # Phase 1 — Local read-only browser audits
 
+## Current separate MCP rollout acceptance (2026-10-30)
+
+Live0.6.0, refreshed fifteen tools and registered dynamic routing. Real ChatGPT web
+ordinary conversation onboarded an unregistered owned repository, provisioned its
+isolated native Agent, fast-forwarded the exact commit, executed two tracked steps
+and read matching JSON/ZIP reports with cached:true. Local independent evidence
+agrees. Full1299 tests pass. See GENERIC_WORKSPACE_ACCEPTANCE_20261030.md and the
+current QUICKSTART. Workflow durable handoff revision16 saved; human acceptance
+pending. Older source-only/pending-rollout notes below are historical.
+
 ## Dynamic generic workspace source (2026-10-30)
 
 0.5.0 removes the startup project snapshot/enum in registered mode, adds global

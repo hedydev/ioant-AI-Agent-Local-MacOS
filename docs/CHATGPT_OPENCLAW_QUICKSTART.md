@@ -1,23 +1,37 @@
 # ChatGPT 网页 + OpenClaw：项目使用入口
 
-最新：0.4.0 通用任务/产物版本源码和本机 workflow 登记已准备，1278 回归通过；
-原前台隧道尚需一次重启和插件 Refresh。详见
-`CONVERSATIONAL_LOCAL_EXECUTION_20261030.md` 顶部上线步骤。下面 0.3.1 已验收
-描述是上一版本记录，不意味着 0.4.0 已在网页生效，也不要重做旧任务。
+当前线上为 **0.6.0 / 15 个工具**，Tunnel 已更新、插件已刷新，完整网页验收和
+1299 项源码测试通过。详见 [实际验收](GENERIC_WORKSPACE_ACCEPTANCE_20261030.md)。
 
-2026-10-30 新增 [Git 更新、脚本测试与报告通道](PROJECT_EXECUTION_MCP_20261030.md)：
-共享目录升级到十一工具后，Alice 的代码更新/回归应优先使用
-`openclaw_project_actions` → `openclaw_project_execute` → `openclaw_project_result`
-→ `openclaw_project_report`，不再让用户搬运终端命令。只允许本机登记动作，
-execute 需要完整预期提交 SHA；accepted/running 是待完成状态，不是成功。
-本次前台 MCP 已加载 0.3.1、插件已 Refresh。网页动作/回执及修正后的日志首尾
-读取均已通过。正文在 logText，页长/总长在 pageCharacters/totalCharacters；
-不再重复安装、刷新或旧验收任务，直接进入用户的下一个具体授权任务。
+## 平时怎么用
 
-当前状态：工作流和 Alice 都已启用各自独立的 computer-only Agent。
-共享 Tunnel、十一工具插件、项目交接、工作流网页只读任务及 Alice 本地只读任务
-已经通过验证。Alice 网页只读任务也已通过，独立历史确认只执行了一次坐标读取。
-当前配置不需要重新申请 macOS 权限、输入 Key、刷新插件或重启服务。
+在 ChatGPT Chat 启用 OpenClaw Mac 后，直接描述项目目录与需求，例如：
+
+> 把这个项目更新到我刚提交的版本，运行仓库里的回归任务，检查生成的报告，告诉我结果。
+
+ChatGPT 按工具说明自行发现已批准工作区中的仓库；未接入时创建独立项目 Agent
+与执行上下文，随后精确更新指定提交、执行已提交任务并直接读取报告。用户无需
+写工具 JSON、复制终端命令或上传 ZIP。一个共享 Tunnel 支持动态项目，不需要
+每个项目另建 Tunnel 或每次 Refresh。既有 Alice 固定动作继续兼容。
+
+任务定义由 ChatGPT 随项目代码编写在 `.openclaw/tasks/*.json` 并提交；只允许
+已批准根目录内的正规 Git 仓库与已批准解释器/脚本目录。工作区有未提交变更、
+提交不匹配或任务不合要求会停止并给出原因，不能随意覆盖或执行任意 shell。
+脚本以当前用户权限运行；报告证据不等于部署或业务效果验收。
+
+换新 Chat 时，交接话中带所属项目键，让新 Chat 恢复该项目最新交接、创建新
+conversation_key。已完成或不明确的任务只查原回执，不换 ID 重跑。不同项目的
+Agent/工作区/会话/交接/执行回执独立；项目键是路由，不是 ChatGPT Project 认证。
+
+## Chrome Debug 什么时候需要
+
+Git 更新、脚本执行、回执及 JSON/ZIP 读取通过 MCP，本身不需要 Chrome Debug。
+只有需要 OpenClaw 操作 Chrome 页面时才需要。`openclaw_capabilities` 区分两条
+通道；`openclaw_browser_session` 查询/尝试连接，不把服务运行误报为标签可用。
+用户主动取消调试会撤销标签访问，不能把取消自动当故障反复重连。本轮已经按
+重新授权恢复测试所需访问；平时不必为运行项目脚本常开 Chrome 调试。
+
+以下 Alice 内容为已有项目和历史验收说明，不是要求重新配置或重跑。
 
 ## Alice 项目 Chat 的接续规则
 
@@ -42,7 +56,7 @@ Git/测试任务若已有本地登记动作，优先用 project_actions/execute/
 
 工作流项目使用 `project_key=openclaw-workflow` 和 `Agent=openclaw-dev`；
 不能把 Alice 的 operation_id 或交接版本直接复制成工作流自己的回执。
-一个 Tunnel 可以承载这两个注册项目，但不会自动创建新项目或认证 ChatGPT Project 身份。
+一个 Tunnel 可动态承载已接入项目；新 Agent 通过全局接入工具创建，项目键不认证 ChatGPT Project 身份。
 
 ## 已完成的 Alice 网页只读验收：不要重复提交
 

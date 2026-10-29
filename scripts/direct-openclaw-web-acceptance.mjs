@@ -45,12 +45,27 @@ async function snapshot(kind){
  const id=await target(kind),raw=await browser(['snapshot','--target-id',id,'--interactive','--limit','120']);
  return {id,snapshot:raw.snapshot??raw.result?.snapshot??'',refs:raw.refs??raw.result?.refs??{}};
 }
+export function readComposerState(document){
+ const visible=e=>e.getClientRects().length>0;
+ const editors=[...document.querySelectorAll('#prompt-textarea, [role="textbox"][aria-label="Ask ChatGPT"]')].filter(visible);
+ return {composerCount:editors.length,composerText:editors[0]?('value' in editors[0]?editors[0].value:editors[0].innerText??''):'',
+  streaming:[...document.querySelectorAll('[data-testid="stop-button"], button[aria-label="Stop"]')].some(visible)};
+}
+export function emptyIdleComposer(data){
+ // The current empty contenteditable contains one structural newline.
+ // Preserve spaces and any nonempty user draft instead of treating them as disposable.
+ return data.composerCount===1&&/^[\r\n]*$/.test(data.composerText)&&!data.streaming;
+}
+export function sameTestDraft(actual,expected){
+ // Browser Relay types paragraphs; contenteditable innerText adds layout newlines.
+ const normalize=s=>s.replace(/\r\n?/g,'\n').replace(/\n+/g,'\n').trim();
+ return normalize(actual)===normalize(expected);
+}
 const DOM_READ=`() => {
- const editors=[...document.querySelectorAll('#prompt-textarea')];
- const users=[...document.querySelectorAll('[data-message-author-role="user"]')];
+ const composer=(${readComposerState.toString()})(document);
+ const users=[...document.querySelectorAll('[data-message-author-role="user"], .bg-user-message')].filter(e=>e.getClientRects().length>0);
  const assistants=[...document.querySelectorAll('[data-message-author-role="assistant"]')];
- return {url:location.href,composerCount:editors.length,composerText:editors[0]?('value' in editors[0]?editors[0].value:editors[0].innerText):'',
-  streaming:!!document.querySelector('[data-testid="stop-button"]'),
+ return {url:location.href,...composer,
   pageTail:(document.body.innerText??'').slice(-9000),
   userMarkers:users.map(x=>(x.innerText??'').match(/^MCP_GENERIC_WEB_ACCEPTANCE_[A-F0-9]{16}\\b/)?.[0]).filter(Boolean),
   assistantTail:assistants.slice(-2).map(x=>x.innerText??'').join('\\n').slice(-12000)};
@@ -85,7 +100,7 @@ export async function webAcceptance(args){
  if(action==='inspect'&&args.length===2){
   const s=await snapshot(kind),data=kind==='chat'?await readChat():{};
   return {state:'observed',kind,controls:Object.entries(s.refs).slice(0,130).map(([ref,row])=>({ref,role:row.role,name:redactExecutionOutput(row.name??'')})),
-   ...(kind==='chat'?{composerEmpty:data.composerText==='',composerLength:data.composerText.length,streaming:data.streaming,
+   ...(kind==='chat'?{composerCount:data.composerCount,composerEmpty:emptyIdleComposer(data),composerLength:data.composerText.length,streaming:data.streaming,
     userMarkers:data.userMarkers,assistantTail:redactExecutionOutput(data.assistantTail),pageTail:redactExecutionOutput(data.pageTail)}:{})};
  }
  if(action==='click'&&args.length===3){
@@ -98,13 +113,16 @@ export async function webAcceptance(args){
  const st=await privateExecutionPath(value);if(st.size>16000)throw Error('test_message_too_large');
  const message=await readFile(value,'utf8'),marker=testMarker(message),journal=join(VERIFICATION,marker+'.json');
  const before=await readChat();
- if(before.composerCount!==1||before.composerText!==''||before.streaming||before.userMarkers.includes(marker))throw Error('empty_idle_composer_required');
- await writeFile(journal,JSON.stringify({phase:'typing_intent',marker})+'\n',{mode:0o600,flag:'wx'});
+ let prior;try{prior=JSON.parse(await readFile(journal,'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
+ if(before.userMarkers.includes(marker))return {state:'already_sent',marker,noAutomaticResend:true,userReceiptConfirmed:true};
+ if(prior&&(prior.phase!=='typing_intent'||prior.marker!==marker))throw Error('send_intent_already_recorded');
+ if(prior?before.composerCount!==1||before.streaming||!sameTestDraft(before.composerText,message):!emptyIdleComposer(before))throw Error('empty_idle_composer_required');
+ if(!prior)await writeFile(journal,JSON.stringify({phase:'typing_intent',marker})+'\n',{mode:0o600,flag:'wx'});
  const save=async phase=>{const temp=journal+'.tmp';await writeFile(temp,JSON.stringify({phase,marker})+'\n',{mode:0o600});await rename(temp,journal);};
  const s=await snapshot('chat'),rows=Object.entries(s.refs).filter(([,r])=>r.role==='textbox'&&/Ask anything|Message|ChatGPT/i.test(r.name??''));
  if(rows.length!==1)throw Error('unique_composer_reference_required');
- await browser(['type','--target-id',s.id,rows[0][0],message]);
- const draft=await readChat();if(draft.composerCount!==1||draft.composerText.trim()!==message.trim())throw Error('exact_test_draft_unverified');
+ if(!prior)await browser(['type','--target-id',s.id,rows[0][0],message]);
+ const draft=await readChat();if(draft.composerCount!==1||draft.streaming||!sameTestDraft(draft.composerText,message))throw Error('exact_test_draft_unverified');
  await save('send_intent');await browser(['press','--target-id',s.id,'Enter']);
  const after=await readChat(),confirmed=after.userMarkers.filter(m=>m===marker).length===1;
  if(confirmed)await save('user_receipt_confirmed');

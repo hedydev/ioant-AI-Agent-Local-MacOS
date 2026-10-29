@@ -1,5 +1,16 @@
 # AI Agent Rules — Local macOS Phase 1
 
+## Current generic MCP acceptance (2026-10-30)
+
+Live MCP0.6.0 and fifteen refreshed web tools passed real ordinary-chat onboarding,
+independent Agent provisioning, pinned Git/script execution and JSON/ZIP readback.
+Read docs/GENERIC_WORKSPACE_ACCEPTANCE_20261030.md and current QUICKSTART first.
+Full1299 tests pass. Workflow handoff revision16; technical work accepted by tools,
+human acceptance pending. Do not repeat fixture executions, Refresh or restart.
+Older pending-rollout/source-only statements below are historical. Repository tasks
+do not need Chrome Debug; leave the verified Tunnel running. Remove the temporary
+usage follow-up on technical completion; no ongoing work monitor is requested.
+
 ## Generic workspace onboarding and autonomous acceptance (2026-10-30)
 
 Read docs/GENERIC_WORKSPACE_ACCESS_20261030.md. The user explicitly authorized

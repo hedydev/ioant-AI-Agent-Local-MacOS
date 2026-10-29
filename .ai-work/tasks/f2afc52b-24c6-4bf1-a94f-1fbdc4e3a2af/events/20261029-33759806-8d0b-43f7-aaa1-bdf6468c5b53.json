@@ -1,0 +1,44 @@
+{
+  "schema_version": 2,
+  "event_id": "33759806-8d0b-43f7-aaa1-bdf6468c5b53",
+  "task_id": "f2afc52b-24c6-4bf1-a94f-1fbdc4e3a2af",
+  "event_type": "status_changed",
+  "occurred_at": "2026-10-29T22:29:06.042455Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "c8fda1bcf6aa90abf118744d6b81550ec2ec05ef",
+  "message": "Live MCP0.6 ready and polling; user-authorized plugin Refresh verified fifteen tools. Real web ordinary-language request discovered and onboarded previously unregistered owned fixture with isolated deny-all native Agent, then exact Git ff-only to c8fda1b, tracked Node/Python steps and matching JSON/ZIP artifacts. Existing connection used new project without restart/Refresh. Independent local receipt/config/HEAD confirms passed,cached:true,no model/Worker/computer invocation. Full1299 passed; zero failed/skipped/cancelled. Workflow handoff16 saved. Browser composer guard adapted to observed modern visible DOM; no draft overwrite, send intent and unique user receipt preserved, no automatic resend. Technical acceptance complete; human acceptance pending. No AWS/Alice/Mint business action or credential persisted.",
+  "changes": {
+    "status": {
+      "from": "in_progress",
+      "to": "awaiting_user_acceptance"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/GENERIC_WORKSPACE_ACCEPTANCE_20261030.md"
+    },
+    {
+      "kind": "test",
+      "result": "1299/1299 passed; zero failed/skipped/cancelled"
+    },
+    {
+      "kind": "web_execution",
+      "operation_id": "mcp_generic_a8055dc5101bcb7f_exec_20261030",
+      "project_key": "repo-mcp-generic-acceptance-fi-11da3f9145",
+      "result": "passed,cached:true; matching report SHA3405a759fa6a51a9bbdaae36db71fdcfad2c2946f0cfd61bce599f78fab757c7"
+    },
+    {
+      "kind": "handoff",
+      "project": "openclaw-workflow",
+      "revision": 16
+    }
+  ],
+  "supersedes_event_id": null
+}

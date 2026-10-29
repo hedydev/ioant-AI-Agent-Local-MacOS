@@ -3,6 +3,21 @@
 Updated 2026-10-30, Asia/Shanghai. This is the current direction and evidence
 summary for this implementation, superseding conflicting older plans.
 
+Latest deployed checkpoint: MCP **0.6.0**, dynamic registered connection, fifteen
+actual refreshed web tools. Read GENERIC_WORKSPACE_ACCEPTANCE_20261030.md first.
+Real ChatGPT web ordinary-language discovery → new isolated native Agent → pinned
+Git fast-forward → Node/Python task → cached receipt → matching JSON/ZIP reports
+passed on a previously unregistered owned fixture. No local model/Worker/computer
+operation. Independent local receipts/config/HEAD confirm web results. Final full
+regression 1299/1299, zero failed/skipped/cancelled. Existing Tunnel is ready and
+polling; no further restart/Refresh or old task replay is needed. Browser Debug is
+optional for web automation; repository MCP tasks do not depend on it. The user
+canceled old Debug access, then authorized full infrastructure UI operation; only
+Plugins access was restored and one owned tab opened to the supplied workflow Chat.
+No AWS/Alice business work or Coordinator messaging occurred. Workflow durable handoff revision16 is saved. Human acceptance of
+this new generic capability is still pending. Historical rollout-pending statements
+below are retained as history and are superseded by this checkpoint.
+
 Latest 0.5.0 source supersedes the initial fixed project list: read
 GENERIC_WORKSPACE_ACCESS_20261030.md. Dynamic registered-mode per-call routing,
 global workspace discovery/connect and isolated deny-all native provisioning are
