@@ -38,8 +38,9 @@ const DOM_READ=`() => {
  const editors=[...document.querySelectorAll('#prompt-textarea')];
  const users=[...document.querySelectorAll('[data-message-author-role="user"]')];
  const assistants=[...document.querySelectorAll('[data-message-author-role="assistant"]')];
- return {url:location.href,composerCount:editors.length,composerText:editors[0]?.innerText??editors[0]?.value??'',
+ return {url:location.href,composerCount:editors.length,composerText:editors[0]?('value' in editors[0]?editors[0].value:editors[0].innerText):'',
   streaming:!!document.querySelector('[data-testid="stop-button"]'),
+  pageTail:(document.body.innerText??'').slice(-9000),
   userMarkers:users.map(x=>(x.innerText??'').match(/^MCP_GENERIC_WEB_ACCEPTANCE_[A-F0-9]{16}\\b/)?.[0]).filter(Boolean),
   assistantTail:assistants.slice(-2).map(x=>x.innerText??'').join('\\n').slice(-12000)};
 }`;
@@ -56,11 +57,25 @@ export function allowedTestClick(row,kind){
 export async function webAcceptance(args){
  const [action,kind,value]=args;
  if(!['chat','plugins'].includes(kind))throw Error('exact_test_surface_required');
+ if(action==='open'&&kind==='chat'&&args.length===3){
+  if(!/^[A-Za-z0-9][A-Za-z0-9_-]{7,79}$/.test(value))throw Error('web_open_operation_required');
+  const journal=join(VERIFICATION,'web-open-'+value+'.json');
+  try{return {...JSON.parse(await readFile(journal,'utf8')),cached:true,doNotRepeat:true};}catch(e){if(e.code!=='ENOENT')throw e;}
+  const before=await browser(['tabs']),existing=(before.tabs??[]).filter(t=>t.url===CHAT);
+  if(existing.length>1)throw Error('unique_exact_test_tab_required');
+  if(existing.length===1)return {state:'already_open',targetId:exactTestTab(existing,'chat'),owned:false};
+  await writeFile(journal,JSON.stringify({state:'open_intent',doNotRepeat:true})+'\n',{mode:0o600,flag:'wx'});
+  await browser(['open',CHAT]);
+  const after=await browser(['tabs']),id=exactTestTab(after.tabs??[],'chat');
+  const result={state:'opened',targetId:id,owned:true,doNotRepeat:true};
+  await writeFile(journal,JSON.stringify(result)+'\n',{mode:0o600});
+  await browser(['focus',id]);return result;
+ }
  if(action==='inspect'&&args.length===2){
   const s=await snapshot(kind),data=kind==='chat'?await readChat():{};
   return {state:'observed',kind,controls:Object.entries(s.refs).slice(0,130).map(([ref,row])=>({ref,role:row.role,name:redactExecutionOutput(row.name??'')})),
    ...(kind==='chat'?{composerEmpty:data.composerText==='',composerLength:data.composerText.length,streaming:data.streaming,
-    userMarkers:data.userMarkers,assistantTail:redactExecutionOutput(data.assistantTail)}:{})};
+    userMarkers:data.userMarkers,assistantTail:redactExecutionOutput(data.assistantTail),pageTail:redactExecutionOutput(data.pageTail)}:{})};
  }
  if(action==='click'&&args.length===3){
   const s=await snapshot(kind);
