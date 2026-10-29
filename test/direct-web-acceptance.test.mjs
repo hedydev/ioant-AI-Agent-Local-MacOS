@@ -14,6 +14,7 @@ test('test messages need unique public markers and cannot transmit credentials',
 });
 test('UI allowlist excludes uninstall, permission changes, unrelated chat actions and arbitrary inputs',()=>{
  assert.equal(allowedTestClick({role:'button',name:'Refresh tools'},'plugins'),true);
+ assert.equal(allowedTestClick({role:'button',name:'OpenClaw Mac No description'},'plugins'),true);
  assert.equal(allowedTestClick({role:'button',name:'Allow once'},'chat'),true);
  for(const name of ['Uninstall','Always allow','Delete chat','Allow all','Send'])assert.equal(allowedTestClick({role:'button',name},'plugins'),false);
 });

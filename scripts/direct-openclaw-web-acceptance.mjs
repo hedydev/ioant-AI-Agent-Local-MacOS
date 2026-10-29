@@ -25,9 +25,20 @@ export function exactTestTab(tabs,kind){
  return matches[0].targetId;
 }
 async function browser(args){
- const {stdout}=await exec(CLI,['browser','--browser-profile','chrome',...args,'--json'],
-  {env:executionEnvironment(),timeout:40000,maxBuffer:2097152});
- return JSON.parse(stdout);
+ let stdout;
+ try{({stdout}=await exec(CLI,['browser','--browser-profile','chrome','--json',...args],
+  {env:executionEnvironment(),timeout:40000,maxBuffer:2097152}));}
+ catch(e){
+  const raw=String(e.stderr??'');
+  const diagnostic={command:args[0],exitCode:e.code,timedOut:e.killed===true,
+   signals:['timeout','ref','not found','navigation','context','permission','denied','ssrf','private network'].filter(s=>raw.toLowerCase().includes(s))};
+  await writeFile(join(VERIFICATION,'web-acceptance-last-command-error.json'),JSON.stringify(diagnostic)+'\n',{mode:0o600});
+  throw Error('browser_'+args[0]+'_command_failed');
+ }
+ try{return JSON.parse(stdout);}catch{
+  await writeFile(join(VERIFICATION,'web-acceptance-last-command-error.json'),JSON.stringify({command:args[0],exitCode:0,nonJsonReply:true})+'\n',{mode:0o600});
+  throw Error('browser_'+args[0]+'_non_json_reply');
+ }
 }
 async function target(kind){const r=await browser(['tabs']);return exactTestTab(r.tabs??r.result?.tabs??[],kind);}
 async function snapshot(kind){
@@ -51,7 +62,7 @@ async function readChat(){
 }
 export function allowedTestClick(row,kind){
  return row&&['button','link'].includes(row.role)&&typeof row.name==='string'&&
-  (kind==='plugins'?/^(OpenClaw Mac|Manage|Refresh|Refresh tools|View details|Tools)$/.test(row.name):
+  (kind==='plugins'?/^(OpenClaw Mac|OpenClaw Mac No description|Manage|Refresh|Refresh tools|View details|Tools)$/.test(row.name):
    /^(Allow once|See details|OpenClaw Mac)$/.test(row.name));
 }
 export async function webAcceptance(args){
