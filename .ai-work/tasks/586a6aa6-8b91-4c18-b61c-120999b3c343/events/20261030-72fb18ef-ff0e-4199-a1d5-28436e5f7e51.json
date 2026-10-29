@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "event_id": "72fb18ef-ff0e-4199-a1d5-28436e5f7e51",
+  "task_id": "586a6aa6-8b91-4c18-b61c-120999b3c343",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T16:27:04.750637Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "3068b352ac6ccf1cde4434a7edb6f808ade2937a",
+  "message": "Real Alice local MCP job alice_regression_20261030_7281ce874993 passed: clean main d075c2f fast-forward to exact e12038b; targeted 7 and full Mac Python 225 tests (3 skipped) exit 0. Independent repository branch/HEAD/clean readback passed. Cached result and complete 12-page/46264-byte MCP log readback SHA verified. No model, old Worker, Mint/Node24/deployment/gameplay operations. First blocked pre-checkout ID preserved. Foreground eleven-tool rollout awaits requested user restart/private Runtime Key entry and plugin Refresh. Preserve existing Alice development handoff revision 4; defer execution_ids schema writes until old seven-tool foreground process is reloaded.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "Bridge full suite 1260/1260; actual Alice targeted 7 tests and full 225, skipped 3"
+    },
+    {
+      "kind": "device_validation",
+      "summary": "Local async MCP execute -> actual pinned ff/test -> cached receipt -> complete hash-verified paginated log succeeded; independent Git read clean main e12038b"
+    }
+  ],
+  "supersedes_event_id": null
+}

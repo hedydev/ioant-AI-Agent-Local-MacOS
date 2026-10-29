@@ -12,6 +12,18 @@ grant, model inference, browser Worker, Mint/BDS operation or arbitrary command.
 Source regression 1259/1259 passed. Local actual-job and foreground/cloud rollout
 must be recorded separately; old seven-tool cursor acceptance remains historical.
 
+Latest actual local job passed after a proven metadata/log boundary fix and
+1260/1260 regression: alice_regression_20261030_7281ce874993 updated Alice
+d075c2f → e12038b23dd20a956bff8c0748576dc98fcc3fde, targeted 7 tests and full
+Mac Python 225 tests (3 skipped) passed. Actual main/HEAD/clean worktree independently
+verified; result cached:true and 12 report pages/46264 bytes reconstructed with
+matching SHA256. First pre-checkout blocked ID alice_regression_20261030_f25770f70548
+is preserved. No operation ID should be replayed. Source/enrollment is on this Mac;
+foreground Tunnel still needs the requested user restart/private key entry and
+new-tool Refresh. Before that, preserve old handoff shape without execution_ids.
+The current user Alice development handoff is revision 4; preserve its facts
+when appending Mac results. No Mint Node24, deployment, BDS or world work occurred.
+
 Latest checkpoint: at approximately 10% remaining usage, preparation was pushed
 and verified as 567dbbd. The user then explicitly approved Alice computer tools.
 The fixed Alice-only migration is now applied with private backup and exact

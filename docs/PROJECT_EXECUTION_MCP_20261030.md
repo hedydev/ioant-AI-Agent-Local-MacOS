@@ -4,6 +4,26 @@
 终端命令并搬运测试报告”的问题。第一条动作是 Alice 的本地 main 更新和 Mac
 Python 回归；不部署到 Mint、不启动 Alice/BDS、不操作游戏世界。
 
+## 当前实机结果
+
+已通过新本地 MCP 执行一次完整真实任务：
+`alice_regression_20261030_7281ce874993`。
+
+| 验收项 | 状态 | 证据 |
+| --- | --- | --- |
+| 本地固定动作 enrollment | 已启用 | 只登记 Alice 动作；Agent 权限和服务未改 |
+| 精确 main 更新 | 通过 | d075c2f → e12038b23dd20a956bff8c0748576dc98fcc3fde，仅快进 |
+| v2 专项回归 | 通过 | 7 tests，退出 0 |
+| Mac 全量 Python 回归 | 通过 | 225 tests，skipped=3，退出 0 |
+| 仓库独立回读 | 通过 | main、HEAD 等于预期完整 SHA、工作区干净 |
+| 结束回执 | 通过 | passed、cached:true、modelInferenceInvoked:false、workerUsed:false |
+| 实际报告读取 | 通过 | 12 页、46264 字节，整份 SHA256 核对一致，含两套测试证据 |
+| 真实网页新增工具 | 待发布/验收 | 旧前台进程需加载新版，再 Refresh 元数据 |
+
+报告 SHA256：`9fb492f2794eb43907829cf59b8d0288ca4fd8ef8287dca6ca7ab87af4b48078`。
+不要重跑该任务。没有 Mint Node24 回归、部署或游戏内验收；这些仍由 Alice 项目
+按其操作规则另行推进，不应从 Mac Python 通过推断为已完成。
+
 ## 执行方式
 
 ChatGPT 仍负责需求、推理和代码。新通道是 OpenClaw Mac MCP 内的固定命令执行器，
@@ -61,8 +81,8 @@ OpenAI/Gateway 密钥或 ALICE_SSH_TARGET。日志是待分析证据，不是执
 
 ## 本地准备与发布
 
-完整桥接回归 1259/1259、针对性执行/交接测试及 shell/空白检查通过。
-真实 Alice 执行及网页部署状态将按实际结果更新；不能由夹具成功推断。
+完整桥接回归最新 1260/1260、针对性执行/交接测试及 shell/空白检查通过。
+真实 Alice 本地执行已通过；网页新工具发布仍与本地证据分开记录。
 
 首次本地任务 `alice_regression_20261030_f25770f70548` 在 checkout 前停止，
 reason=candidate_tree_too_large。独立证据表明实际 Git 树仅 38634 字节、320
@@ -89,8 +109,8 @@ enrollment 只创建本地固定 Alice 动作许可，不改变 Agent 权限或 
 
 ```bash
 # 使用实际回执的 ID；不是另造 ID 重跑：
-bash scripts/dev-env.sh exec node scripts/direct-openclaw-project-execution.mjs result alice-ai OPERATION_ID
-bash scripts/dev-env.sh exec node scripts/direct-openclaw-project-execution.mjs report alice-ai OPERATION_ID 0
+bash scripts/dev-env.sh exec node scripts/direct-openclaw-project-execution.mjs result alice-ai alice_regression_20261030_7281ce874993
+bash scripts/dev-env.sh exec node scripts/direct-openclaw-project-execution.mjs report alice-ai alice_regression_20261030_7281ce874993 0
 ```
 
 新工具需要原前台 Tunnel/MCP 重新加载，再刷新 ChatGPT 自定义插件元数据。

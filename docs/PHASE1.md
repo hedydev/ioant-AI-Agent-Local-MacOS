@@ -309,3 +309,19 @@ Read-only evidence established 38634-byte NUL tree metadata falsely inherited
 text-line truncation despite no streaming callback. Fixed that boundary; added a
 real NUL-metadata subprocess regression. Full suite now 1260/1260. No tree guard
 was weakened, no old ID replayed, no Alice source change occurred in that attempt.
+
+## Actual pinned Alice update/regression/report MCP loop (2026-10-30)
+
+Fixed local enrollment applied without Agent/config/service permission changes.
+After the metadata fix, a new intentional operation
+alice_regression_20261030_7281ce874993 completed via local MCP. Repository main
+fast-forwarded d075c2f → e12038b23dd20a956bff8c0748576dc98fcc3fde, targeted
+v2 Python 7/7 and full Mac Python 225 tests (3 skipped) exited 0. Independent
+Git read confirmed main, exact HEAD and clean tree. New MCP process retrieved
+cached:true. Report was read entirely through MCP pagination: 12 pages,
+46264 bytes, SHA256 matched the receipt, both suite summaries present. No model,
+old browser Worker, Mint SSH/Node24, deployment or gameplay operation. Source
+regression 1260/1260. Old blocked ID preserved. Foreground/cloud eleven-tool
+rollout awaits user restart/private key entry, then metadata Refresh; not yet
+claimed as actual web execution acceptance. Current Alice revision 4 development
+handoff must be preserved, not replaced by connection-only summary.
