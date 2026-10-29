@@ -1,0 +1,37 @@
+{
+  "schema_version": 2,
+  "event_id": "6373a8f1-12fe-4215-ac08-f6546fb94b7e",
+  "task_id": "f3084777-82a5-42e2-a9c3-0a2671787561",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T00:48:35.463909Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "949b63b",
+  "message": "1212/1212 tests passed before rollout. Fixed helper saved private config/role before-images and applied computer-only permission to openclaw-dev; disk and live config readback confirmed all other config including Alice unchanged. Local MCP computer-read test passed and cached receipt readback passed. Exact session history verified only get_cursor_position, and audit recorded one computer success. Awaiting operator tunnel reload and ChatGPT metadata refresh for final web-originated action acceptance.",
+  "changes": {
+    "status": {
+      "from": "awaiting_user_acceptance",
+      "to": "awaiting_device_validation"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "1212 passed; 0 failed"
+    },
+    {
+      "kind": "configuration",
+      "summary": "applied; backupSaved=true; computerOnly=true; shellEnabled=false; aliceChanged=false; explicitServiceRestart=false"
+    },
+    {
+      "kind": "device_validation",
+      "summary": "MCP operation cursor_7ad32407-1d7e-4bb1-8a65-b7f9c6da5013 passed; receipt finished; one native audit success; exact action get_cursor_position"
+    }
+  ],
+  "supersedes_event_id": null
+}

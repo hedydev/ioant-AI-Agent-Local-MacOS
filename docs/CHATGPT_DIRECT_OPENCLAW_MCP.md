@@ -16,9 +16,11 @@ launch profile pins a project. Remote tool arguments cannot switch Agents.
 | `openclaw-workflow` | `openclaw-dev` | Actual ChatGPT text roundtrip accepted |
 | `alice-ai` | `alice-ai` | Local status checked; separate ChatGPT connection not provisioned here |
 
-Use a separate MCP connection/tunnel profile and plugin per project. The current
-OpenClaw Mac plugin is the workflow project only. Do not enable that same plugin
-in unrelated Projects and assume it provides project isolation. Launches use:
+The current implementation uses a fixed project per MCP launch/connection
+profile. This does **not** mean the platform requires one Tunnel per project.
+A shared-Tunnel project router is possible but not yet implemented here. The
+current OpenClaw Mac plugin is the workflow project only; do not enable that
+same fixed plugin in unrelated Projects and assume automatic isolation. Launches use:
 
 ```text
 node integrations/chatgpt-openclaw/server.mjs --project openclaw-workflow
@@ -256,3 +258,13 @@ at a controlled point. If a foreground tunnel restart is required, Ctrl-C only
 that tunnel and run `scripts/direct-openclaw-tunnel.sh` again with private key
 input. No OpenClaw Gateway, existing Worker or Alice Coordinator restart is
 requested. Actual ChatGPT computer-task acceptance remains a separate test.
+
+Actual current-project rollout: 1212/1212 regressions passed; the fixed helper
+returned `applied` with private backup and role update, explicit service restart
+false, shell disabled and Alice unchanged. Local MCP computer task
+`cursor_7ad32407-1d7e-4bb1-8a65-b7f9c6da5013` passed, and querying its saved
+receipt did not execute it again. Audit and exact-session history independently
+confirmed one successful computer action: `get_cursor_position`. The workflow
+Agent is now computer-capable; use its operation-ID task tool. Alice remains
+text-only. Final ChatGPT-originated desktop acceptance awaits adapter reload
+and plugin metadata refresh by the operator.

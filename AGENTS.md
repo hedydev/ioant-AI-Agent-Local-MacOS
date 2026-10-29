@@ -1,5 +1,21 @@
 # AI Agent Rules — Local macOS Phase 1
 
+## Current direct-Agent direction and usage handoff (operator, 2026-10-29)
+
+Read `docs/HANDOFF_CHATGPT_OPENCLAW_DIRECT_20261029.md` before continuing the
+current integration. ChatGPT web owns planning/code; independent per-project
+OpenClaw Agents execute locally. The existing browser Worker is transitional.
+One Agent per project does not require one Tunnel per project: the current
+adapter has fixed local bindings; a shared-Tunnel project router is a separate,
+not-yet-implemented option. Never silently route to another Agent/project.
+
+During active Codex work, check the account usage tool periodically. When any
+relevant available usage window has approximately 10% remaining, notify the
+operator and checkpoint the work: commit scoped code and current `docs`
+handoff/validation/remaining-work records, push to the approved Git remote,
+and verify the remote SHA. Do not wait until the account cannot perform that
+handoff. Never commit runtime keys, private configs, transcripts or raw reports.
+
 Read this file and `docs/PHASE1.md` before changing the repository. Read Hero Skills `AGENTS.md`, `AI_START_HERE.md`, and relevant skills/standards before implementation. This repo owns current state; Hero Skills owns cross-project patterns.
 
 ## Current mandatory project direction — native Computer Use (2026-10-29)
