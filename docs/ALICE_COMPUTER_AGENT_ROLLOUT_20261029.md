@@ -1,10 +1,24 @@
 # Alice independent computer Agent — prepared rollout
 
-Updated 2026-10-29, Asia/Shanghai. **Prepared and validated; not applied.**
+Updated 2026-10-29, Asia/Shanghai. **Applied with explicit user approval; local native acceptance passed.**
+
+The user explicitly instructed “启用 Alice 电脑工具”. The reviewed helper returned
+applied, backupSaved:true, computerOnly:true, shellEnabled:false,
+otherAgentsChanged:false and explicitServiceRestart:false. Whole-config disk
+comparison and live Gateway layers passed. Shared Alice readiness passed.
+
+One local shared-MCP cursor task then passed with operation ID
+`shared_cursor_33ef7232-7c1b-449c-8a13-60de34210ee5`; the same-ID read returned
+cached:true. Independent exact-session chat.history contained exactly one
+`computer` call with `action:get_cursor_position`. No screenshots, enumeration,
+mouse movement, clicks, input or task replay occurred. This is local Alice MCP
+acceptance, not a new ChatGPT web Alice computer-task acceptance. The existing
+web routing/resume acceptance remains valid; arbitrary application effects remain
+unverified. Keep effectIndependentlyVerified:false in the original receipt.
 
 The shared ChatGPT web MCP route has already passed Alice project-resume and
-workflow native cursor/cached-receipt acceptance. Alice itself still has denied
-tools. The next optional rollout enables its native `computer` tool while
+workflow native cursor/cached-receipt acceptance. Alice now allows its native
+`computer` tool after the approved rollout, while
 preserving its independent project workspace, sessions and receipt namespace.
 
 ## Concrete change for approval
@@ -38,23 +52,25 @@ On partial/uncertain failure, inspect state and backups; do not blindly replay.
 | Policy isolation / unexpected privileges / cloud and workspace rejection | Passed | Three focused tests |
 | Full regression | Passed | 1244 tests, 0 failures, concurrency 4 |
 | Native config dry-run on this Mac | Passed | validated, configurationWritten:false, roleWritten:false |
-| Actual Alice permission change | Not applied | Awaiting explicit scoped rollout approval |
-| Alice native computer task | Not performed | Test only after approved configuration and live readiness |
+| Actual Alice permission change | Applied | User approval, private backup, exact disk/live readback |
+| Alice native computer task | Passed locally | One cursor call in independent history; same-ID cached receipt |
+| Alice computer task from ChatGPT web | Not yet tested | Local acceptance does not establish a new web-originated task |
 
 Private test log: LunaDrive project cache `verification/alice-computer-preparation-tests.log`.
 No private configuration, transcripts or secrets are part of this Git checkpoint.
 
 ## Operator / next-agent commands
 
-No operator command is required now; the validated script is prepared for review.
-To repeat only the configuration validation (no model or desktop action):
+No operator command is required now; the approved rollout and local validation
+are complete. Do not replay apply or cursor tests as a health check. A status
+query is sufficient for readiness (no model or desktop action):
 
 ```bash
 cd "$HOME/Documents/workspace/ioant-AI-Agent-Local-MacOS"
-bash scripts/dev-env.sh exec node scripts/configure-alice-computer-agent.mjs --dry-run
+bash scripts/dev-env.sh exec node scripts/direct-openclaw-shared-smoke.mjs --status alice-ai
 ```
 
-**Only after explicit Alice rollout approval**, the implementing agent may run:
+Historical rollout command, **already executed successfully; do not rerun**:
 
 ```bash
 bash scripts/dev-env.sh exec node scripts/configure-alice-computer-agent.mjs --apply
@@ -69,8 +85,8 @@ operation/conversation IDs and read back the same ID with `openclaw_computer_res
 Legacy Worker advisor preflight also fails closed after this migration; do not
 weaken its guard or silently deploy/change that Worker.
 
-After live readiness, one separately scoped Alice cursor-only test can establish
-its native route and cached receipt. Check exact history for one cursor call;
-do not infer arbitrary application/file effects from that test. Save a factual
-Alice handoff using its latest expected_revision, preserving any newer user state.
 The Alice project Chat owns subsequent actual development tasks and acceptance.
+It should resume the latest Alice handoff and use a fresh conversation_key.
+A new explicitly scoped task needs a new operation_id, followed by same-ID
+computer_result. If uncertain, read the existing receipt instead of resubmitting.
+Do not infer arbitrary application/file effects from this cursor-only test.

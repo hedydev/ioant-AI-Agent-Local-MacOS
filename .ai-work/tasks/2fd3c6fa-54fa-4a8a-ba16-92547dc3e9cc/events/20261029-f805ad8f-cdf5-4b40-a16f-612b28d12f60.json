@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "event_id": "f805ad8f-cdf5-4b40-a16f-612b28d12f60",
+  "task_id": "2fd3c6fa-54fa-4a8a-ba16-92547dc3e9cc",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T14:56:38.671777Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "567dbbd5425cab2adc59c0339db9e48d56374100",
+  "message": "Human explicitly approved enabling Alice computer tools. Reviewed helper applied once with private backup and exact disk/live validation; shell/elevation/delegation remain disabled, other Agents unchanged. Local shared Alice cursor task and same-ID cached receipt passed; independent exact history contained one computer/get_cursor_position. No additional desktop action, service restart, Worker change or chat send. This validates local Alice native route; web-originated Alice computer task and arbitrary application effects remain unaccepted. No human task-completion event inferred.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "device_validation",
+      "summary": "Alice applied/readiness passed; shared_cursor_33ef7232-7c1b-449c-8a13-60de34210ee5 returned and cached; exact history one cursor tool call"
+    },
+    {
+      "kind": "automated_tests",
+      "summary": "Latest unchanged executable source 1244/1244 passed"
+    }
+  ],
+  "supersedes_event_id": null
+}

@@ -3,14 +3,16 @@
 Updated 2026-10-29, Asia/Shanghai. This is the current direction and evidence
 summary for this implementation, superseding conflicting older plans.
 
-Latest checkpoint: the account's five-hour window reached approximately 10%
-remaining. Alice computer rollout code and review plan are prepared, **not
-applied**. Native dry-run returned validated with config/role writes false;
-full regression passed 1244/1244. Read
-`docs/ALICE_COMPUTER_AGENT_ROLLOUT_20261029.md` before any Alice permission
-change. Await explicit scoped rollout approval, then apply once, read live
-status and validate a new bounded Alice task. Existing Tunnel/plugin rollout
-and workflow cursor acceptance are already done; do not replay them.
+Latest checkpoint: at approximately 10% remaining usage, preparation was pushed
+and verified as 567dbbd. The user then explicitly approved Alice computer tools.
+The fixed Alice-only migration is now applied with private backup and exact
+disk/live readback; shell/elevation/delegation remain disabled, other Agents
+unchanged. Local Alice shared-MCP cursor and same-ID cached receipt passed;
+independent history contained one get_cursor_position. Full regression remains
+1244/1244 (no source changes after preparation). Read
+`docs/ALICE_COMPUTER_AGENT_ROLLOUT_20261029.md`. Do not replay apply, prior
+cursor tests, Tunnel restart or plugin Refresh. Alice web-originated computer
+task and arbitrary app effects are not yet accepted.
 
 ## Operator's required working model
 
@@ -39,7 +41,8 @@ and workflow cursor acceptance are already done; do not replay them.
 | Per-project routing | Fixed and explicit shared modes; workflow → openclaw-dev, Alice → alice-ai. Shared calls select an enabled project_key, never an arbitrary Agent/path |
 | Project isolation checks | Distinct expected workspaces, private/canonical workspace admission, project-scoped session digests and separate receipt directories; tests passed |
 | Root project permissions | Fixed helper returned `applied`; `openclaw-dev` allows only `computer`; direct exec/elevation/cross-Agent calls disabled |
-| Other live config | Whole-config readback matched the expected single-tools-entry change; Alice and other entries unchanged |
+| Other live config | Workflow rollout preserved Alice; subsequent separately approved Alice-only rollout preserved all other Agent entries |
+| Alice computer rollout | Explicit approval; private backup, exact disk/live readback, local shared-MCP cursor and cached receipt passed; history contained one cursor call |
 | Role / backup | Workflow AGENTS role updated for ChatGPT-led execution; private original role and config saved in `~/.openclaw/backups/` |
 | Native local capability | `mac-computer` test Agent invoked one native cursor read, verified from session history and activity audit |
 | Actual project Agent through MCP | `openclaw-dev` cursor task passed; saved receipt finished; readback cached; exact-session history contained only `get_cursor_position`; one successful computer audit |
@@ -149,8 +152,12 @@ independent proof that an application's intended visible effect occurred.
 5. Use factual handoff/save and new-chat resume during normal work; a fresh
    chat uses a new conversation_key and current expected_revision. Unsaved old
    chat context cannot be reconstructed automatically.
-6. The integration is ready for a concrete authorized project task. Alice
-   remains text-only until its own authorized computer-permission rollout.
+6. Alice's separately approved computer-only rollout is now applied and passed
+   local native cursor/cached-receipt acceptance. The Alice project Chat can
+   resume its latest handoff and issue a fresh explicitly scoped task. Direct
+   exec, elevation, cross-Agent sends, skills and subagents remain disabled.
+   The advisor message route now refuses; use computer_task/result. This does
+   not authorize Alice Chat writes, Mint/SSH or Minecraft/server operations.
 
 ## Mac Terminal commands
 

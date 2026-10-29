@@ -245,3 +245,17 @@ permissions, running services, Tunnel metadata or existing Workers were changed.
 The five-hour usage window reached 10% remaining; source/docs are being committed
 and pushed with remote-SHA verification. Concrete scope, commands and remaining
 approval/live acceptance are in docs/ALICE_COMPUTER_AGENT_ROLLOUT_20261029.md.
+
+## Alice computer rollout applied and locally accepted (2026-10-29)
+
+User explicitly approved “启用 Alice 电脑工具”. Fixed helper returned applied with
+private backup, exact whole-config disk comparison and live Gateway policy checks;
+otherAgentsChanged:false, shellEnabled:false, explicitServiceRestart:false.
+Alice shared-MCP readiness passed. Operation
+shared_cursor_33ef7232-7c1b-449c-8a13-60de34210ee5 passed locally and same-ID
+receipt returned cached:true. Independent exact-session history contained one
+computer/get_cursor_position and no other tool calls. No task replay, screenshots,
+window enumeration, movement, clicks, input or message sends. Existing Tunnel and
+Workers were unchanged. Latest source regression remains 1244/1244; no executable
+source changes after that run. Alice web-originated computer tasks and arbitrary
+application/file effects remain separate acceptance; see rollout document.
