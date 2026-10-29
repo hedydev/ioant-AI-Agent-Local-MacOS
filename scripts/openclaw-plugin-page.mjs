@@ -58,22 +58,27 @@ export function pluginWindow(raw){
  const selected=plugins.length===1?plugins:unique;
  if(selected.length!==1)throw Error('unique_chrome_window_required');return selected[0].windowRef;
 }
-export async function selectPluginWindow(raw,readAddress,target){
+export async function selectPluginWindow(raw,readAddress,target,readIdentity){
  const candidates=visibleChromeWindows(raw);
  if(candidates.length===1)return candidates[0].windowRef;
  if(candidates.length===0||candidates.length>8)throw Error('unique_chrome_window_required');
  const expected=new globalThis.URL(target);
  if(expected.origin!=='https://chatgpt.com')throw Error('registered_chrome_target_required');
- const plugins=[],chats=[];
+ const plugins=[],chats=[],settings=[];
  for(const window of candidates){
   const r=pluginObservation(await readAddress(window.windowRef));
   if(r.originVerified)plugins.push(window.windowRef);
+  if(r.addressCategory==='settings_path'&&typeof readIdentity==='function'){
+   const identity=pluginObservation(await readIdentity(window.windowRef));
+   if(identity.plugin.some(v=>/heading/i.test(v.role??'')))settings.push(window.windowRef);
+  }
   if(r.addressUrl){
    const url=new globalThis.URL(r.addressUrl);
    if(url.origin===expected.origin&&url.pathname===expected.pathname)chats.push(window.windowRef);
   }
  }
  if(plugins.length===1)return plugins[0];
+ if(plugins.length===0&&settings.length===1)return settings[0];
  if(plugins.length===0&&chats.length===1)return chats[0];
  throw Error('registered_chrome_window_unverified');
 }
@@ -83,18 +88,24 @@ export function pluginObservation(raw){
  if(observationIds.length!==1)throw Error('fresh_observation_required');
  const elements=[...new Map(rows.filter(v=>typeof v?.elementRef==='string').map(v=>[v.elementRef,v])).values()];
  const address=elements.filter(v=>/^(?:Address and search bar|地址和搜索栏|地址栏)$/i.test(v.label??''));
- const originVerified=address.length===1&&/text.?field|textbox/i.test(address[0].role??'')&&
+ let originVerified=address.length===1&&/text.?field|textbox/i.test(address[0].role??'')&&
   /^(?:https:\/\/)?chatgpt\.com\/plugins(?:[/?#].*)?$/.test(address[0].value??address[0].stringValue??'');
  const value=address.length===1&&/text.?field|textbox/i.test(address[0].role??'')?(address[0].value??address[0].stringValue):null;
- const addressUrl=typeof value==='string'&&/^(?:https:\/\/)?chatgpt\.com\//.test(value)?
+ const addressUrl=typeof value==='string'&&/^(?:https:\/\/)?chatgpt\.com(?:[/?#]|$)/.test(value)?
   (value.startsWith('https://')?value:'https://'+value):null;
+ let addressCategory='unverified';
+ if(addressUrl){const u=new globalThis.URL(addressUrl);
+  addressCategory=/^\/plugins(?:\/|$)/.test(u.pathname)?'plugins':/^#settings(?:\/|$)/.test(u.hash)?'settings_hash':
+   /^\/settings(?:\/|$)/.test(u.pathname)?'settings_path':u.searchParams.has('settings')?'settings_query':
+   /\/c\//.test(u.pathname)?'chat':'chatgpt_other';}
  const exact=(label)=>elements.filter(v=>v.label===label&&v.enabled!==false);
  const plugin=exact('OpenClaw Mac');
- const refresh=elements.filter(v=>/^(?:Refresh|刷新)$/.test(v.label??'')&&v.enabled!==false&&/button|menu.?item/i.test(v.role??''));
+ if(addressCategory==='settings_path'&&plugin.some(v=>/heading/i.test(v.role??'')))originVerified=true;
+ const refresh=elements.filter(v=>/^(?:Refresh|Refresh tools|刷新)$/.test(v.label??'')&&v.enabled!==false&&/button|menu.?item/i.test(v.role??''));
  const menu=elements.filter(v=>v.label==='More actions'&&v.enabled!==false&&/button/i.test(v.role??''));
  const manage=elements.filter(v=>v.label==='Manage'&&v.enabled!==false&&/button|link/i.test(v.role??''));
  const popupOpen=elements.some(v=>/menu.?item/i.test(v.role??''));
- return {observationId:observationIds[0],originVerified,addressUrl,plugin,refresh,menu,manage,popupOpen,
+ return {observationId:observationIds[0],originVerified,addressUrl,addressCategory,plugin,refresh,menu,manage,popupOpen,
   buttonHints:originVerified?elements.filter(v=>(/button|menu.?item/i.test(v.role??'')||/link/i.test(v.role??'')&&/^(?:Manage|Learn more)$/.test(v.label??''))&&
    /refresh|tools?|more|menu|actions?|connect|edit|settings?|manage|details|version|update|installed|permissions?|刷新|工具|更多|菜单|设置|管理|连接/i.test(v.label??'')&&
    !/^(?:Project actions|Chat actions|Show more|Relaunch|MCSManager|Open profile|Account|Profile)/i.test(v.label??''))
@@ -108,7 +119,7 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
  const base={audit:'IOANT_OPENCLAW_PLUGIN_PAGE',mode,modelInferenceInvoked:false,screenshotTaken:false,
   browserRelayUsed:false,chatMessageSent:false};
  let node,executionId,attempted=false,denied=false,claimed=false,inputAttempted=false,result,windowScan,lastAction;
- const completedActions=[];
+ const completedActions=[],addressScan=[],settingsIdentityRoles=[];
  let closeAcknowledged=false;
  try{
   if(!['inspect','windows','open','open-focused','details','menu','manage','refresh'].includes(mode)||!['inspect','windows'].includes(mode)&&!operationId.test(id??''))throw Error('explicit_step_required');
@@ -139,8 +150,13 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
   windowScan=windowInventory(windows);
   if(mode==='windows')result={...base,state:'observed'};
   else{
-  const windowRef=await selectPluginWindow(windows,ref=>act({action:'get_window_state',windowRef:ref,
-   includeScreenshot:false,maxElements:80,query:'Address and search bar'}),await target());
+  const windowRef=await selectPluginWindow(windows,async ref=>{
+   const raw=await act({action:'get_window_state',windowRef:ref,includeScreenshot:false,maxElements:80,query:'Address and search bar'});
+   addressScan.push(pluginObservation(raw).addressCategory);return raw;
+  },await target(),async ref=>{
+   const raw=await act({action:'get_window_state',windowRef:ref,includeScreenshot:false,maxElements:1600,query:'OpenClaw Mac'});
+   settingsIdentityRoles.push(...pluginObservation(raw).plugin.map(v=>v.role));return raw;
+  });
   const observe=async()=>pluginObservation(await act({action:'get_window_state',windowRef,includeScreenshot:false,maxElements:1600}));
   if(mode==='open'||mode==='open-focused'){
    if(mode==='open')await act({action:'bring_to_front',windowRef});
@@ -166,7 +182,7 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
   }
   const o=await observe();
   result={...base,state:'observed',...(id?{operationId:id}:{}),originVerified:o.originVerified,
-   pluginVisible:o.plugin.length>0,refreshControls:o.refresh.length,tools:o.tools,publicLabels:o.publicLabels,buttonHints:o.buttonHints,
+   pluginVisible:o.plugin.length>0,pluginRoles:o.plugin.map(v=>v.role),refreshControls:o.refresh.length,tools:o.tools,publicLabels:o.publicLabels,buttonHints:o.buttonHints,addressCategory:o.addressCategory,
    ...(mode==='refresh'?{refreshClickedOnce:true}: {})};
   }
  }catch(e){result={...base,state:'inconclusive',...(id?{operationId:id}:{}),
@@ -177,7 +193,7 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
   }
  }
  result={...result,...(windowScan?{windowScan}:{}),...(lastAction?{lastAction}:{}),completedActions,
-  thisInvocationInputAttempted:inputAttempted,ownExecutionCloseAcknowledged:closeAcknowledged};
+  observedAddressCategories:addressScan,settingsIdentityRoles,thisInvocationInputAttempted:inputAttempted,ownExecutionCloseAcknowledged:closeAcknowledged};
  if(claimed){
   try{await store.finish(id,createHash('sha256').update(mode+'\n'+PLUGIN_URL).digest('hex'),result);}
   catch{return {...base,state:'inconclusive',operationId:id,reason:'step_receipt_persistence_failed_do_not_repeat'};}

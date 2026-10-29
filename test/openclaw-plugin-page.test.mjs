@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {pluginPageStep,pluginWindow,selectPluginWindow,windowInventory,nativeEnvelope} from '../scripts/openclaw-plugin-page.mjs';
+import {pluginPageStep,pluginWindow,selectPluginWindow,windowInventory,nativeEnvelope,pluginObservation} from '../scripts/openclaw-plugin-page.mjs';
 import {projectBinding} from '../integrations/chatgpt-openclaw/project-binding.mjs';
 const config={agents:{defaults:{model:'ollama/local'},entries:{'openclaw-dev':{
  model:'ollama/gemma4:26b-a4b',workspace:projectBinding().workspace,tools:{allow:['computer']}}}},
@@ -100,4 +100,13 @@ test('plugin controls menu targets exactly More actions after origin/plugin veri
 test('connection management targets only the exact Manage link',async()=>{
  const {calls,ctx}=fixture();const r=await pluginPageStep('manage','plugin_manage_link_001',ctx);
  assert.equal(r.state,'observed');assert.equal(calls.find(c=>c.action==='left_click').elementRef,'manage');
+});
+test('connection settings require the exact plugin heading, not an unrelated sidebar link',()=>{
+ const observation=role=>({ok:true,observation:{observationId:'current',elements:[
+  {elementRef:'address',role:'AXTextField',label:'Address and search bar',value:'https://chatgpt.com/settings/apps/connection'},
+  {elementRef:'plugin',role,label:'OpenClaw Mac'}]}});
+ assert.equal(pluginObservation(observation('AXLink')).originVerified,false);
+ assert.equal(pluginObservation(observation('AXHeading')).originVerified,true);
+ const raw=observation('AXHeading');raw.observation.elements.push({elementRef:'refresh-tools',role:'AXButton',label:'Refresh tools'});
+ assert.equal(pluginObservation(raw).refresh.length,1);
 });
