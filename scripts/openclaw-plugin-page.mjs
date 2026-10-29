@@ -9,6 +9,7 @@ import {fileURLToPath} from 'node:url';
 import {randomUUID,createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import {readPrivateJson} from '../stage2/workflow-capabilities.mjs';
+import {redactFeedback} from '../stage2/protocol.mjs';
 import {projectComputerPolicy} from '../integrations/chatgpt-openclaw/agent.mjs';
 import {ComputerTaskStore,operationId} from '../integrations/chatgpt-openclaw/computer-task-store.mjs';
 import {chooseConnectedMacNode} from './openclaw-mac-visual.mjs';
@@ -89,8 +90,13 @@ export function pluginObservation(raw){
   (value.startsWith('https://')?value:'https://'+value):null;
  const exact=(label)=>elements.filter(v=>v.label===label&&v.enabled!==false);
  const plugin=exact('OpenClaw Mac');
- const refresh=elements.filter(v=>/^(?:Refresh|刷新)$/.test(v.label??'')&&v.enabled!==false&&/button/i.test(v.role??''));
- return {observationId:observationIds[0],originVerified,addressUrl,plugin,refresh,
+ const refresh=elements.filter(v=>/^(?:Refresh|刷新)$/.test(v.label??'')&&v.enabled!==false&&/button|menu.?item/i.test(v.role??''));
+ const menu=elements.filter(v=>v.label==='More actions'&&v.enabled!==false&&/button/i.test(v.role??''));
+ return {observationId:observationIds[0],originVerified,addressUrl,plugin,refresh,menu,
+  buttonHints:originVerified?elements.filter(v=>/button|link|menu.?item/i.test(v.role??'')&&
+   /refresh|tools?|more|menu|actions?|connect|edit|settings?|manage|details|version|update|installed|permissions?|刷新|工具|更多|菜单|设置|管理|连接/i.test(v.label??'')&&
+   !/^(?:Project actions|Chat actions|Show more|Relaunch|MCSManager|Open profile|Account|Profile)/i.test(v.label??''))
+   .slice(0,30).map(v=>({role:v.role,label:redactFeedback(v.label).slice(0,100)})):[],
   tools:[...new Set(elements.map(v=>v.label).filter(v=>typeof v==='string'&&/^openclaw_[a-z_]+$/.test(v)))],
   publicLabels:[...new Set(elements.map(v=>v.label).filter(v=>typeof v==='string'&&/^(?:Plugins|Installed|OpenClaw Mac|Refresh|刷新|Tools|工具)$/.test(v)))]};
 }
@@ -103,7 +109,7 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
  const completedActions=[];
  let closeAcknowledged=false;
  try{
-  if(!['inspect','windows','open','open-focused','details','refresh'].includes(mode)||!['inspect','windows'].includes(mode)&&!operationId.test(id??''))throw Error('explicit_step_required');
+  if(!['inspect','windows','open','open-focused','details','menu','refresh'].includes(mode)||!['inspect','windows'].includes(mode)&&!operationId.test(id??''))throw Error('explicit_step_required');
   if(['OPENCLAW_PROFILE','OPENCLAW_CONFIG_PATH','OPENCLAW_STATE_DIR'].some(k=>process.env[k]))throw Error('custom_profile_not_supported');
   if(!projectComputerPolicy(await load()))throw Error('workflow_computer_policy_required');
   if(!['inspect','windows'].includes(mode)){
@@ -142,18 +148,18 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
    o=await observe();
    await act({action:'key',windowRef,observationId:o.observationId,keys:'ENTER',deliveryMode:'foreground'});
    await pause(1800);
-  }else if(mode==='details'||mode==='refresh'){
+  }else if(mode==='details'||mode==='menu'||mode==='refresh'){
    const o=await observe();
    if(!o.originVerified)throw Error('plugins_origin_unverified');
-   if(mode==='refresh'&&o.plugin.length===0)throw Error('plugin_identity_unverified');
-   const targets=mode==='details'?o.plugin.filter(v=>/button|link/i.test(v.role??'')):o.refresh;
+   if(mode!=='details'&&o.plugin.length===0)throw Error('plugin_identity_unverified');
+   const targets=mode==='details'?o.plugin.filter(v=>/button|link/i.test(v.role??'')):mode==='menu'?o.menu:o.refresh;
    if(targets.length!==1)throw Error('unique_control_required');
    await act({action:'left_click',windowRef,observationId:o.observationId,elementRef:targets[0].elementRef,deliveryMode:'foreground'});
    await pause(1200);
   }
   const o=await observe();
   result={...base,state:'observed',...(id?{operationId:id}:{}),originVerified:o.originVerified,
-   pluginVisible:o.plugin.length>0,refreshControls:o.refresh.length,tools:o.tools,publicLabels:o.publicLabels,
+   pluginVisible:o.plugin.length>0,refreshControls:o.refresh.length,tools:o.tools,publicLabels:o.publicLabels,buttonHints:o.buttonHints,
    ...(mode==='refresh'?{refreshClickedOnce:true}: {})};
   }
  }catch(e){result={...base,state:'inconclusive',...(id?{operationId:id}:{}),

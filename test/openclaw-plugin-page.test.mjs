@@ -19,6 +19,7 @@ function fixture({url='https://chatgpt.com/plugins',failType=false,duplicateRefr
    {elementRef:'address',role:'text_field',label:'Address and search bar',value:url},
    ...(fakeAddress?[{elementRef:'fake-address',role:'text_field',label:'Address and search bar',value:'https://chatgpt.com/plugins'}]:[]),
    {elementRef:'plugin',role:'link',label:'OpenClaw Mac'},
+   {elementRef:'more-actions',role:'AXPopUpButton',label:'More actions'},
    {elementRef:'refresh',role:'button',label:'Refresh'},
    ...(duplicateRefresh?[{elementRef:'refresh2',role:'button',label:'Refresh'}]:[])]}};
   if(p.action==='type'&&failType)throw Error('uncertain_native_input');
@@ -90,4 +91,8 @@ test('an explicitly resumed navigation stage does not replay the earlier foregro
  const {calls,ctx}=fixture();const r=await pluginPageStep('open-focused','continue_open_page_001',ctx);
  assert.equal(r.state,'observed');assert.equal(calls.some(c=>c.action==='bring_to_front'),false);
  assert.deepEqual(calls.filter(c=>c.action==='key').map(c=>c.keys),['CMD+T','ENTER']);
+});
+test('plugin controls menu targets exactly More actions after origin/plugin verification',async()=>{
+ const {calls,ctx}=fixture();const r=await pluginPageStep('menu','plugin_controls_menu_001',ctx);
+ assert.equal(r.state,'observed');assert.equal(calls.find(c=>c.action==='left_click').elementRef,'more-actions');
 });
