@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "event_id": "973cb3a1-4941-4ef8-a4e4-9c01e0b02b29",
+  "task_id": "f2afc52b-24c6-4bf1-a94f-1fbdc4e3a2af",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T19:06:25.713463Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "b41b980a606391b99748cd705ef17d5995f11ec3",
+  "message": "Implemented 0.4.0 generic MCP task admission/runner, separate additive local grant enrollment, data-driven independent Agent bindings and registered startup mode, private text/JSON/declared ZIP-member reports, natural conversation tool instructions. Two real temporary Git projects passed the same execution/artifact/cache path. Missing declared artifacts fail even after zero exit. Full 1278/1278 passed, bash syntax and diff checks passed. Existing online runtime remains 0.3.1 pending coordinated reload/web metadata acceptance. No AWS or business-project operation, no model call or old job replay. Task remains in progress until rollout acceptance.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "test",
+      "command": "bash scripts/dev-env.sh exec node --test --test-concurrency=4",
+      "result": "1278 passed, 0 failed/skipped/cancelled"
+    },
+    {
+      "kind": "document",
+      "path": "docs/CONVERSATIONAL_LOCAL_EXECUTION_20261030.md"
+    }
+  ],
+  "supersedes_event_id": null
+}

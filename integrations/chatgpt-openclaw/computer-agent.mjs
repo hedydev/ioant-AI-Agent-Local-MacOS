@@ -6,8 +6,8 @@ import {invokeDevCli} from '../../stage2/openclaw-alice-dev-discuss.mjs';
 import {redactFeedback} from '../../stage2/protocol.mjs';
 import {projectComputerPolicy,spawnAgentWithoutTransportSecrets} from './agent.mjs';
 import {ComputerTaskStore,operationId} from './computer-task-store.mjs';
-import {projectBinding} from './project-binding.mjs';
-import {inspectBoundWorkspace} from '../../stage2/development-agent-route.mjs';
+import {projectBinding,inspectProjectWorkspace} from './project-binding.mjs';
+
 
 const MODEL='ollama/gemma4:26b-a4b';
 const KEY=/^[A-Za-z0-9][A-Za-z0-9_-]{7,63}$/;
@@ -33,7 +33,7 @@ const projectStore=b=>new ComputerTaskStore(join(homedir(),
  'Library/Application Support/ioant-openclaw-ops','direct-computer-'+b.projectKey));
 export async function runComputerTask(input,{binding=projectBinding(),store=projectStore(binding),
  load=()=>readPrivateJson(join(homedir(),'.openclaw/openclaw.json')),
- workspace=inspectBoundWorkspace,call=invoke}={}){
+ workspace=()=>inspectProjectWorkspace(binding),call=invoke}={}){
  if(!validInput(input))return {state:'blocked',reason:'invalid_computer_task'};
  const id=input.operation_id;
  const digest=createHash('sha256').update(JSON.stringify([

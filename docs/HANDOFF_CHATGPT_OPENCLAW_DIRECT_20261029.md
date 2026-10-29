@@ -1,7 +1,17 @@
 # ChatGPT web ↔ local OpenClaw Agent — current handoff
 
-Updated 2026-10-29, Asia/Shanghai. This is the current direction and evidence
+Updated 2026-10-30, Asia/Shanghai. This is the current direction and evidence
 summary for this implementation, superseding conflicting older plans.
+
+Latest source checkpoint: 0.4.0 generic repository task admission/runner, separate
+data grants and independent project bindings, bounded text/JSON/ZIP-member artifacts,
+and natural conversation tool instructions are implemented. Two temporary real Git
+projects passed the same update/execution/artifact/cached-result path; missing declared
+artifacts fail even when the script exits zero. Read the new top section of
+CONVERSATIONAL_LOCAL_EXECUTION_20261030.md. Existing 0.3.1 foreground runtime remains
+until one coordinated restart/metadata Refresh. No arbitrary business project was
+enrolled; new projects require already configured independent Agents. Historical
+initial-kernel-only statements below describe earlier progress, not the latest source.
 
 Latest human clarification (2026-10-30): AWS and Alice were illustrative examples.
 Do not build project-specific bridge code or configure AWS. Ordinary conversation

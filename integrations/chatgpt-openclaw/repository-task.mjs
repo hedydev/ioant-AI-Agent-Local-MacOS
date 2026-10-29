@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {lstat,realpath} from 'node:fs/promises';
 import {join,resolve,sep} from 'node:path';
 import {executionCommand,executionEnvironment,GIT_ARGS} from './project-execution-command.mjs';
-import {SHA} from './project-execution-policy.mjs';
+const SHA=/^[0-9a-f]{40}$/;
 const ID=/^[a-z][a-z0-9_-]{0,47}$/;
 const own=(x,required,optional=[])=>x&&typeof x==='object'&&!Array.isArray(x)&&
  required.every(k=>Object.hasOwn(x,k))&&Object.keys(x).every(k=>required.includes(k)||optional.includes(k));

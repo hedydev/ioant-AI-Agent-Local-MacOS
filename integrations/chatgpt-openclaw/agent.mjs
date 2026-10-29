@@ -7,8 +7,8 @@ import {join} from 'node:path';
 import {readPrivateJson} from '../../stage2/workflow-capabilities.mjs';
 import {invokeDevCli} from '../../stage2/openclaw-alice-dev-discuss.mjs';
 import {redactFeedback} from '../../stage2/protocol.mjs';
-import {projectBinding,projectWorkspacePolicy} from './project-binding.mjs';
-import {inspectBoundWorkspace} from '../../stage2/development-agent-route.mjs';
+import {projectBinding,projectWorkspacePolicy,inspectProjectWorkspace} from './project-binding.mjs';
+
 
 const AGENT='openclaw-dev';
 const MODEL='ollama/gemma4:26b-a4b';
@@ -48,7 +48,7 @@ export function projectComputerPolicy(c,binding=projectBinding()){
   a.tools.allow[0]==='computer'&&!a.tools.deny?.includes('*')&&!a.tools.alsoAllow?.length;
 }
 
-export async function inspectDirectAgent({binding=projectBinding(),workspace=inspectBoundWorkspace,load=()=>readPrivateJson(
+export async function inspectDirectAgent({binding=projectBinding(),workspace=()=>inspectProjectWorkspace(binding),load=()=>readPrivateJson(
  join(homedir(),'.openclaw/openclaw.json'))}={}){
  try{
   if(['OPENCLAW_PROFILE','OPENCLAW_CONFIG_PATH','OPENCLAW_STATE_DIR']

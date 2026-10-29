@@ -68,26 +68,43 @@ export class ProjectExecutionStore{
   if(!await this.owns(id,digest))throw Error('execution_lock_conflict');
   await unlink(join(this.dir,'active.lock'));
  }
+ async outputDirectory(id){
+  await this.get(id);this.path(id);
+  const dir=join(this.dir,id+'.output');
+  try{await mkdir(dir,{mode:0o700});}catch(e){if(e.code!=='EEXIST')throw e;}
+  await privateExecutionPath(dir,true);return dir;
+ }
  async writeLog(id,text){
   if(Buffer.byteLength(text)>262144)throw Error('execution_log_too_large');
   const path=this.path(id,'log'),tmp=join(this.dir,'.log-'+randomUUID()+'.tmp');
   await writeFile(tmp,text,{mode:0o600,flag:'wx'});await rename(tmp,path);
   return {artifact:'execution_log',bytes:Buffer.byteLength(text),sha256:createHash('sha256').update(text).digest('hex')};
  }
- async report(id,offset=0){
+ async writeArtifact(id,artifact,{text,format,sourceSha256,redactionApplied}){
+  this.path(id);
+  if(!/^[a-z][a-z0-9_-]{0,47}$/.test(artifact)||artifact==='execution_log'||Buffer.byteLength(text)>262144)
+   throw Error('invalid_artifact');
+  const path=join(this.dir,id+'.artifact-'+artifact+'.txt');
+  await writeFile(path,text,{mode:0o600,flag:'wx'});
+  return {artifact,format,sourceSha256,redactionApplied,bytes:Buffer.byteLength(text),
+   sha256:createHash('sha256').update(text).digest('hex')};
+ }
+ async report(id,offset=0,artifact='execution_log'){
   if(!Number.isSafeInteger(offset)||offset<0||offset>262144)throw Error('invalid_report_offset');
   const r=await this.get(id);
   if(!r)return {state:'not_found',operationId:id};
   if(!finalExecution(r.state))return {state:'pending',operationId:id,doNotRepeat:true};
-  if(!r.report)return {state:'unavailable',operationId:id,reason:'no_execution_log'};
-  const p=this.path(id,'log'),s=await privateExecutionPath(p);
+  if(typeof artifact!=='string'||!/^[a-z][a-z0-9_-]{0,47}$/.test(artifact))throw Error('invalid_artifact');
+  const meta=artifact==='execution_log'?r.report:r.artifacts?.find(a=>a.artifact===artifact);
+  if(!meta)return {state:'unavailable',operationId:id,reason:'no_declared_artifact'};
+  const p=artifact==='execution_log'?this.path(id,'log'):join(this.dir,id+'.artifact-'+artifact+'.txt'),s=await privateExecutionPath(p);
   if(s.size>262144)throw Error('execution_report_too_large');
   const text=await readFile(p,'utf8');
-  if(createHash('sha256').update(text).digest('hex')!==r.report.sha256)throw Error('execution_report_changed');
+  if(createHash('sha256').update(text).digest('hex')!==meta.sha256)throw Error('execution_report_changed');
   if(offset>text.length)throw Error('invalid_report_offset');
   const logText=text.slice(offset,offset+4000),next=offset+logText.length;
-  return {state:'report',project:r.project,operationId:id,artifact:'execution_log',
-   sha256:r.report.sha256,offset,nextOffset:next<text.length?next:null,logText,
+  return {state:'report',project:r.project,operationId:id,artifact,
+   sha256:meta.sha256,offset,nextOffset:next<text.length?next:null,logText,
    pageCharacters:logText.length,totalCharacters:text.length,
    contentIsUntrusted:true,truncated:r.logTruncated===true};
  }

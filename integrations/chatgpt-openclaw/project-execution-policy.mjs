@@ -3,6 +3,7 @@ import {homedir} from 'node:os';
 import {join} from 'node:path';
 import {readPrivateJson} from '../../stage2/workflow-capabilities.mjs';
 import {isDeepStrictEqual} from 'node:util';
+import {repositoryTaskPolicy} from './repository-task-policy.mjs';
 
 export const EXECUTION_PARENT=join(homedir(),'Library/Application Support/ioant-openclaw-ops');
 export const EXECUTION_GRANT=join(EXECUTION_PARENT,'direct-project-execution-grant.json');
@@ -18,7 +19,8 @@ export const ALICE_ACTION=Object.freeze({
 });
 export const EXECUTION_ENROLLMENT=Object.freeze({schemaVersion:1,
  projects:{'alice-ai':{repository:ALICE_ACTION.repository,branch:'main',actions:['alice_mac_regression']}}});
-export async function executionPolicy(binding,{load=()=>readPrivateJson(EXECUTION_GRANT)}={}){
+export async function executionPolicy(binding,{load=()=>readPrivateJson(EXECUTION_GRANT),action,repositoryLoad}={}){
+ if(action==='repository_task')return repositoryTaskPolicy(binding,repositoryLoad?{load:repositoryLoad}:{});
  if(binding?.projectKey!==ALICE_ACTION.project||binding?.agentId!==ALICE_ACTION.agent)return null;
  try{
   const c=await load();

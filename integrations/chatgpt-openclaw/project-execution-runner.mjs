@@ -4,6 +4,8 @@ import {join} from 'node:path';
 import {executionCommand,GIT_ARGS,redactExecutionOutput} from './project-execution-command.mjs';
 import {SHA,executionPolicy} from './project-execution-policy.mjs';
 import {validateTreeListing} from '../../stage2/project-self-update.mjs';
+import {loadRepositoryTask,executeRepositoryTask,verifyTaskScript} from './repository-task.mjs';
+import {collectRepositoryArtifacts} from './repository-artifacts.mjs';
 
 export async function inspectExecutionRepository(policy,{command=executionCommand}={}){
  const s=await lstat(policy.repo);
@@ -62,7 +64,7 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
  };
  let policy;
  try{
-  policy=await policyLoad(binding);
+  policy=await policyLoad(binding,{action:record.input.action});
   if(!policy||record.input.action!==policy.action)throw Error('project_action_not_enabled');
   record.state='running';record.runnerPid=process.pid;record.startedAt=new Date().toISOString();await save();
   const before=await inspect(policy,{command});record.beforeCommit=before.head;await save();
@@ -74,11 +76,18 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
   if(tree.truncated)throw Error('candidate_tree_too_large');validateTreeListing(tree.stdout);
   const ancestor=await command('/usr/bin/git',[...GIT_ARGS,'merge-base','--is-ancestor',before.head,fetched],{cwd:policy.repo});
   if(!ancestor.ok)throw Error('fast_forward_required');
+  const plan=policy.action==='repository_task'?await loadRepositoryTask(policy,fetched,record.input.task_file,{command}):null;
   const fresh=await inspect(policy,{command});if(fresh.head!==before.head)throw Error('repository_changed_before_update');
   if(before.head!==fetched)await git('fast_forward',['merge','--ff-only','--no-edit',fetched]);
   const updated=await inspect(policy,{command});
   if(updated.head!==fetched)throw Error('updated_commit_unverified');record.actualCommit=updated.head;
   record.testedCommit=fetched;await save();
+  if(plan){
+   const outputDir=await store.outputDirectory(operationId);
+   record.task=await executeRepositoryTask(plan,policy,{operationId,outputDir,step,
+    verify:(p,task,item)=>verifyTaskScript(p,task,item,{command})});
+   record.artifacts=await collectRepositoryArtifacts(plan,outputDir,store,operationId);
+  }else{
   const testPath=join(policy.repo,policy.testDirectory),testFile=join(testPath,policy.targetedTest);
   for(const path of [policy.python,testPath,testFile]){
    const st=await lstat(path);if(st.isSymbolicLink()&&path!==policy.python||await realpath(path)!==path&&path!==policy.python)
@@ -93,10 +102,11 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
    record.steps.at(-1).tests=evidence.tests;record.steps.at(-1).skipped=evidence.skipped;await save();
    if(!evidence.passed)throw Error('positive_test_evidence_required');
   }
+  }
   const end=await inspect(policy,{command});
   if(end.head!==fetched)throw Error('repository_changed_during_tests');
   record.actualCommit=end.head;record.worktreeClean=true;record.state='passed';
-  record.resultScope='Local pinned Git update and Mac Python regressions only; no deployment or gameplay acceptance.';
+  record.resultScope=plan?'Pinned repository task steps exited successfully; no independent deployment or application-effect acceptance.':'Local pinned Git update and Mac Python regressions only; no deployment or gameplay acceptance.';
  }catch(e){
   record.state=retainLock?'inconclusive':record.actualCommit?'failed':'blocked';
   record.reason=/^[a-z_]+$/.test(e.message)?e.message:'project_execution_requires_review';

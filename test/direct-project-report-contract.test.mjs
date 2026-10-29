@@ -63,3 +63,10 @@ test('real MCP SDK refuses text-only or empty structured output under the declar
  response={content:[{type:'text',text:'{}'}],structuredContent:{}};
  await assert.rejects(client.callTool({name:'openclaw_project_report',arguments:{operation_id:'contract_probe_0001'}}),/output schema/);
 });
+
+test('real MCP SDK carries a declared generic artifact using the same structured report contract',async t=>{
+ const report={...page(),artifact:'summary'};
+ const client=await sdkPair(t,()=>reportToolResult(report));
+ const r=await client.callTool({name:'openclaw_project_report',arguments:{operation_id:'contract_probe_0001',artifact_id:'summary',offset:0}});
+ assert.equal(r.structuredContent.artifact,'summary');assert.deepEqual(JSON.parse(r.content[0].text),r.structuredContent);
+});

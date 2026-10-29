@@ -1,5 +1,15 @@
 # Phase 1 — Local read-only browser audits
 
+## Generic MCP integration candidate (2026-10-30)
+
+0.4.0 source integrates generic repository tasks, data-driven independent project
+bindings and grants, private declared text/JSON/ZIP-member artifacts, and ordinary
+conversation tool instructions. Two real temporary Git checkouts passed the same
+MCP-admission/runner/update/report/cache path. Missing declared artifacts cannot
+be successful from exit code alone. Existing foreground runtime remains 0.3.1;
+source/fixture validation is separate from pending cloud metadata/web acceptance.
+Read the latest section of `CONVERSATIONAL_LOCAL_EXECUTION_20261030.md`.
+
 ## Generic conversational execution checkpoint (2026-10-30)
 
 The operator clarified that AWS/Alice are examples, not requests for additional

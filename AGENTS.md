@@ -10,8 +10,10 @@ not hardcoded project branches in the bridge. ChatGPT authors internal task data
 never require the human to write task JSON or relay terminal commands each turn.
 Do not register/configure/execute AWS from the illustrative snippet. The withdrawn
 uncommitted AWS parser must not be restored as the proposed generic solution.
-Current generic task kernel is not yet integrated into online MCP dispatch; do
-not claim an unpublished capability or replay the already accepted legacy tests.
+The 0.4.0 source now includes generic admission/runner, data grants/bindings and
+text/JSON/ZIP-member artifact reading; read the latest source checkpoint in that
+document. Existing foreground runtime is still 0.3.1 until a coordinated reload.
+Do not claim web rollout from source tests or replay already accepted legacy jobs.
 
 ## Registered project execution (operator, 2026-10-30)
 
