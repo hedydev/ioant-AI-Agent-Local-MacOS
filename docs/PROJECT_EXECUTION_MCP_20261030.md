@@ -18,9 +18,9 @@ Python 回归；不部署到 Mint、不启动 Alice/BDS、不操作游戏世界�
 | 仓库独立回读 | 通过 | main、HEAD 等于预期完整 SHA、工作区干净 |
 | 结束回执 | 通过 | passed、cached:true、modelInferenceInvoked:false、workerUsed:false |
 | 实际报告读取 | 通过 | 12 页、46264 字节，整份 SHA256 核对一致，含两套测试证据 |
-| 新前台/云端元数据 | 通过 | 用户重启并私下输入 Key，云端发现 server 0.3.0；Refresh 的 initialize/discover/tools-list 均 200 |
+| 新前台/云端调用 | 通过 | 用户完成 0.3.1 加载和 Refresh，云端观察到该版本及成功工具调用 |
 | 网页动作/交接/回执 | 通过 | 用户实际 resume revision 6、enabled:true、passed/cached:true，与五次云端 200 相符 |
-| 网页报告正文 | 故障待查 | report offset=0 两次返回 {}；本地 stdio/官方本地代理均返回完整正文 |
+| 网页报告正文 | 修正后通过 | 用户实际 offset=46200/0 返回 logText 64/4000 字符，总长 46264，与本机原文一致 |
 
 报告 SHA256：`9fb492f2794eb43907829cf59b8d0288ca4fd8ef8287dca6ca7ab87af4b48078`。
 不要重跑该任务。没有 Mint Node24 回归、部署或游戏内验收；这些仍由 Alice 项目
@@ -83,15 +83,16 @@ OpenAI/Gateway 密钥或 ALICE_SSH_TARGET。日志是待分析证据，不是执
 
 ## 本地准备与发布
 
-完整桥接回归最新 1260/1260、针对性执行/交接测试及 shell/空白检查通过。
+完整桥接回归最新 1265/1265、针对性执行/交接测试及 shell/空白检查通过。
 真实 Alice 本地执行已通过。用户已完成本轮前台重启和插件 Refresh，云端发现
 服务版本 0.3.0；网页 Chat 的实际新工具调用仍与元数据刷新分开验收。
 随后用户实际网页查询通过了动作/回执，但报告正文返回空对象。
-见 [只读诊断记录](PROJECT_REPORT_EMPTY_RESPONSE_20261030.md)，不能宣称网页报告闭环已完成。
+当时尚未完成网页报告闭环；后续诊断和修正实测见
+[报告返回记录](PROJECT_REPORT_EMPTY_RESPONSE_20261030.md)。
 小至 64 字符也返回空对象。0.3.1 已补 report outputSchema/structuredContent，
 业务正文改为 logText，并返回 pageCharacters/totalCharacters。1265 项回归及
-官方本地代理 4000/64 字符双通道校验通过。原前台仍为 0.3.0，需要本次修复的
-重新加载和元数据刷新；不重做已完成的 Git/测试任务。
+官方本地代理 4000/64 字符双通道校验通过。真实前台已加载 0.3.1，
+用户网页首尾 logText 复验通过，原报告 SHA 未变。无需重复加载、刷新或已完成任务。
 
 首次本地任务 `alice_regression_20261030_f25770f70548` 在 checkout 前停止，
 reason=candidate_tree_too_large。独立证据表明实际 Git 树仅 38634 字节、320
@@ -139,7 +140,10 @@ bash scripts/direct-openclaw-tunnel.sh
 要求的部署/重启后 Refresh。网页新 Chat 先读取动作目录、已有执行回执和报告；
 不要再次发起已经在本地完成的验收操作。正常下一次用户授权的新提交才用新 operation_id。
 
-## 网页 Chat 的剩余只读验收
+## 已完成的网页 Chat 只读验收记录
+
+以下保留原验收文本，不需要再次粘贴执行。动作/回执已通过，后续 0.3.1 的
+实际网页首尾 logText 复验也已通过，详见顶部当前实机结果。
 
 在 Alice 项目 Chat 启用 OpenClaw Mac，发送以下内容。查询现有已完成任务，
 不再次调用 execute，不触发 Git、Python、模型或桌面动作：

@@ -3,16 +3,14 @@
 Updated 2026-10-29, Asia/Shanghai. This is the current direction and evidence
 summary for this implementation, superseding conflicting older plans.
 
-Current issue: genuine web actions/resume/finished receipt succeeded, but
-openclaw_project_report returned {} twice. Local stdio and official Go dev proxy
-both returned the original 4000-character page. Existing execution/logs remain
-unchanged. Read docs/PROJECT_REPORT_EMPTY_RESPONSE_20261030.md. A requested web
-tail probe at offset 46200 also returned {}. Source 0.3.1 now declares report
-outputSchema and matching structuredContent/JSON text, with business logText
-instead of content and explicit page/total character counts. Full suite 1265/1265
-and official local Go proxy first/tail pages passed. Real foreground 0.3.0 must
-load the fix and refresh metadata before web recheck; do not repeat execution
-or claim the closed-source client parser's exact internal cause was observed.
+Current report status: actual web 0.3.1 first/tail queries passed. User received
+logText pages of 4000/64 characters, total 46264, matching the original local
+report's prefix/tail and unchanged SHA. Cloud observes server 0.3.1 and successful
+tool calls. The report output contract fix (explicit schema, matching structured
+and text channels, business logText) is effective in the actual web path.
+Full source regression remains 1265/1265. Do not replay the completed Git/test
+job, coordinate probes, foreground restart or plugin Refresh. Details and bounded
+closed-source-parser uncertainty: docs/PROJECT_REPORT_EMPTY_RESPONSE_20261030.md.
 
 2026-10-30 priority: the user requested ChatGPT Git commits → pinned local
 fast-forward → registered tests/scripts → actionable receipts/reports. Read

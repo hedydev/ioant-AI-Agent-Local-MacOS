@@ -5,6 +5,9 @@
 > adds four shared-mode tools, with Alice Mac regression as the first enrolled
 > action. This is a fixed MCP executor without model inference or generic Agent
 > shell permission. Local and web rollout evidence are tracked separately there.
+> Actual Alice local pinned update/regression and web action/receipt/report reads
+> are verified; the report output fix is deployed as 0.3.1. Use registered actions
+> for new authorized work; do not replay the completed acceptance job.
 
 > **New operator-selected integration direction (2026-10-29):**
 > [ChatGPT directly calling OpenClaw Agent through MCP](docs/CHATGPT_DIRECT_OPENCLAW_MCP.md).

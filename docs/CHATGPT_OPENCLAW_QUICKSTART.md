@@ -5,11 +5,12 @@
 `openclaw_project_actions` → `openclaw_project_execute` → `openclaw_project_result`
 → `openclaw_project_report`，不再让用户搬运终端命令。只允许本机登记动作，
 execute 需要完整预期提交 SHA；accepted/running 是待完成状态，不是成功。
-本次前台 MCP 已重新加载、插件已 Refresh，云端发现版本 0.3.0。
-网页 Chat 新工具的实际回执/日志读取待核对，详见该文档实际发布状态。
+本次前台 MCP 已加载 0.3.1、插件已 Refresh。网页动作/回执及修正后的日志首尾
+读取均已通过。正文在 logText，页长/总长在 pageCharacters/totalCharacters；
+不再重复安装、刷新或旧验收任务，直接进入用户的下一个具体授权任务。
 
 当前状态：工作流和 Alice 都已启用各自独立的 computer-only Agent。
-共享 Tunnel、七工具插件、项目交接、工作流网页只读任务及 Alice 本地只读任务
+共享 Tunnel、十一工具插件、项目交接、工作流网页只读任务及 Alice 本地只读任务
 已经通过验证。Alice 网页只读任务也已通过，独立历史确认只执行了一次坐标读取。
 当前配置不需要重新申请 macOS 权限、输入 Key、刷新插件或重启服务。
 

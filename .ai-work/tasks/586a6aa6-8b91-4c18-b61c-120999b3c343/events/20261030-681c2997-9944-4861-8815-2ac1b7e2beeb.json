@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "event_id": "681c2997-9944-4861-8815-2ac1b7e2beeb",
+  "task_id": "586a6aa6-8b91-4c18-b61c-120999b3c343",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T17:21:05.849944Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "f1ac51fddce4848f945249507cbe0a2e0048f929",
+  "message": "User actual web report queries now return logText at offset46200/0 with pageCharacters64/4000 and totalCharacters46264. Original prefix/tail and full local SHA independently match; original job stays passed. Cloud MCP observation identifies 0.3.1 and new instance has four tools/call all200, not all individually attributed to the two displayed report queries. Report behavior correction confirmed, without claiming exact closed-source internal cause. No job reexecution or log mutation. Technical phase ready for explicit human acceptance; do not replay deployment or tests.",
+  "changes": {
+    "status": {
+      "from": "validation",
+      "to": "awaiting_user_acceptance"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "device_validation",
+      "summary": "Genuine web first/tail logText read succeeded on deployed0.3.1; lengths and local text/hash matched; actual cached job remains passed"
+    },
+    {
+      "kind": "automated_tests",
+      "summary": "Unchanged executable source latest full suite1265/1265; docs/ledger only this update"
+    }
+  ],
+  "supersedes_event_id": null
+}

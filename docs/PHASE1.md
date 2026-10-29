@@ -362,3 +362,17 @@ the unchanged original report SHA. No job/log mutation or execution replay.
 Live foreground remains 0.3.0 until the prepared fix is loaded and metadata
 refreshed; actual web correction remains pending. Closed-source internal parsing
 cause is bounded, not claimed as directly observed.
+
+## Actual web report correction verified (2026-10-30)
+
+User restarted/refreshed and returned actual report pages at offset 46200/0:
+state=report, nonempty logText, pageCharacters=64/4000, totalCharacters=46264.
+Independent read of original file confirmed exact prefix and 64-character tail,
+unchanged complete SHA and original passed job. Cloud MCP discovery explicitly
+reports server 0.3.1; the new instance has four tools/call all 200, not all
+individually attributed to the user's two displayed report calls. Behavior
+correction is confirmed by actual page contents and metadata. No job reexecution,
+model call, Git update, test run or report/receipt mutation occurred. Full source
+regression remains 1265/1265; only docs/ledger updated after the source fix.
+Technical acceptance is ready; human task completion remains explicit. Do not
+repeat restart/Refresh/cursor probes/completed Git or Python work.
