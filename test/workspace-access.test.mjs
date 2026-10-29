@@ -55,7 +55,7 @@ test('discovery refuses credential origins and unsafe roots without leaking thei
 test('dynamic routing sees a newly registered third project in the same connection with no schema refresh',async()=>{
  let bindings={one:{projectKey:'one',agentId:'one'},two:{projectKey:'two',agentId:'two'}};
  const route=projectRoute(['--shared-projects','registered'],{registry:()=>bindings});
- const catalog=routedCatalog(tools,route,[...handoffTools,...executionTools]);assert.equal(catalog.length,13);
+ const catalog=routedCatalog(tools,route,[...handoffTools,...executionTools]);assert.equal(catalog.length,15);
  const workspace=catalog.find(t=>t.name==='openclaw_workspace_projects');assert.equal(workspace.inputSchema.properties.project_key,undefined);
  const key=catalog.find(t=>t.name==='openclaw_project_execute').inputSchema.properties.project_key;
  assert.equal(key.enum,undefined);assert.ok(key.pattern);

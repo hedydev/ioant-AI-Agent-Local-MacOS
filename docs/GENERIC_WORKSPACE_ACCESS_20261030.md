@@ -59,3 +59,25 @@ Refresh/页面导航/Allow once 控件，不允许卸载、扩大总权限或发
 浏览器最初列出目标 Chat 和插件页且插件快照成功；随后 tabs 返回空而 status
 仍 running/pageReady，helper 在输入前拒绝继续。此运行态差异尚待查明，不宣称
 网页验收通过，也不通过换浏览器、安装扩展或重置权限掩盖它。
+
+## Chrome Debug 是可选通道（用户后续确认）
+
+用户明确说明刚才主动取消了 Chrome 调试，因此 tabs 变空的原因现已确认，
+不是新 MCP 的故障；用户随后重新授权在其睡觉期间完全操作电脑完成验收。
+Git/脚本/JSON/ZIP 的 MCP 执行路径没有浏览器依赖，不需要 Chrome Debug。
+实际 `browser start` 在 service running 时是 no-op，不能把它当作已附加标签页。
+
+0.6.0 增加全局 `openclaw_capabilities` 与 `openclaw_browser_session`：前者只读
+说明确定性任务/原生桌面/浏览器的依赖；后者只做一次显式获授权的既有会话
+连接尝试并核对 tabs。0 tabs 返回 not_attached/user_action_required，不安装
+扩展、不重置 TCC、不反复重连抵消用户取消。相同操作 ID 只读历史回执。
+registered 模式现在是 15 个工具；项目数据仍动态，不加固定项目枚举。
+
+本机原生 OpenClaw CUA 已成功读取 Chrome 的 Plugins 窗口和 OpenClaw 工具栏
+按钮，未输入、未截图，只关闭本次自己的 execution UUID。为后续获授权的
+连接恢复，验收 helper 只允许当前精确 Plugins 地址下唯一 AXPopUpButton
+OpenClaw 的一次点击；输入意图先落盘，未知结果不重做。它不是通用任意点击
+工具，也不会对 AWS/Alice 页面进行业务操作。
+
+0.6.0 完整回归 1296/1296 通过；受限原生工具栏点击的测试确认只能选择 Plugins
+精确地址、唯一 OpenClaw AXPopUpButton 和当前 observation。实际点击/恢复结果另记。

@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "event_id": "23409093-9dd4-40b9-903e-2ba66d202334",
+  "task_id": "f2afc52b-24c6-4bf1-a94f-1fbdc4e3a2af",
+  "event_type": "feedback_added",
+  "occurred_at": "2026-10-29T21:34:11.167577Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "0986a544bb85f5160117343ab0b16611b7ef6d43",
+  "message": "0.5 dynamic shared Tunnel replacement authenticated and began successful polling before old client termination. Local root grant and owned acceptance fixture prepared; real local SDK discovers unregistered fixture with no enum. User then confirmed deliberate Chrome Debug cancel and renewed explicit full-computer authorization for infrastructure testing. No browser input yet. Add global optional-browser capability/session tools so script execution never depends on Debug; actual CLI browser start is no-op with zero attached tabs. Native OpenClaw read located the Plugins window and extension toolbar; only own UUID closed. Browser-session/core1295 tests and new guarded-toolbar unit checks pass; final expanded regression underway. No credentials in ledger.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "runtime",
+      "result": "new Tunnel successful poll; old PID75238 terminated afterward; scope dynamic registered"
+    },
+    {
+      "kind": "native_read",
+      "result": "Plugins address/toolbars observed; no screenshots or input"
+    }
+  ],
+  "supersedes_event_id": null
+}

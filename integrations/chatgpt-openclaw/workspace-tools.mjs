@@ -1,9 +1,12 @@
+import {openclawCapabilities,browserSession} from './browser-session.mjs';
 import {loadWorkspaceAccess,workspaceCandidates,inspectWorkspaceRepository,resolveWorkspaceRepository} from './workspace-access.mjs';
 import {connectWorkspaceProject,existingRepositoryBinding} from './workspace-connect.mjs';
 export async function workspaceTool(name,input,{load=loadWorkspaceAccess,candidates=workspaceCandidates,
  inspect=inspectWorkspaceRepository,resolve=resolveWorkspaceRepository,lookup=existingRepositoryBinding,
  connect=connectWorkspaceProject}={}){
  try{
+  if(name==='openclaw_capabilities')return await openclawCapabilities(input);
+  if(name==='openclaw_browser_session')return await browserSession(input);
   if(name==='openclaw_project_connect')return await connect(input);
   if(name!=='openclaw_workspace_projects'||!input||typeof input!=='object'||Array.isArray(input)||
    Object.keys(input).some(k=>!['repository_id','offset'].includes(k))||

@@ -8,6 +8,12 @@ infrastructure ChatGPT test messages while they sleep. Test only the workflow
 chat or owned acceptance repository; AWS remains an example, not production scope.
 Never commit/log/transmit runtime credentials in test messages or docs. A disclosed
 runtime key is authorized only for the existing Tunnel, not paid model inference.
+The user confirmed they canceled Chrome Debug, explaining empty tab discovery;
+then explicitly authorized full computer operation for this task while asleep.
+Repository MCP execution never requires browser debugging. New 0.6 capability/
+browser-session tools must distinguish serviceRunning from attached tabs and not
+silently counter a deliberate cancel. Use native OpenClaw only within the newly
+authorized infrastructure-test UI scope; no TCC resets or unknown-owner closure.
 Use one shared registered dynamic connection. Workspace discovery/connect tools
 are global; do not require a pre-existing project key or use desktop terminal
 probing as an enrollment workaround. New project Agents remain independent and
