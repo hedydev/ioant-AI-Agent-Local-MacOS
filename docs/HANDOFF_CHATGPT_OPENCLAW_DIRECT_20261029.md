@@ -34,7 +34,7 @@ summary for this implementation, superseding conflicting older plans.
 | Role / backup | Workflow AGENTS role updated for ChatGPT-led execution; private original role and config saved in `~/.openclaw/backups/` |
 | Native local capability | `mac-computer` test Agent invoked one native cursor read, verified from session history and activity audit |
 | Actual project Agent through MCP | `openclaw-dev` cursor task passed; saved receipt finished; readback cached; exact-session history contained only `get_cursor_position`; one successful computer audit |
-| Regression | Current full suite 1233/1233 passed with concurrency 4; final targeted follow-up passed; shell syntax and whitespace checks passed |
+| Regression | Latest full suite 1234/1234 passed with concurrency 4; shell syntax and whitespace checks passed |
 | Remaining web acceptance | User's ChatGPT session still listed only the original two tools. New task/result metadata refresh remains pending |
 
 Initial computer task receipt:
@@ -98,6 +98,16 @@ openclaw_project_handoff, for seven tools. Private immutable handoff revisions
 use expected_revision conflicts and fresh referenced receipts. An actual local
 save followed by a fresh-process resume passed; Alice remained independently
 empty. These are local MCP tests, not actual ChatGPT web new-chat acceptance.
+
+Latest: workflow handoff revision 2 and separately seeded Alice connection-only
+revision 1 both resume in new local MCP processes. Shared private profile is
+already backed up/prepared. Source is pushed through 4681f5a. The old foreground
+tunnel PID was still running at the last check; user has been asked to restart
+only it and privately enter the Runtime Key. Do not take Chrome focus while the
+user may be entering that key. The first fixed native page-open step stopped
+before input because several Chrome windows were present; a tested exact
+registered-address selector is now in source but has not yet passed real UI
+acceptance. Do not claim Refresh or the web seven-tool rollout succeeded.
 
 The project task store persists privately under the local app-support root,
 separately for each project. An unfinished/uncertain receipt means investigate,

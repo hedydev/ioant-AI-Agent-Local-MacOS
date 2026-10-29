@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "event_id": "14d3dfbf-274d-4f09-9490-fa53e031e880",
+  "task_id": "2fd3c6fa-54fa-4a8a-ba16-92547dc3e9cc",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T11:22:51.326603Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "4681f5a",
+  "message": "Source pushed and verified through 4681f5a. Latest complete suite 1234/1234 passed at concurrency 4. Private shared tunnel profile backed up/prepared with no Runtime Key read and no restart. Native page-open stopped before input on multiple Chrome windows; exact registered-address selection added/tested, physical rerun deferred while user may enter Runtime Key. Workflow handoff revision 2 and separately seeded Alice connection-only revision 1 resumed in new MCP processes. User asked to restart the original foreground tunnel and privately enter key. Cloud seven-tool/plugin refresh and actual ChatGPT new-chat acceptance remain unverified; original operation IDs must not be replayed.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "Latest full suite 1234/1234; syntax/whitespace passed"
+    },
+    {
+      "kind": "device_validation",
+      "summary": "Private profile exact readback, real cross-process MCP state for both projects passed; no cloud/new-chat acceptance claimed"
+    }
+  ],
+  "supersedes_event_id": null
+}
