@@ -41,6 +41,23 @@ Initial computer task receipt:
 No pointer movement, clicks, typing or file edits were part of that read test.
 This is not acceptance of arbitrary UI tasks or Alice project actions.
 
+## Latest operator priority: checkpoint, then a separate chat Agent
+
+The operator requested a new independent OpenClaw conversational Agent with
+deep-thinking capability and fast everyday responses, then explicitly said to
+commit/push code and documentation **first**, before configuring OpenClaw.
+The inventory and existing benchmark review are documented in
+`docs/LOCAL_CHAT_AGENT_PLAN_20261029.md`. No new chat Agent exists yet at this
+checkpoint. After verifying the remote SHA, continue that configuration without
+replacing project Agents or switching to paid cloud/Codex model routes.
+
+The direct desktop integration remains at the acceptance boundary above:
+local project computer-task/readback passed; user-side ChatGPT tool catalog
+still showed only the original two tools and needs a verified metadata refresh.
+Shared-Tunnel multi-project routing also remains a proposed simplification,
+not implemented behavior. Preserve these outstanding items while handling the
+chat-Agent request; do not present the entire original workflow as complete.
+
 ## Code and runtime ownership
 
 Source: `~/Documents/workspace/ioant-AI-Agent-Local-MacOS`.
