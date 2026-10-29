@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {pluginPageStep,pluginWindow} from '../scripts/openclaw-plugin-page.mjs';
+import {pluginPageStep,pluginWindow,selectPluginWindow} from '../scripts/openclaw-plugin-page.mjs';
 import {projectBinding} from '../integrations/chatgpt-openclaw/project-binding.mjs';
 const config={agents:{defaults:{model:'ollama/local'},entries:{'openclaw-dev':{
  model:'ollama/gemma4:26b-a4b',workspace:projectBinding().workspace,tools:{allow:['computer']}}}},
@@ -28,6 +28,7 @@ function fixture({url='https://chatgpt.com/plugins',failType=false,duplicateRefr
 test('authorized open uses fixed new-tab URL input only, targets Chrome and closes its own native execution',async()=>{
  const {calls,ctx}=fixture();const r=await pluginPageStep('open','open_plugin_page_0001',ctx);
  assert.equal(r.originVerified,true);assert.equal(r.modelInferenceInvoked,false);
+ assert.equal(r.thisInvocationInputAttempted,true);
  assert.deepEqual(calls.filter(c=>c.action==='key').map(c=>c.keys),['CMD+T','ENTER']);
  assert.deepEqual(calls.filter(c=>c.action==='type').map(c=>c.text),['https://chatgpt.com/plugins']);
  assert.ok(calls.filter(c=>!['list_windows','__close_execution'].includes(c.action)).every(c=>c.windowRef==='win-chrome'));
@@ -52,4 +53,13 @@ test('Refresh requires an attested plugins address and exactly one fresh target'
 test('ambiguous Chrome windows are not guessed and unsupported task modes do not access the computer',async()=>{
  assert.throws(()=>pluginWindow({ok:true,details:{windows:[{appName:'Google Chrome',windowRef:'one'},{appName:'Google Chrome',windowRef:'two'}]}}),/unique_chrome/);
  const {calls,ctx}=fixture();assert.equal((await pluginPageStep('navigate-any-url','some_id_001',ctx)).state,'inconclusive');assert.equal(calls.length,0);
+});
+test('multiple Chrome windows require an exact registered address, with read-only query before selection',async()=>{
+ const windows={ok:true,details:{windows:[{appName:'Google Chrome',windowRef:'one'},{appName:'Google Chrome',windowRef:'two'}]}};
+ const target='https://chatgpt.com/g/registered-project/c/registered-chat';
+ const read=async ref=>({ok:true,observation:{observationId:'obs-'+ref,elements:[
+  {elementRef:'address-'+ref,role:'text_field',label:'Address and search bar',value:ref==='one'?target:'https://example.com/'}]}});
+ assert.equal(await selectPluginWindow(windows,read,target),'one');
+ await assert.rejects(selectPluginWindow(windows,async()=>read('two'),target),/registered_chrome_window_unverified/);
+ await assert.rejects(selectPluginWindow(windows,async()=>read('one'),target),/registered_chrome_window_unverified/);
 });

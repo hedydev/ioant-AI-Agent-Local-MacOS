@@ -7,15 +7,18 @@ import {homedir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {randomUUID,createHash} from 'node:crypto';
+import {readFile} from 'node:fs/promises';
 import {readPrivateJson} from '../stage2/workflow-capabilities.mjs';
 import {projectComputerPolicy} from '../integrations/chatgpt-openclaw/agent.mjs';
 import {ComputerTaskStore,operationId} from '../integrations/chatgpt-openclaw/computer-task-store.mjs';
 import {chooseConnectedMacNode} from './openclaw-mac-visual.mjs';
 import {walkNativePayload} from './openclaw-cua-fixture-native-observe.mjs';
 import {scopedCloseRequest,knownPreAdmissionNativeFailure} from './openclaw-cua-owned-session-guard.mjs';
-const URL='https://chatgpt.com/plugins',CLI=join(homedir(),'.openclaw/bin/openclaw');
+const PLUGIN_URL='https://chatgpt.com/plugins',CLI=join(homedir(),'.openclaw/bin/openclaw');
 const parent=join(homedir(),'Library/Application Support/ioant-openclaw-ops');
 const exec=promisify(execFile);
+const registeredTarget=async()=>JSON.parse(await readFile(new URL('../config/chat-projects.json',import.meta.url),'utf8'))
+ .projects.find(p=>p.key==='alice-ai')?.chatUrl;
 const cli=async args=>JSON.parse((await exec(CLI,args,{timeout:25000,maxBuffer:4*1024*1024,shell:false})).stdout);
 function envelope(raw){
  const value=walkNativePayload(raw).find(v=>typeof v?.ok==='boolean'&&
@@ -29,6 +32,26 @@ export function pluginWindow(raw){
  const selected=plugins.length===1?plugins:unique;
  if(selected.length!==1)throw Error('unique_chrome_window_required');return selected[0].windowRef;
 }
+export async function selectPluginWindow(raw,readAddress,target){
+ const rows=walkNativePayload(raw).filter(v=>v?.appName==='Google Chrome'&&typeof v.windowRef==='string'&&v.minimized!==true);
+ const candidates=[...new Map(rows.map(v=>[v.windowRef,v])).values()];
+ if(candidates.length===1)return candidates[0].windowRef;
+ if(candidates.length===0||candidates.length>8)throw Error('unique_chrome_window_required');
+ const expected=new globalThis.URL(target);
+ if(expected.origin!=='https://chatgpt.com')throw Error('registered_chrome_target_required');
+ const plugins=[],chats=[];
+ for(const window of candidates){
+  const r=pluginObservation(await readAddress(window.windowRef));
+  if(r.originVerified)plugins.push(window.windowRef);
+  if(r.addressUrl){
+   const url=new globalThis.URL(r.addressUrl);
+   if(url.origin===expected.origin&&url.pathname===expected.pathname)chats.push(window.windowRef);
+  }
+ }
+ if(plugins.length===1)return plugins[0];
+ if(plugins.length===0&&chats.length===1)return chats[0];
+ throw Error('registered_chrome_window_unverified');
+}
 export function pluginObservation(raw){
  const rows=walkNativePayload(raw);
  const observationIds=[...new Set(rows.map(v=>v?.observationId).filter(v=>typeof v==='string'))];
@@ -37,26 +60,29 @@ export function pluginObservation(raw){
  const address=elements.filter(v=>/^(?:Address and search bar|地址和搜索栏|地址栏)$/i.test(v.label??''));
  const originVerified=address.length===1&&/text.?field|textbox/i.test(address[0].role??'')&&
   /^(?:https:\/\/)?chatgpt\.com\/plugins(?:[/?#].*)?$/.test(address[0].value??address[0].stringValue??'');
+ const value=address.length===1&&/text.?field|textbox/i.test(address[0].role??'')?(address[0].value??address[0].stringValue):null;
+ const addressUrl=typeof value==='string'&&/^(?:https:\/\/)?chatgpt\.com\//.test(value)?
+  (value.startsWith('https://')?value:'https://'+value):null;
  const exact=(label)=>elements.filter(v=>v.label===label&&v.enabled!==false);
  const plugin=exact('OpenClaw Mac');
  const refresh=elements.filter(v=>/^(?:Refresh|刷新)$/.test(v.label??'')&&v.enabled!==false&&/button/i.test(v.role??''));
- return {observationId:observationIds[0],originVerified,plugin,refresh,
+ return {observationId:observationIds[0],originVerified,addressUrl,plugin,refresh,
   tools:[...new Set(elements.map(v=>v.label).filter(v=>typeof v==='string'&&/^openclaw_[a-z_]+$/.test(v)))],
   publicLabels:[...new Set(elements.map(v=>v.label).filter(v=>typeof v==='string'&&/^(?:Plugins|Installed|OpenClaw Mac|Refresh|刷新|Tools|工具)$/.test(v)))]};
 }
 export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(join(homedir(),'.openclaw/openclaw.json')),
  store=new ComputerTaskStore(join(parent,'direct-plugin-page-actions'),parent),uuid=randomUUID,
- pause=ms=>new Promise(ok=>setTimeout(ok,ms))}={}){
+ pause=ms=>new Promise(ok=>setTimeout(ok,ms)),target=registeredTarget}={}){
  const base={audit:'IOANT_OPENCLAW_PLUGIN_PAGE',mode,modelInferenceInvoked:false,screenshotTaken:false,
   browserRelayUsed:false,chatMessageSent:false};
- let node,executionId,attempted=false,denied=false,claimed=false,result;
+ let node,executionId,attempted=false,denied=false,claimed=false,inputAttempted=false,result;
  let closeAcknowledged=false;
  try{
   if(!['inspect','open','details','refresh'].includes(mode)||mode!=='inspect'&&!operationId.test(id??''))throw Error('explicit_step_required');
   if(['OPENCLAW_PROFILE','OPENCLAW_CONFIG_PATH','OPENCLAW_STATE_DIR'].some(k=>process.env[k]))throw Error('custom_profile_not_supported');
   if(!projectComputerPolicy(await load()))throw Error('workflow_computer_policy_required');
   if(mode!=='inspect'){
-   const digest=createHash('sha256').update(mode+'\n'+URL).digest('hex');
+   const digest=createHash('sha256').update(mode+'\n'+PLUGIN_URL).digest('hex');
    const claim=await store.begin(id,digest);
    if(!claim.created)return {...base,state:'inconclusive',operationId:id,reason:'step_reserved_do_not_repeat'};
    claimed=true;
@@ -69,16 +95,19 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
   executionId=uuid();
   const act=async params=>{
    const priorAttempted=attempted;attempted=true;
+   if(['bring_to_front','key','type','left_click'].includes(params.action))inputAttempted=true;
    try{return envelope(await call(['nodes','invoke','--node',node.id,'--command','computer.act','--params',JSON.stringify({...params,executionId}),'--json']));}
    catch(e){denied=knownPreAdmissionNativeFailure(e)&&!priorAttempted;throw e;}
   };
-  const windowRef=pluginWindow(await act({action:'list_windows'}));
+  const windows=await act({action:'list_windows'});
+  const windowRef=await selectPluginWindow(windows,ref=>act({action:'get_window_state',windowRef:ref,
+   includeScreenshot:false,maxElements:80,query:'Address and search bar'}),await target());
   const observe=async()=>pluginObservation(await act({action:'get_window_state',windowRef,includeScreenshot:false,maxElements:1600}));
   if(mode==='open'){
    await act({action:'bring_to_front',windowRef});
    await act({action:'key',windowRef,keys:'CMD+T',deliveryMode:'foreground'});
    let o=await observe();
-   await act({action:'type',windowRef,observationId:o.observationId,text:URL,deliveryMode:'foreground'});
+   await act({action:'type',windowRef,observationId:o.observationId,text:PLUGIN_URL,deliveryMode:'foreground'});
    o=await observe();
    await act({action:'key',windowRef,observationId:o.observationId,keys:'ENTER',deliveryMode:'foreground'});
    await pause(1800);
@@ -102,9 +131,9 @@ export async function pluginPageStep(mode,id,{call=cli,load=()=>readPrivateJson(
    try{const closed=await call(scopedCloseRequest(node.id,executionId));closeAcknowledged=closed?.ok===true||closed?.result?.ok===true;}catch{}
   }
  }
- result={...result,ownExecutionCloseAcknowledged:closeAcknowledged};
+ result={...result,thisInvocationInputAttempted:inputAttempted,ownExecutionCloseAcknowledged:closeAcknowledged};
  if(claimed){
-  try{await store.finish(id,createHash('sha256').update(mode+'\n'+URL).digest('hex'),result);}
+  try{await store.finish(id,createHash('sha256').update(mode+'\n'+PLUGIN_URL).digest('hex'),result);}
   catch{return {...base,state:'inconclusive',operationId:id,reason:'step_receipt_persistence_failed_do_not_repeat'};}
  }
  return result;
