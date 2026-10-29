@@ -1,5 +1,12 @@
 # Ioant AI Agent — Local macOS
 
+> **New operator-selected integration direction (2026-10-29):**
+> [ChatGPT directly calling OpenClaw Agent through MCP](docs/CHATGPT_DIRECT_OPENCLAW_MCP.md).
+> The local text-only protocol acceptance passed; ChatGPT tunnel connection and
+> execution-Agent permissions remain separate acceptance steps. Keep the existing
+> Worker during transition. This does not replace the native Computer Use
+> implementation or its consent/verification rules below.
+
 > **Current AI-OpenClaw workflow direction (2026-10-29):**
 > The primary path is **OpenClaw.app native Mac Computer Use (CUA v2
 > `computer.act`) → exact-window background element control → approved

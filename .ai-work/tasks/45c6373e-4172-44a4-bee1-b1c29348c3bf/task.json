@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "task_id": "45c6373e-4172-44a4-bee1-b1c29348c3bf",
+  "created_at": "2026-10-29T00:09:04.430851Z",
+  "created_by": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "objective": "Connect ChatGPT custom MCP tools directly to an existing local OpenClaw Agent",
+  "scope": [
+    "integrations/chatgpt-openclaw",
+    "scripts/direct-openclaw-mcp-smoke.mjs",
+    "docs/CHATGPT_DIRECT_OPENCLAW_MCP.md"
+  ],
+  "target_ids": [
+    "macos-audit-cli"
+  ],
+  "acceptance_criteria": [
+    "MCP discovery and local Agent reply work without the existing browser Worker",
+    "Pinned local model with no cloud fallback and no broadened tools in initial prototype",
+    "Actual ChatGPT custom MCP call succeeds through the account tunnel before claiming connection"
+  ],
+  "deduplication_key": "chatgpt-direct-openclaw-mcp-connection",
+  "parent_task_id": null,
+  "relations": []
+}

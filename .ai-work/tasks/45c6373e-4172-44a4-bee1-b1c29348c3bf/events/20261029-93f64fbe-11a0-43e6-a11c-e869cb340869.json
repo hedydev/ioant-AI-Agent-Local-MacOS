@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "event_id": "93f64fbe-11a0-43e6-a11c-e869cb340869",
+  "task_id": "45c6373e-4172-44a4-bee1-b1c29348c3bf",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T00:09:04.430851Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "03c7a7a7532e43d49af81c589000aa6e94ce8d72",
+  "message": "Local MCP handshake, discovery and exact local-model response passed without Worker; 1199/1199 regressions pass. User is configuring the Platform tunnel; ChatGPT call and computer actions remain unverified.",
+  "changes": {
+    "status": {
+      "from": null,
+      "to": "awaiting_device_validation"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "1199 passed, 0 failed"
+    },
+    {
+      "kind": "device_validation",
+      "summary": "IOANT_DIRECT_MCP_ACCEPTANCE passed; localAgentResponseVerified=true; workerUsed=false; chatgptConnectionVerified=false"
+    }
+  ],
+  "supersedes_event_id": null
+}

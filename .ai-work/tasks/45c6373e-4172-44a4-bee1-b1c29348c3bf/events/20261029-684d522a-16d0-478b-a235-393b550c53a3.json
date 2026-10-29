@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "event_id": "684d522a-16d0-478b-a235-393b550c53a3",
+  "task_id": "45c6373e-4172-44a4-bee1-b1c29348c3bf",
+  "event_type": "progress_recorded",
+  "occurred_at": "2026-10-29T00:13:21.625785Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "af1e5f9",
+  "message": "User created an actual tunnel; private local profile configured without a literal key. Added hidden-input foreground launcher and transport-secret scrubbing; full regression now 1200/1200 passed. Runtime credentials are being entered by the operator; no ChatGPT tool-call acceptance yet.",
+  "changes": {
+    "status": {
+      "from": "awaiting_device_validation",
+      "to": "awaiting_device_validation"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "1200 passed, 0 failed; shell syntax passed"
+    },
+    {
+      "kind": "configuration_check",
+      "summary": "Private tunnel profile mode 0600; environment key reference; no literal key; no background service started"
+    }
+  ],
+  "supersedes_event_id": null
+}
