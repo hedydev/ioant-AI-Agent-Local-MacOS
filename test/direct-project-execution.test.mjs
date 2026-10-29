@@ -82,7 +82,8 @@ test('fixed runner verifies pinned Git, both positive test suites, final HEAD an
  assert.equal(run.calls.filter(c=>c.args[0]==='merge').length,1);
  assert.equal(run.calls.filter(c=>c.args[0]==='-m').length,2);
  const report=await projectExecution('openclaw_project_report',{operation_id:input().operation_id},ctx);
- assert.equal(report.state,'report');assert.match(report.content,/Ran 4 tests/);assert.equal(report.contentIsUntrusted,true);
+ assert.equal(report.state,'report');assert.match(report.logText,/Ran 4 tests/);assert.equal(report.contentIsUntrusted,true);
+ assert.equal(report.pageCharacters,report.logText.length);assert.ok(report.totalCharacters>=report.pageCharacters);
  let launches=0;await projectExecution('openclaw_project_execute',input(),{...ctx,launch:()=>{launches++;}});assert.equal(launches,0);
  assert.equal(result.input,undefined);assert.equal(result.digest,undefined);
 });

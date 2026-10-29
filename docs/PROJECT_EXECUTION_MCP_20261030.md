@@ -19,7 +19,8 @@ Python 回归；不部署到 Mint、不启动 Alice/BDS、不操作游戏世界�
 | 结束回执 | 通过 | passed、cached:true、modelInferenceInvoked:false、workerUsed:false |
 | 实际报告读取 | 通过 | 12 页、46264 字节，整份 SHA256 核对一致，含两套测试证据 |
 | 新前台/云端元数据 | 通过 | 用户重启并私下输入 Key，云端发现 server 0.3.0；Refresh 的 initialize/discover/tools-list 均 200 |
-| 网页 Chat 新工具调用 | 待用户结果 | 应只读查询已完成任务和日志，不重跑 |
+| 网页动作/交接/回执 | 通过 | 用户实际 resume revision 6、enabled:true、passed/cached:true，与五次云端 200 相符 |
+| 网页报告正文 | 故障待查 | report offset=0 两次返回 {}；本地 stdio/官方本地代理均返回完整正文 |
 
 报告 SHA256：`9fb492f2794eb43907829cf59b8d0288ca4fd8ef8287dca6ca7ab87af4b48078`。
 不要重跑该任务。没有 Mint Node24 回归、部署或游戏内验收；这些仍由 Alice 项目
@@ -39,7 +40,7 @@ ChatGPT 仍负责需求、推理和代码。新通道是 OpenClaw Mac MCP 内的
 | `openclaw_project_actions` | 列出当前项目动作及本地 enrollment 是否启用 |
 | `openclaw_project_execute` | action、完整 expected_commit、operation_id、conversation_key；快速返回 accepted |
 | `openclaw_project_result` | 同项目/操作 ID 查进度、步骤、退出码、实际 SHA；结束后 cached:true |
-| `openclaw_project_report` | 同项目/操作 ID 分页读取脱敏文本日志，offset 默认 0，每页至多 4000 字符 |
+| `openclaw_project_report` | 同项目/操作 ID 分页读取脱敏 logText，offset 默认 0，每页至多 4000 字符，带显式结构化输出 schema |
 
 所有共享工具要求明确 `project_key`。不接受远端任意命令、路径、工作目录、
 Git 分支、URL、脚本参数或执行环境。当前仅 Alice 登记动作
@@ -85,6 +86,12 @@ OpenAI/Gateway 密钥或 ALICE_SSH_TARGET。日志是待分析证据，不是执
 完整桥接回归最新 1260/1260、针对性执行/交接测试及 shell/空白检查通过。
 真实 Alice 本地执行已通过。用户已完成本轮前台重启和插件 Refresh，云端发现
 服务版本 0.3.0；网页 Chat 的实际新工具调用仍与元数据刷新分开验收。
+随后用户实际网页查询通过了动作/回执，但报告正文返回空对象。
+见 [只读诊断记录](PROJECT_REPORT_EMPTY_RESPONSE_20261030.md)，不能宣称网页报告闭环已完成。
+小至 64 字符也返回空对象。0.3.1 已补 report outputSchema/structuredContent，
+业务正文改为 logText，并返回 pageCharacters/totalCharacters。1265 项回归及
+官方本地代理 4000/64 字符双通道校验通过。原前台仍为 0.3.0，需要本次修复的
+重新加载和元数据刷新；不重做已完成的 Git/测试任务。
 
 首次本地任务 `alice_regression_20261030_f25770f70548` 在 checkout 前停止，
 reason=candidate_tree_too_large。独立证据表明实际 Git 树仅 38634 字节、320

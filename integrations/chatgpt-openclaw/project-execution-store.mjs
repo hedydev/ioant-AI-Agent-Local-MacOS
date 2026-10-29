@@ -85,9 +85,10 @@ export class ProjectExecutionStore{
   const text=await readFile(p,'utf8');
   if(createHash('sha256').update(text).digest('hex')!==r.report.sha256)throw Error('execution_report_changed');
   if(offset>text.length)throw Error('invalid_report_offset');
-  const content=text.slice(offset,offset+4000),next=offset+content.length;
+  const logText=text.slice(offset,offset+4000),next=offset+logText.length;
   return {state:'report',project:r.project,operationId:id,artifact:'execution_log',
-   sha256:r.report.sha256,offset,nextOffset:next<text.length?next:null,content,
+   sha256:r.report.sha256,offset,nextOffset:next<text.length?next:null,logText,
+   pageCharacters:logText.length,totalCharacters:text.length,
    contentIsUntrusted:true,truncated:r.logTruncated===true};
  }
 }

@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "event_id": "b5120e17-60a5-4e8f-9427-03460969e4aa",
+  "task_id": "586a6aa6-8b91-4c18-b61c-120999b3c343",
+  "event_type": "progress_recorded",
+  "occurred_at": "2026-10-29T16:55:33.343068Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "361350e6d9b69dac11ab16fbfaad234b7d00d84b",
+  "message": "Actual web resume/actions/result succeeded with exact commit/tests/cached receipt, but report returned {} twice; cloud tools/call=5 all 200. Independent read-only stdio and official Go dev proxy raw HTTP both returned original 4000-character report; full report hash unchanged. No production logic patched. Requested web tail read offset46200 to distinguish size from output-format handling. Documented absent explicit report structuredContent/outputSchema as a candidate, not a proven cause. Own isolated proxy child restart did not recover, so do not kill actual MCP child as a hot reload.",
+  "changes": {
+    "status": {
+      "from": "validation",
+      "to": "in_progress"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "device_validation",
+      "summary": "User web partial acceptance; stdio and isolated official local proxy show valid report; 64-character web probe pending"
+    }
+  ],
+  "supersedes_event_id": null
+}

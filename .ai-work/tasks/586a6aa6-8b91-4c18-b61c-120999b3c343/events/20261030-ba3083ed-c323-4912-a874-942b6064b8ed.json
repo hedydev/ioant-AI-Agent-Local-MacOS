@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "event_id": "ba3083ed-c323-4912-a874-942b6064b8ed",
+  "task_id": "586a6aa6-8b91-4c18-b61c-120999b3c343",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T17:02:48.557086Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "361350e6d9b69dac11ab16fbfaad234b7d00d84b",
+  "message": "User 64-character tail probe also returns {}, ruling out only-large-body failure. Corrected report output contract: explicit outputSchema, matching structuredContent/JSON text, unambiguous business logText, page/total character counts; source version 0.3.1. Full suite 1265 passed. Official isolated Go proxy raw HTTP returns identical channels at 4000/64 chars and original SHA. Existing receipt/log and job unchanged. Exact closed-source parsing branch not observed; true web correction awaits loading prepared source and metadata refresh, not claimed complete.",
+  "changes": {
+    "status": {
+      "from": "in_progress",
+      "to": "validation"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "1265 passed, 0 failed; 5 report contract tests include real SDK enforcement and malformed-output rejection"
+    },
+    {
+      "kind": "device_validation",
+      "summary": "Official local Go proxy 0.3.1 discovers output schema and preserves both report result channels; original SHA unchanged"
+    }
+  ],
+  "supersedes_event_id": null
+}

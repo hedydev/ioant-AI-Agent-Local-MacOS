@@ -339,3 +339,26 @@ input/clicks and closed only its own execution; user performed Refresh instead.
 Alice revision 4 development facts were preserved in revision 5, with actual Mac
 results and separate execution_ids now safe after source reload. New-tool web
 queries remain pending user report; do not replay the completed Git/test job.
+
+## Web report empty-object diagnosis (2026-10-30)
+
+User returned actual web resume revision 6, enabled action and passed/cached:true
+receipt, including correct commit and test counts. Two report offset=0 reads
+returned {}. New cloud tools/call count is 5, all 200. Read-only stdio and an
+isolated official tunnel-client Go dev proxy returned full 4000-character report
+pages with original SHA; no file corruption or local-forwarding failure reproduced.
+No production logic changes or task replay. Requested one web tail read offset
+46200 (64 characters) to distinguish size from output-format handling. Explicit
+report output schema/structuredContent is absent but not yet proven causal.
+See docs/PROJECT_REPORT_EMPTY_RESPONSE_20261030.md; raw proof stays private.
+
+User tail probe offset 46200 (64 characters) also returned {}. Added report-only
+explicit outputSchema and matching structuredContent/JSON text, renamed business
+body content to logText and exposed page/total character counts. Server version
+0.3.1. Five contract tests include real MCP SDK validation and rejection of empty
+structured output; full suite 1265/1265 passed. Official local Go dev proxy raw
+HTTP retained matching structured/text channels at 4000 and 64 characters with
+the unchanged original report SHA. No job/log mutation or execution replay.
+Live foreground remains 0.3.0 until the prepared fix is loaded and metadata
+refreshed; actual web correction remains pending. Closed-source internal parsing
+cause is bounded, not claimed as directly observed.
