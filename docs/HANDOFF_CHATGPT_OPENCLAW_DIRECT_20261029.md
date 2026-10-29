@@ -11,13 +11,19 @@ unchanged. Local Alice shared-MCP cursor and same-ID cached receipt passed;
 independent history contained one get_cursor_position. Full regression remains
 1244/1244 (no source changes after preparation). Read
 `docs/ALICE_COMPUTER_AGENT_ROLLOUT_20261029.md`. Do not replay apply, prior
-cursor tests, Tunnel restart or plugin Refresh. Alice web-originated computer
-task and arbitrary app effects are not yet accepted.
+cursor tests, Tunnel restart or plugin Refresh. Alice web-originated cursor
+task has now also passed; arbitrary application/file effects remain unaccepted.
+
+Alice web operation web_alice_cursor_20261029_262d997ddf7c returned successfully
+and same-ID result was cached:true. Independent exact-session history contained
+one computer/get_cursor_position; native coordinates 1295,684 matched the user
+report. Cloud tools/call increased 11→16, all 200. This audit read existing state
+only. Do not replay the completed web acceptance prompt.
 
 Operator-facing start/resume/task/handoff guidance and the one-shot Alice web
-acceptance prompt are in `docs/CHATGPT_OPENCLAW_QUICKSTART.md`. Current private
-handoffs are Alice revision 2 and workflow revision 8; always resume for the
-latest revision. This Codex chat has no OpenClaw Mac connector, so a genuine
+acceptance record are in `docs/CHATGPT_OPENCLAW_QUICKSTART.md`. Always resume for
+the latest handoff revision; setup revision examples are historical. This Codex
+chat has no OpenClaw Mac connector, so a genuine
 web-originated invocation must come from the user's ChatGPT web Chat.
 
 ## Operator's required working model
@@ -58,7 +64,8 @@ web-originated invocation must come from the user's ChatGPT web Chat.
 | Shared local native acceptance | Project-key MCP cursor task plus cached result passed; exact session history contained only get_cursor_position |
 | Alice web new-chat acceptance | User returned actual projects/status/resume results: two projects, alice-ai ready, handoff_found revision 1; correlated cloud tools/call count increased from 0 to 3, all 200 |
 | Workflow web computer acceptance | User's actual status/task/result passed; web_cursor_accept_20261029_a7c4d9e2 returned with cached:true and computerToolSucceeded:true. Independent history proved one get_cursor_position; cloud tools/call increased 3→6, all 200 |
-| Acceptance boundary | Routing/handoff/workflow web cursor and Alice local computer-only rollout passed. Alice web computer task and arbitrary app/file effects remain unaccepted |
+| Alice actual web computer acceptance | web_alice_cursor_20261029_262d997ddf7c; returned/cached:true, one cursor call, matching native coordinates and five correlated cloud calls |
+| Acceptance boundary | Both projects' native web cursor/cached-receipt routes passed. Arbitrary app/file effects and project development acceptance remain separate |
 
 Initial computer task receipt:
 `cursor_7ad32407-1d7e-4bb1-8a65-b7f9c6da5013`.
@@ -85,7 +92,7 @@ User acceptance in the OpenClaw Chat UI remains pending.
 
 The direct desktop integration has passed local shared-project native task/readback,
 actual cloud metadata refresh and genuine workflow web tasks/Alice web handoff reads.
-Alice's newly enabled computer task still needs its own web-originated acceptance.
+Alice's newly enabled computer task has also passed genuine web cursor acceptance.
 Shared-Tunnel routing and revisioned project handoffs are now implemented and
 locally verified. See `docs/CHATGPT_PROJECT_CONTINUITY_20261029.md`. The operator
 requires replacing a full ChatGPT chat without replacing the project Agent:
@@ -122,7 +129,7 @@ use expected_revision conflicts and fresh referenced receipts. An actual local
 save followed by a fresh-process resume passed; Alice remained independently
 empty. These are local MCP tests, not actual ChatGPT web new-chat acceptance.
 
-Current handoffs: workflow revision 8 and Alice revision 2 (read latest at runtime).
+Handoffs continue to advance; read the latest revision at runtime.
 The earlier workflow revision 4/Alice revision 1 setup was followed by separately
 approved Alice computer rollout. Shared private profile is deployed,
 the user-entered key remains private, and native plugin Refresh tools completed.
@@ -160,7 +167,7 @@ independent proof that an application's intended visible effect occurred.
    chat uses a new conversation_key and current expected_revision. Unsaved old
    chat context cannot be reconstructed automatically.
 6. Alice's separately approved computer-only rollout is now applied and passed
-   local native cursor/cached-receipt acceptance. The Alice project Chat can
+   local and actual web cursor/cached-receipt acceptance. The Alice project Chat can
    resume its latest handoff and issue a fresh explicitly scoped task. Direct
    exec, elevation, cross-Agent sends, skills and subagents remain disabled.
    The advisor message route now refuses; use computer_task/result. This does

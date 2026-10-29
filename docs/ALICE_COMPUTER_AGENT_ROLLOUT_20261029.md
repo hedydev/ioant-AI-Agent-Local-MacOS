@@ -1,6 +1,15 @@
 # Alice independent computer Agent — prepared rollout
 
-Updated 2026-10-29, Asia/Shanghai. **Applied with explicit user approval; local native acceptance passed.**
+Updated 2026-10-29, Asia/Shanghai. **Applied with explicit user approval; local and actual web native acceptance passed.**
+
+Actual web acceptance subsequently passed with
+`web_alice_cursor_20261029_262d997ddf7c`, conversation
+`alice_web_probe_262d997ddf7c`. The user returned ready/revision 2/not_found,
+then one successful task and same-ID cached:true. Independent local receipt
+confirmed returned/alice-ai/workerUsed:false; exact chat.history contained one
+computer/get_cursor_position and native coordinates x=1295,y=684 matching the
+web report. Cloud tools/call increased 11→16, all 200. Verification read existing
+state only; no cursor or other desktop action was repeated. Do not resubmit.
 
 The user explicitly instructed “启用 Alice 电脑工具”. The reviewed helper returned
 applied, backupSaved:true, computerOnly:true, shellEnabled:false,
@@ -54,7 +63,7 @@ On partial/uncertain failure, inspect state and backups; do not blindly replay.
 | Native config dry-run on this Mac | Passed | validated, configurationWritten:false, roleWritten:false |
 | Actual Alice permission change | Applied | User approval, private backup, exact disk/live readback |
 | Alice native computer task | Passed locally | One cursor call in independent history; same-ID cached receipt |
-| Alice computer task from ChatGPT web | Not yet tested | Local acceptance does not establish a new web-originated task |
+| Alice computer task from ChatGPT web | Passed | Actual user web result, exact receipt/history/coordinates and five correlated cloud calls |
 
 Private test log: LunaDrive project cache `verification/alice-computer-preparation-tests.log`.
 No private configuration, transcripts or secrets are part of this Git checkpoint.

@@ -5,7 +5,7 @@
 
 当前使用入口见 [项目使用指引](CHATGPT_OPENCLAW_QUICKSTART.md)。
 下方验收历程按当时状态记录；当前 Alice 电脑权限已获批准并启用，
-持久交接已到 Alice revision 2 / workflow revision 8（后续以实际 resume 为准）。
+Alice 网页电脑只读任务也已通过；持久交接版本以实际 resume 为准。
 
 ## 项目保持固定，聊天可以更换
 
@@ -152,10 +152,20 @@ cached:true、workerUsed:false。云端 tools/call 从 3 增至 6，全部 200�
 
 当前直连基础通路可用，等待用户对本阶段验收的确认。Alice 随后已获明确授权并
 启用独立电脑工具，本机鼠标坐标/缓存验收通过；不得借其它项目键越权。
-Alice 网页电脑任务尚待本轮验收。保存交接/新 Chat 恢复时，应
+Alice 网页电脑只读任务随后也已通过。保存交接/新 Chat 恢复时，应
 使用当前修订号，不能因本次 revision 1 的示例而在未来固定写死该值。
 同一个 Tunnel 原进程的 Runtime Key 只存在内存中，未保存；新进程需要用户在
 终端私下输入，不能从旧进程环境取回密钥，也不能在 Chat 中提交。
+
+## Alice 网页电脑只读验收已完成
+
+用户实际从 Alice 网页 Chat 完成 status、resume revision 2、result not_found、
+一次 task 和同 ID result cached:true。操作 ID：
+`web_alice_cursor_20261029_262d997ddf7c`。独立本机回执确认正确 Alice Agent/project、
+returned、computerToolSucceeded:true、workerUsed:false。精确会话历史仅一次
+computer/get_cursor_position，原生坐标 1295,684 与用户收到的结果相符；
+云端调用从 11 增至 16，均 200。审核期间没有额外电脑动作，不重复这轮测试。
+effectIndependentlyVerified:false 保留；尚不代表任意应用效果或 Alice 项目开发完成。
 
 ## Mac 上的命令
 

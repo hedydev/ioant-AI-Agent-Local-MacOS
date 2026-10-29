@@ -2,7 +2,7 @@
 
 当前状态：工作流和 Alice 都已启用各自独立的 computer-only Agent。
 共享 Tunnel、七工具插件、项目交接、工作流网页只读任务及 Alice 本地只读任务
-已经通过验证。Alice 网页发起电脑任务尚待本轮验收，不能用本地测试替代。
+已经通过验证。Alice 网页只读任务也已通过，独立历史确认只执行了一次坐标读取。
 当前配置不需要重新申请 macOS 权限、输入 Key、刷新插件或重启服务。
 
 ## Alice 项目 Chat 的接续规则
@@ -28,10 +28,15 @@ Alice 已启用 computer，执行用 openclaw_computer_task，不用无工具顾
 不能把 Alice 的 operation_id 或交接版本直接复制成工作流自己的回执。
 一个 Tunnel 可以承载这两个注册项目，但不会自动创建新项目或认证 ChatGPT Project 身份。
 
-## 本轮 Alice 网页只读验收：只发起一次
+## 已完成的 Alice 网页只读验收：不要重复提交
 
-下面 ID 专用于这一轮验收；粘贴两次也先查回执，不能自动再执行。
-用户在 **ChatGPT 网页的 Alice 项目 Chat** 中启用 OpenClaw Mac 后发送：
+用户已实际从网页完成以下流程。本机同 ID 回执为 returned/cached:true，
+精确会话历史只有一次 computer/get_cursor_position，原生坐标 1295,684 与网页报告一致。
+云端 tools/call 从 11 增至 16，均返回 200，与五个调用步骤相符。
+以下保留为验收记录，**无需再粘贴执行**。正常使用直接进入具体项目任务。
+
+下面 ID 已完成；任何后续核对只读回执，不重新提交。
+用户曾在 **ChatGPT 网页的 Alice 项目 Chat** 中启用 OpenClaw Mac 后发送：
 
 ```text
 仅使用 OpenClaw Mac，验收 Alice 网页端电脑调用。

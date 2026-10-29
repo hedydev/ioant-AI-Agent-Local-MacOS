@@ -274,3 +274,18 @@ checked; prior unchanged-source regression remains 1244/1244, not rerun for docs
 Genuine Alice web computer invocation remains pending user Chat; this Codex
 session has no OpenClaw Mac connector. Do not equate local status or generic
 cloud call counters with acceptance of that specific web task.
+
+## Actual Alice web native cursor acceptance (2026-10-29)
+
+User returned actual Alice web status/resume revision 2/result not_found/task/
+same-ID cached result for web_alice_cursor_20261029_262d997ddf7c. Local durable
+receipt independently confirmed returned, correct alice-ai project/Agent,
+computerToolSucceeded:true, workerUsed:false and cached:true on readback. Exact
+session history contained one computer/get_cursor_position and native x=1295,
+y=684 matched the web report. Cloud tools/call increased 11→16, all HTTP 200.
+Audit read only existing receipt/history/metrics; no task or desktop operation
+was repeated. Private proof is verification/alice-web-cursor-history.json in the
+LunaDrive project cache, not Git. Both projects now have actual web native-read/
+cache evidence. Arbitrary application effects and project-development acceptance
+remain separate; no human completion event inferred from a pasted model report.
+Documentation-only update; executable source regression remains 1244/1244.

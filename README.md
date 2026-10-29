@@ -4,7 +4,7 @@
 > [ChatGPT directly calling OpenClaw Agent through MCP](docs/CHATGPT_DIRECT_OPENCLAW_MCP.md).
 > Shared ChatGPT web project routing, persistent handoff and workflow native
 > cursor/cached-receipt acceptance passed. Both project Agents now allow only
-> computer; Alice's local cursor acceptance passed, with web task acceptance pending.
+> computer; both workflow and Alice web cursor/cached-receipt acceptance passed.
 > Start with the [project usage guide](docs/CHATGPT_OPENCLAW_QUICKSTART.md) and
 > [current handoff](docs/HANDOFF_CHATGPT_OPENCLAW_DIRECT_20261029.md).
 > Existing Workers remain unchanged; native consent/verification rules still apply.
