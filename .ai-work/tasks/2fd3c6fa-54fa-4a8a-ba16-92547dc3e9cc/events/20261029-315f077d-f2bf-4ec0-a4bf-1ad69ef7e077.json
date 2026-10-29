@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "event_id": "315f077d-f2bf-4ec0-a4bf-1ad69ef7e077",
+  "task_id": "2fd3c6fa-54fa-4a8a-ba16-92547dc3e9cc",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T15:46:13.730248Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "12c2ccbb345a5ed13d463f0399c2f492642c3eaa",
+  "message": "Resumed after usage reset. Read-only Alice policy readiness and persisted handoff revision 2 passed; existing one finished receipt preserved, no task replay. Foreground Tunnel remained ready with recent positive cloud polling. Codex has no OpenClaw Mac connector; actual Alice web task requires invocation from user ChatGPT web Chat. Corrected stale current-state docs and prepared operator project instructions plus receipt-first one-shot Alice web cursor acceptance prompt; no executable/config/service/Worker changes. Web acceptance still pending and no human completion inferred.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "device_validation",
+      "summary": "Alice shared MCP ready; handoff revision 2 recovered; only original completed cursor receipt; Tunnel ready HTTP 200 and cloud poll age 8.3s at observation"
+    },
+    {
+      "kind": "manual_review",
+      "summary": "Documentation links, registered project keys and bounded operation/conversation IDs checked; original source regression remains 1244/1244"
+    }
+  ],
+  "supersedes_event_id": null
+}

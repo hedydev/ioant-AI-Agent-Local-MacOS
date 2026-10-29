@@ -2,10 +2,12 @@
 
 > **New operator-selected integration direction (2026-10-29):**
 > [ChatGPT directly calling OpenClaw Agent through MCP](docs/CHATGPT_DIRECT_OPENCLAW_MCP.md).
-> The local text-only protocol acceptance passed; ChatGPT tunnel connection and
-> execution-Agent permissions remain separate acceptance steps. Keep the existing
-> Worker during transition. This does not replace the native Computer Use
-> implementation or its consent/verification rules below.
+> Shared ChatGPT web project routing, persistent handoff and workflow native
+> cursor/cached-receipt acceptance passed. Both project Agents now allow only
+> computer; Alice's local cursor acceptance passed, with web task acceptance pending.
+> Start with the [project usage guide](docs/CHATGPT_OPENCLAW_QUICKSTART.md) and
+> [current handoff](docs/HANDOFF_CHATGPT_OPENCLAW_DIRECT_20261029.md).
+> Existing Workers remain unchanged; native consent/verification rules still apply.
 
 > **Current AI-OpenClaw workflow direction (2026-10-29):**
 > The primary path is **OpenClaw.app native Mac Computer Use (CUA v2

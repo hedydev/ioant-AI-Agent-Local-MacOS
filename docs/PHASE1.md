@@ -259,3 +259,18 @@ window enumeration, movement, clicks, input or message sends. Existing Tunnel an
 Workers were unchanged. Latest source regression remains 1244/1244; no executable
 source changes after that run. Alice web-originated computer tasks and arbitrary
 application/file effects remain separate acceptance; see rollout document.
+
+## Operator project usage and Alice web acceptance handoff (2026-10-29)
+
+After usage reset, read-only shared Alice readiness and handoff revision 2 passed;
+only the original completed Alice cursor receipt exists. Tunnel HTTP readiness
+and recent successful cloud polling were observed without restarting it or
+retrieving its key. Added docs/CHATGPT_OPENCLAW_QUICKSTART.md with project Chat
+instructions, daily task/handoff procedure and a receipt-first one-shot Alice web
+cursor acceptance prompt. Corrected stale current-state descriptions in README,
+continuity and canonical handoff. No executable/config/role/Worker changes or
+desktop tasks in this step. Documentation links, bounded IDs and whitespace
+checked; prior unchanged-source regression remains 1244/1244, not rerun for docs.
+Genuine Alice web computer invocation remains pending user Chat; this Codex
+session has no OpenClaw Mac connector. Do not equate local status or generic
+cloud call counters with acceptance of that specific web task.

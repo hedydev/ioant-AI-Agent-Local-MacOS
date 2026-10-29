@@ -3,6 +3,10 @@
 用户要求：ChatGPT Chat 达到上下文/聊天上限后，旧 Chat 给出交接话；用户在
 同一项目创建 New chat，粘贴后继续。新 Chat 没有旧 Chat 的完整上下文。
 
+当前使用入口见 [项目使用指引](CHATGPT_OPENCLAW_QUICKSTART.md)。
+下方验收历程按当时状态记录；当前 Alice 电脑权限已获批准并启用，
+持久交接已到 Alice revision 2 / workflow revision 8（后续以实际 resume 为准）。
+
 ## 项目保持固定，聊天可以更换
 
 | 身份/状态 | 更换 Chat 时 |
@@ -17,7 +21,7 @@
 同一个 Tunnel 可以使用显式共享模式，当前注册：
 
 - `openclaw-workflow` → `openclaw-dev`，已启用原生 computer。
-- `alice-ai` → `alice-ai`，目前仍为无工具顾问；共享路由不会为它增加电脑权限。
+- `alice-ai` → `alice-ai`，已独立授权 computer-only；直接终端、提权和跨 Agent 调用关闭。
 
 项目键只是本机注册路由，不是经过认证的 ChatGPT Project ID。
 同一私有插件可访问被本机显式启用的这些项目；模型必须根据用户明确的项目或
@@ -146,8 +150,9 @@ cached:true、workerUsed:false。云端 tools/call 从 3 增至 6，全部 200�
 | 同 ID 缓存回读 | 通过 | cached:true，未重复执行；云端调用累计六次 200 |
 | 本机回归 | 通过 | 1241/1241 |
 
-当前直连基础通路可用，等待用户对本阶段验收的确认。Alice 当前仍无电脑工具，
-原有独立顾问角色保持不变；不能让 Alice 通过其它项目键越权。保存交接/新 Chat 恢复时，应
+当前直连基础通路可用，等待用户对本阶段验收的确认。Alice 随后已获明确授权并
+启用独立电脑工具，本机鼠标坐标/缓存验收通过；不得借其它项目键越权。
+Alice 网页电脑任务尚待本轮验收。保存交接/新 Chat 恢复时，应
 使用当前修订号，不能因本次 revision 1 的示例而在未来固定写死该值。
 同一个 Tunnel 原进程的 Runtime Key 只存在内存中，未保存；新进程需要用户在
 终端私下输入，不能从旧进程环境取回密钥，也不能在 Chat 中提交。

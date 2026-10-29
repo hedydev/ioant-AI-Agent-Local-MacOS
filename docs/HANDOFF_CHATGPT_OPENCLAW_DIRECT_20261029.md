@@ -14,6 +14,12 @@ independent history contained one get_cursor_position. Full regression remains
 cursor tests, Tunnel restart or plugin Refresh. Alice web-originated computer
 task and arbitrary app effects are not yet accepted.
 
+Operator-facing start/resume/task/handoff guidance and the one-shot Alice web
+acceptance prompt are in `docs/CHATGPT_OPENCLAW_QUICKSTART.md`. Current private
+handoffs are Alice revision 2 and workflow revision 8; always resume for the
+latest revision. This Codex chat has no OpenClaw Mac connector, so a genuine
+web-originated invocation must come from the user's ChatGPT web Chat.
+
 ## Operator's required working model
 
 - Official ChatGPT web chat owns conversation, requirements, reasoning,
@@ -52,7 +58,7 @@ task and arbitrary app effects are not yet accepted.
 | Shared local native acceptance | Project-key MCP cursor task plus cached result passed; exact session history contained only get_cursor_position |
 | Alice web new-chat acceptance | User returned actual projects/status/resume results: two projects, alice-ai ready, handoff_found revision 1; correlated cloud tools/call count increased from 0 to 3, all 200 |
 | Workflow web computer acceptance | User's actual status/task/result passed; web_cursor_accept_20261029_a7c4d9e2 returned with cached:true and computerToolSucceeded:true. Independent history proved one get_cursor_position; cloud tools/call increased 3→6, all 200 |
-| Acceptance boundary | Project routing, new-chat handoff read, native cursor task and cached readback passed. Arbitrary app/file effects and Alice computer permissions are not included |
+| Acceptance boundary | Routing/handoff/workflow web cursor and Alice local computer-only rollout passed. Alice web computer task and arbitrary app/file effects remain unaccepted |
 
 Initial computer task receipt:
 `cursor_7ad32407-1d7e-4bb1-8a65-b7f9c6da5013`.
@@ -77,15 +83,15 @@ default. Local API greeting and reasoning probes passed, with slower measured
 generation on this Mac. See the model document for Gateway acceptance limits.
 User acceptance in the OpenClaw Chat UI remains pending.
 
-The direct desktop integration has passed local shared-project native task/readback
-and the actual cloud metadata refresh. A fresh ChatGPT chat must still exercise
-the new tools; do not infer that from the successful metadata scan alone.
+The direct desktop integration has passed local shared-project native task/readback,
+actual cloud metadata refresh and genuine workflow web tasks/Alice web handoff reads.
+Alice's newly enabled computer task still needs its own web-originated acceptance.
 Shared-Tunnel routing and revisioned project handoffs are now implemented and
 locally verified. See `docs/CHATGPT_PROJECT_CONTINUITY_20261029.md`. The operator
 requires replacing a full ChatGPT chat without replacing the project Agent:
 the new chat uses a fresh conversation_key and resumes the durable project
 handoff, then checks old receipts instead of repeating uncertain work. Current
-web deployment/acceptance remains pending; do not claim the whole flow complete.
+arbitrary application-effect acceptance remains pending; do not claim it from cursor tests.
 
 ## Code and runtime ownership
 
@@ -116,8 +122,9 @@ use expected_revision conflicts and fresh referenced receipts. An actual local
 save followed by a fresh-process resume passed; Alice remained independently
 empty. These are local MCP tests, not actual ChatGPT web new-chat acceptance.
 
-Latest: workflow handoff revision 4 and separately seeded Alice connection-only
-revision 1 resume in new local MCP processes. Shared private profile is deployed,
+Current handoffs: workflow revision 8 and Alice revision 2 (read latest at runtime).
+The earlier workflow revision 4/Alice revision 1 setup was followed by separately
+approved Alice computer rollout. Shared private profile is deployed,
 the user-entered key remains private, and native plugin Refresh tools completed.
 Native setup scripts were exercised without model inference, screenshots,
 browser Relay/CDP, permission changes, plugin version changes or chat sends.
