@@ -137,6 +137,10 @@ test('real child execution has bounded argv transport, no model, and returns an 
  const r=await executionCommand(process.execPath,['-p','2+3'],{cwd:process.cwd(),timeout:3000});
  assert.equal(r.exitCode,0);assert.equal(r.stdout.trim(),'5');
 });
+test('NUL-delimited Git metadata is not a truncated text log when streaming is disabled',async()=>{
+ const r=await executionCommand(process.execPath,['-e',"process.stdout.write(('metadata\\0').repeat(2000))"],{cwd:process.cwd(),timeout:3000});
+ assert.equal(r.ok,true);assert.equal(r.truncated,false);assert.equal(r.stdout.length,18000);
+});
 test('streamed log redaction survives split credentials/key blocks and persists before child exit',async()=>{
  const log=[];
  const source="process.stdout.write('password=secret-part');setTimeout(()=>process.stdout.write('-rest\\n-----BEGIN OPENSSH PRIVATE KEY-----\\nprivate material\\n'),25);setTimeout(()=>process.stdout.write('-----END OPENSSH PRIVATE KEY-----\\nDONE\\n'),50);setTimeout(()=>{},100)";

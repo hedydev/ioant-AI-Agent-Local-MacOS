@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "event_id": "1661b1b7-aedb-4fae-b3c9-2421fc9bf546",
+  "task_id": "586a6aa6-8b91-4c18-b61c-120999b3c343",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-29T16:23:45.386169Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "9cfa95bf60d162d7a2b281a7cd17e69fb10275ee",
+  "message": "First actual local job stopped before checkout/tests, no source change: candidate_tree_too_large. Proven cause: NUL-delimited 38634-byte Git metadata was routed through long-line log redaction even without onOutput, setting a false truncated flag. Restrict streaming processing to explicit callbacks; preserve raw metadata bounds. New NUL subprocess regression and full 1260/1260 passed. Original blocked operation alice_regression_20261030_f25770f70548 remains cached, not replayed. A fresh intentional acceptance can now follow after source commit.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "1260 passed, 0 failed; 18000-byte NUL subprocess regression passes without false truncation"
+    },
+    {
+      "kind": "device_validation",
+      "summary": "Actual pinned e12038b tree verified read-only: 320 files / 3156098 bytes source; first job stopped prior to merge/Python"
+    }
+  ],
+  "supersedes_event_id": null
+}

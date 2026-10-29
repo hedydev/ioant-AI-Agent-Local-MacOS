@@ -49,13 +49,17 @@ export async function executionCommand(file,args,{cwd,timeout=45000,env=executio
   const collect=stream=>chunk=>{
    const text=streams[stream].decoder.write(chunk);
    if(stream==='stdout')stdout+=text;else stderr+=text;
-   streamText(stream,text);
+   if(onOutput)streamText(stream,text);
    if(Buffer.byteLength(stdout)>limit){stdout=stdout.slice(-Math.floor(limit/4));truncated=true;}
    if(Buffer.byteLength(stderr)>limit){stderr=stderr.slice(-Math.floor(limit/4));truncated=true;}
   };
   child.stdout.on('data',collect('stdout'));child.stderr.on('data',collect('stderr'));
   const finish=async extra=>{if(settled)return;settled=true;clearTimeout(timer);clearTimeout(killTimer);
-   for(const name of ['stdout','stderr'])streamText(name,streams[name].decoder.end(),true);
+   for(const name of ['stdout','stderr']){
+    const tail=streams[name].decoder.end();
+    if(name==='stdout')stdout+=tail;else stderr+=tail;
+    if(onOutput)streamText(name,tail,true);
+   }
    await outputQueue;
    done({ok:extra.exitCode===0&&!timedOut&&!outputFailed,stdout,stderr,truncated,timedOut,outputFailed,...extra});};
   child.once('error',()=>finish({exitCode:null,spawnFailed:true}));

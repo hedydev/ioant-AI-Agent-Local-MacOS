@@ -302,3 +302,10 @@ execution_ids persist same-project job references separately from computer IDs.
 Full source suite 1259/1259 passed; shell syntax/whitespace and actual local
 config dry-run passed. Actual Alice job and web metadata rollout remain pending
 at this source checkpoint. See docs/PROJECT_EXECUTION_MCP_20261030.md.
+
+First actual local execution stopped before checkout/tests with cached blocked
+receipt alice_regression_20261030_f25770f70548, candidate_tree_too_large.
+Read-only evidence established 38634-byte NUL tree metadata falsely inherited
+text-line truncation despite no streaming callback. Fixed that boundary; added a
+real NUL-metadata subprocess regression. Full suite now 1260/1260. No tree guard
+was weakened, no old ID replayed, no Alice source change occurred in that attempt.
