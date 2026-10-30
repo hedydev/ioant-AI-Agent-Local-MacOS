@@ -12,10 +12,11 @@ const exec=promisify(execFile);
 export async function inspectProcess(pid,{binary=TUNNEL_BINARY,profileDir=PROFILE_DIR,profile=PROFILE,command=exec}={}){
  if(!Number.isSafeInteger(pid)||pid<2)return null;
  try{
-  const {stdout}=await command('/bin/ps',['-p',String(pid),'-o','uid=,lstart=,comm='],{timeout:2000});
+  const psOptions={timeout:2000,env:{...executionEnvironment(),LC_ALL:'C'}};
+  const {stdout}=await command('/bin/ps',['-p',String(pid),'-o','uid=,lstart=,comm='],psOptions);
   const match=stdout.trim().match(/^(\d+)\s+(.{24})\s+(.+)$/);
   if(!match||Number(match[1])!==process.getuid()||match[3]!==binary||await realpath(binary)!==binary)return null;
-  const args=(await command('/bin/ps',['-p',String(pid),'-o','command='],{timeout:2000})).stdout;
+  const args=(await command('/bin/ps',['-p',String(pid),'-o','command='],psOptions)).stdout;
   // Expected profile identity only. Never return argv or inspect process environments.
   if(!args.includes('--profile-dir '+profileDir)||!args.includes('--profile '+profile))return null;
   return {pid,start:match[2],binary};

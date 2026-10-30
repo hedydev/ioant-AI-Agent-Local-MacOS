@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {EventEmitter} from 'node:events';import {PassThrough} from 'node:stream';
 import {mkdtemp,chmod,realpath,writeFile,rm,readFile} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
 import {TunnelController,inspectProcess} from '../console/process-control.mjs';
+import {inspectConsoleProcess} from '../console/service-manager.mjs';
 test('stop refuses unverified or changed process identity and sends only SIGTERM to the verified PID',async()=>{
  const events=[],signals=[],diagnostics={record:(e,f)=>events.push({e,f})};let fresh={pid:123,start:'new'};
  const c=new TunnelController(diagnostics,{identify:async()=>({pid:123,start:'old'}),inspect:async()=>fresh,signal:(...a)=>signals.push(a)});
@@ -25,6 +26,16 @@ test('starting uses fixed argv and an in-memory key, refuses duplicate process a
 test('process identity refuses unrelated names without looking at their command arguments',async()=>{
  let calls=0;const command=async()=>{calls++;return {stdout:'501 Fri Oct 30 05:48:10 2026 /unrelated/process\n'};};
  assert.equal(await inspectProcess(123,{command}),null);assert.equal(calls,1);
+});
+test('console and Tunnel identity use a canonical locale instead of translated ps timestamps',async()=>{
+ const stamp='Fri Oct 30 16:29:07 2026',entry='/fixture/scripts/tunnel-console.mjs';
+ const web=await inspectConsoleProcess(123,{entryPath:entry,command:async(file,args,options)=>{
+  assert.equal(options.env.LC_ALL,'C');return {stdout:stamp+' node '+entry};
+ }});assert.equal(web.start,stamp);
+ const binary=await realpath(process.execPath);
+ const tunnel=await inspectProcess(123,{binary,profileDir:'/fixture',profile:'test',command:async(file,args,options)=>{
+  assert.equal(options.env.LC_ALL,'C');return {stdout:args.includes('uid=,lstart=,comm=')?process.getuid()+' '+stamp+' '+binary:binary+' run --profile-dir /fixture --profile test'};
+ }});assert.equal(tunnel.start,stamp);
 });
 test('restart validates credentials before stopping and never starts an overlapping stdio client',async()=>{
  const events=[];let alive=true,launches=0;

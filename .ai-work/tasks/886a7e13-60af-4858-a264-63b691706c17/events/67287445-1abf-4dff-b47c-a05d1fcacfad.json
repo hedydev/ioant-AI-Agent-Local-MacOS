@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "event_id": "67287445-1abf-4dff-b47c-a05d1fcacfad",
+  "task_id": "886a7e13-60af-4858-a264-63b691706c17",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-30T08:33:24.615988Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "d96131f46021f5c9a79cea74f3a67f609f5950e7",
+  "message": "Reproduced user console_port_already_in_use in zh_CN locale: translated ps lstart differs from stored English timestamp for the same live PID. Fixed process identity probes to LC_ALL=C in console manager and Tunnel controller. Existing process untouched. Six targeted tests pass; real repeated start in C/en_US/zh_CN/zh_TW returns the same PID60134 and ready:true. No speculative port adoption or broad kills.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "test",
+      "result": "6 targeted tests passed; four real locale start checks passed"
+    }
+  ],
+  "supersedes_event_id": null
+}

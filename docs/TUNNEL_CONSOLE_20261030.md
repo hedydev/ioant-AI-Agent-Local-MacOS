@@ -81,3 +81,12 @@ repository_task新增可选 `workspace_mode`：
 
 仍待运行凭据：新版Tunnel真实启动/停止往返、云端工具目录Refresh和网页调用新模式。
 这些不能由单元测试或本机SDK结果替代。没有重做NetScale任务、安装VPN或改动AWS服务。
+
+## 中文终端重复启动误报端口占用：已修正
+
+同一60134进程在C/en_US语言下的ps lstart是英文日期，在zh_CN/zh_TW语言下
+是本地化日期。旧身份比较使用继承语言的字符串，因而丢失对同一服务的识别，
+随后HTTP探测看到已有服务就报console_port_already_in_use。已实际在中文终端
+环境复现后固定所有进程身份ps调用的LC_ALL=C。没有忽略真正的端口冲突或停止
+已有服务。四种语言环境重复start均核对相同PID与ready=true；身份/控制/API
+专项6项通过。未为此清除进程记录或重新启动用户服务。

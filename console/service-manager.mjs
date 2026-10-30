@@ -7,10 +7,11 @@ import {executionEnvironment} from '../integrations/chatgpt-openclaw/project-exe
 import {CONSOLE_ROOT,REPO,PORT} from './config.mjs';
 const exec=promisify(execFile),manifest=join(CONSOLE_ROOT,'web-process.json'),log=join(CONSOLE_ROOT,'launcher.log');
 const entry=join(REPO,'scripts/tunnel-console.mjs');
-async function identity(pid){
+export async function inspectConsoleProcess(pid,{command=exec,entryPath=entry}={}){
  if(!Number.isSafeInteger(pid)||pid<2)return null;
- try{const {stdout}=await exec('/bin/ps',['-p',String(pid),'-o','lstart=,command=']);const start=stdout.trim().slice(0,24);if(!stdout.includes(entry))return null;return {pid,start};}catch{return null;}
+ try{const {stdout}=await command('/bin/ps',['-p',String(pid),'-o','lstart=,command='],{env:{...executionEnvironment(),LC_ALL:'C'}});const start=stdout.trim().slice(0,24);if(!stdout.includes(entryPath))return null;return {pid,start};}catch{return null;}
 }
+const identity=inspectConsoleProcess;
 async function current(){try{const saved=JSON.parse(await privateRead(manifest)),live=await identity(saved.pid);return live?.start===saved.start?live:null;}catch{return null;}}
 const launcher=`import os,sys
 node,entry,cwd,log=sys.argv[1:]
