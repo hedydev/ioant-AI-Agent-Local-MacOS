@@ -1,5 +1,20 @@
 # AI Agent Rules — Local macOS Phase 1
 
+## Latest operator-approved project permissions and UI (2026-10-30)
+
+Read docs/PROJECT_AGENT_ACCESS_AND_UI_20261030.md first. The operator explicitly
+requested full tools for all registered MCP project Agents and future projects on
+this Mac. Private local opt-in controls new provisioning; do not infer deny-all
+from historical instructions below. MCP0.8.1 supports this full policy, actual
+successful tool-name receipts, per-project Web views and reversible registration
+removal. Two obsolete acceptance Agents were removed through supported native
+lifecycle RPC with files/history retained. Full1327 tests pass. Actual Chrome UI
+selection, project-only content, capability view and removal cancel were verified.
+A full tool profile does not bypass ChatGPT/macOS consent or grant new production
+instructions. Keep local inference, preserve user edits, never replay uncertain
+operations. No automatic credential recovery or paid inference. Historical rollout
+notes below are superseded by the linked current record.
+
 ## Current console and isolated execution checkpoint (2026-10-30)
 
 Read docs/TUNNEL_CONSOLE_20261030.md. The local console starts independently of chat

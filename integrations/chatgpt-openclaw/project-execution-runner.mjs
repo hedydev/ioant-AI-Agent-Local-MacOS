@@ -27,7 +27,9 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
   log+=clean;record.report=await store.writeLog(operationId,log);
  };
  const step=async(name,file,args,options={})=>{
-  const row={name,state:'running',startedAt:new Date().toISOString()};record.steps.push(row);await save();
+  const row={name,state:'running',startedAt:new Date().toISOString(),
+   capability:file==='/usr/bin/git'?'git':'script',runtime:file.split('/').at(-1),
+   ...(options.script?{script:options.script}:{} )};record.steps.push(row);await save();
   await append('\n['+name+'] started\n');
   let streamed=false;
   const r=await command(file,args,{cwd:policy.repo,...options,

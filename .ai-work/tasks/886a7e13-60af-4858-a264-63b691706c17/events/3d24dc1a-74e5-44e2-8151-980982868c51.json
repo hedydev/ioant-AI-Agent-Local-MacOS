@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "event_id": "3d24dc1a-74e5-44e2-8151-980982868c51",
+  "task_id": "886a7e13-60af-4858-a264-63b691706c17",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-30T12:43:46.802462Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "0d41cf43dc22c9ca55d149a1f25d68c16db2ea56",
+  "message": "Operator authorized full tools for current/future MCP project Agents. Local private config and live Gateway verified; actual MCP NetScale status ready/full/computer enabled. Added confirmed capability use, project-only UI with persistent selection and scoped native-lifecycle removal. Two obsolete fixture Agents removed with data retained. Native Chrome verified project route, capabilities, refresh persistence and removal cancel. Full1327 tests passed, zero failures/skips/cancellations. Backend reloaded; operator privately re-entered the memory-only key. Tunnel ready and actual MCP projects/Alice/NetScale status readback confirmed four projects with full tools/computer enabled. Human visual acceptance pending. No NetScale job replay or checkout mutation by this task.",
+  "changes": {
+    "status": {
+      "from": "awaiting_device_validation",
+      "to": "awaiting_user_acceptance"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/PROJECT_AGENT_ACCESS_AND_UI_20261030.md"
+    }
+  ],
+  "supersedes_event_id": null
+}

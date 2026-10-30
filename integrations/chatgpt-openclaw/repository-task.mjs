@@ -85,7 +85,7 @@ export async function executeRepositoryTask(plan,policy,{operationId,outputDir,s
   await verify(policy,plan,item);
   const args=item.args.map(a=>a==='@output_dir'?outputDir:a==='@operation_id'?operationId:a);
   await step(item.name,policy.runtimes[item.runtime],[join(policy.repo,item.script),...args],
-   {timeout:item.timeoutSeconds*1000,env});
+   {timeout:item.timeoutSeconds*1000,env,script:item.script});
  }
  return {taskFile:plan.taskFile,definitionSha256:plan.definitionSha256,
   completedSteps:plan.steps.length,artifacts:plan.artifacts};

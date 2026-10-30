@@ -1,4 +1,5 @@
 // Async MCP admission and receipt/report reads. New process survives MCP disconnect.
+import {projectRetired} from './project-lifecycle.mjs';
 import {createHash} from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
@@ -82,6 +83,7 @@ export async function projectExecution(name,args,{binding,store=new ProjectExecu
    ...(args.action==='repository_task'?[args.task_file,...(args.workspace_mode==='isolated'?['isolated']:[])]:[])])).digest('hex');
   const previous=await store.get(args.operation_id);
   if(previous)return previous.digest===digest?publicReceipt(previous):{state:'blocked',reason:'operation_id_conflict'};
+  if(await projectRetired(binding.projectKey))return {state:'blocked',reason:'project_retired'};
   const p=await policy(binding,{action:args.action});
   if(!p||p.action!==args.action)return {state:'blocked',reason:'project_action_not_enabled'};
   const claim=await store.begin(args,digest);

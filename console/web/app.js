@@ -1,14 +1,27 @@
+import {decodeRoute,routeHash,projectSelection} from './navigation.js';
 import {api,subscribe} from './api-client.js';
 import {t,errorText,time,setLocale,localePreference} from './i18n.js';
-import {node,renderStatus,renderActivities,renderCommunications,renderLogs} from './render.js';
+import {node,renderStatus,renderPermissions,renderActivities,renderCommunications,renderLogs} from './render.js';
 
 const $=id=>document.getElementById(id);
-const state={snapshot:null,view:'overview',pending:null,project:'all',status:'all',search:'',logLevel:'all',logSearch:'',paused:false,logRows:[],stream:false};
-let toastTimer,controlAction,focusBeforeDialog,reportRow,reportOffset=0,reportNext=null,lastProjectKeys='';
+const state={snapshot:null,view:decodeRoute(location.hash).view,selectedProject:decodeRoute(location.hash).project,pending:null,project:'all',status:'all',search:'',logLevel:'all',logSearch:'',paused:false,logRows:[],stream:false};
+let removingProject,toastTimer,controlAction,focusBeforeDialog,reportRow,reportOffset=0,reportNext=null,lastProjectKeys='';
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5000);}
 function fail(code){$('persistent-error').textContent=errorText(code);$('persistent-error').hidden=false;}
 function options(select,rows,current){select.replaceChildren(...rows.map(([value,text])=>node('option',{value},text)));select.value=current;}
-function changeView(view){state.view=view;for(const name of ['overview','activity','logs'])$('view-'+name).hidden=name!==view;for(const b of $('navigation').children)b.classList.toggle('active',b.dataset.view===view);$('view-title').textContent=t('nav.'+view);}
+function changeView(view,project=state.selectedProject){
+ state.view=view;state.selectedProject=view==='project'?project:null;
+ history.replaceState(null,'',location.pathname+location.search+routeHash(state));
+ for(const name of ['overview','activity','logs','project'])$('view-'+name).hidden=name!==view;
+ $('tunnel-status').hidden=view!=='overview';$('metrics').hidden=view!=='overview';$('export').hidden=view==='project';$('stream-status').hidden=view==='project';
+ const p=state.snapshot?.projects.find(p=>p.key===state.selectedProject);
+ $('view-title').textContent=view==='project'?(p?.name??project):t('nav.'+view);
+ $('page-title').textContent=view==='project'?(p?.name??project):t(view==='overview'?'page.title':'nav.'+view);
+ $('footer-scope').textContent=t(view==='project'?'project.footer':'footer.scope');
+ $('page-subtitle').textContent=t(view==='project'?'project.subtitle':view==='overview'?'page.subtitle':view==='activity'?'activity.subtitle':'logs.subtitle');
+ for(const b of $('navigation').children){b.classList.toggle('active',b.dataset.view===view);if(b.dataset.view===view)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');}
+ for(const b of $('project-nav').children){const active=projectSelection(state,b.dataset.project);b.classList.toggle('active',active);if(active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');}
+}
 function applyLocale(){
  setLocale(localePreference());document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));document.querySelectorAll('[data-placeholder]').forEach(e=>e.placeholder=t(e.dataset.placeholder));
  const buttons=[['overview','◫'],['activity','≡'],['logs','⇄']];
@@ -25,12 +38,22 @@ function theme(value){if(value==='system')document.documentElement.removeAttribu
 function render(){
  const snapshot=state.snapshot;if(!snapshot)return;
  const focus=document.activeElement?.dataset?.focus;
+
  renderStatus(snapshot,{logs:()=>changeView('logs'),control:openControl},state.pending);
- const projectKeys=JSON.stringify(snapshot.projects.map(p=>p.key));
+ const projectKeys=JSON.stringify(snapshot.projects.map(p=>[p.key,p.name]));
  if(projectKeys!==lastProjectKeys){
   const label=p=>(p.kind==='test'?t('project.test')+' · ':'')+(p.name??p.key);
   options($('project-filter'),[['all',t('common.allProjects')],...snapshot.projects.map(p=>[p.key,label(p)])],state.project);
-  $('project-nav').replaceChildren(...snapshot.projects.map(p=>node('button',{class:'project-button',title:label(p)+'\n'+p.key,onclick:()=>{state.project=p.key;$('project-filter').value=p.key;changeView('activity');render();}},node('span',{class:'project-bullet'}),node('span',{},label(p)))));lastProjectKeys=projectKeys;
+  $('project-nav').replaceChildren(...snapshot.projects.map(p=>node('button',{class:'project-button','data-project':p.key,title:label(p)+'\n'+p.key,onclick:()=>{changeView('project',p.key);render();}},node('span',{class:'project-bullet'}),node('span',{},label(p)))));lastProjectKeys=projectKeys;
+ }
+ if(state.view==='project'&&!snapshot.projects.some(p=>p.key===state.selectedProject))changeView('overview');
+ changeView(state.view);
+ if(state.view==='project'){
+  const p=snapshot.projects.find(p=>p.key===state.selectedProject),jobs=snapshot.activities.filter(r=>r.project===p.key);
+  $('project-name').textContent=p.name??p.key;$('project-identity').textContent=[...new Set([p.key,p.agent,p.repository,p.branch].filter(Boolean))].join(' · ');
+  renderPermissions([p]);renderActivities($('project-activity'),jobs,openReport);
+  $('remove-project').hidden=!p.removable;$('remove-project').disabled=jobs.some(r=>['running','accepted','started'].includes(r.state));
+  $('project-summary').replaceChildren(...[['total',jobs.length],['running',jobs.filter(r=>['running','accepted','started'].includes(r.state)).length],['passed',jobs.filter(r=>['passed','returned'].includes(r.state)).length],['blocked',jobs.filter(r=>['failed','blocked','inconclusive'].includes(r.state)).length]].map(([k,v])=>node('div',{class:'metric'},node('div',{class:'metric-label'},t('project.'+k)),node('div',{class:'metric-value'},v))));
  }
  const activities=snapshot.activities.filter(r=>(state.project==='all'||r.project===state.project)&&(state.status==='all'||r.state===state.status)&&JSON.stringify([r.operationId,r.project,r.action,r.reason]).toLowerCase().includes(state.search.toLowerCase()));
  renderActivities($('recent-activity'),snapshot.activities.slice(0,5),openReport);renderActivities($('all-activity'),activities,openReport);renderCommunications(snapshot.mcpEvents);
@@ -73,6 +96,19 @@ async function loadReport(){
 }
 function openReport(row){reportRow=row;reportOffset=0;$('report-title').textContent=row.operationId;options($('report-artifact'),row.artifacts.map(a=>[a.id,a.id]),'execution_log');$('report-dialog').showModal();loadReport();}
 $('report-close').onclick=()=>$('report-dialog').close();$('report-artifact').onchange=()=>{reportOffset=0;loadReport();};$('report-next').onclick=()=>{if(Number.isInteger(reportNext)){reportOffset=reportNext;loadReport();}};
+$('remove-project').onclick=()=>{
+ removingProject=state.snapshot.projects.find(p=>p.key===state.selectedProject);if(!removingProject)return;
+ $('remove-description').textContent=t('project.removeDescription',{name:removingProject.name??removingProject.key});$('remove-error').hidden=true;$('remove-dialog').showModal();$('remove-cancel').focus();
+};
+$('remove-cancel').onclick=()=>{$('remove-dialog').close();$('remove-project').focus();};
+$('remove-submit').onclick=async()=>{
+ const button=$('remove-submit');button.disabled=true;
+ try{const result=await api('/api/project/remove',{method:'POST',body:{project_key:removingProject.key,operation_id:'remove_'+crypto.randomUUID().replaceAll('-','')}});
+  if(result.state!=='removed')throw {code:result.reason??'project_removal_inconclusive'};
+  $('remove-dialog').close();toast(t('project.removed'));state.snapshot=await api('/api/snapshot');changeView('overview');lastProjectKeys='';render();
+ }catch(e){$('remove-error').textContent=errorText(e.code);$('remove-error').hidden=false;}finally{button.disabled=false;}
+};
+window.addEventListener('hashchange',()=>{const route=decodeRoute(location.hash);changeView(route.view,route.project);render();});
 $('project-filter').onchange=e=>{state.project=e.target.value;render();};$('state-filter').onchange=e=>{state.status=e.target.value;render();};$('activity-search').oninput=e=>{state.search=e.target.value;render();};
 $('log-filter').onchange=e=>{state.logLevel=e.target.value;render();};$('log-search').oninput=e=>{state.logSearch=e.target.value;render();};
 $('pause-logs').onclick=()=>{state.paused=!state.paused;$('pause-logs').textContent=t(state.paused?'action.resume':'action.pause');render();};

@@ -1,3 +1,13 @@
+## Current project console and tools
+
+See [project permissions and UI](PROJECT_AGENT_ACCESS_AND_UI_20261030.md).
+Use http://127.0.0.1:18489. Overview owns transport; click a sidebar project for
+its capabilities, Agent and receipts. Operator-configured full tools apply to
+current and future MCP project Agents on this Mac. Generated projects can be
+removed with private backups and retained repository files/history. Full1327
+regressions pass; ordinary Chrome project navigation was exercised. Earlier
+source-only/pending rollout entries below are historical.
+
 # ChatGPT 网页 + OpenClaw：项目使用入口
 
 最新控制台/0.8源码与隔离验收见 [Tunnel Console](TUNNEL_CONSOLE_20261030.md)。

@@ -1,3 +1,4 @@
+import {removeProject} from './project-removal.mjs';
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
@@ -7,12 +8,12 @@ import {boundedFetch} from './health.mjs';
 
 const ASSETS={
  '/':'index.html','/app.js':'app.js','/api-client.js':'api-client.js','/i18n.js':'i18n.js',
- '/render.js':'render.js','/styles.css':'styles.css','/tokens.css':'tokens.css'
+ '/navigation.js':'navigation.js','/render.js':'render.js','/styles.css':'styles.css','/tokens.css':'tokens.css'
 };
 const TYPES={html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8'};
 async function jsonBody(req){let text='';for await(const chunk of req){text+=chunk;if(Buffer.byteLength(text)>4096)throw Error('request_too_large');}try{const data=text?JSON.parse(text):{};if(!data||typeof data!=='object'||Array.isArray(data))throw Error();return data;}catch{throw Error('invalid_json');}}
 function equal(a,b){return typeof a==='string'&&a.length===b.length&&timingSafeEqual(Buffer.from(a),Buffer.from(b));}
-export function createConsoleServer(service,{port=18489,token=randomBytes(32).toString('hex'),report=activityReport}={}){
+export function createConsoleServer(service,{port=18489,token=randomBytes(32).toString('hex'),report=activityReport,remove=removeProject}={}){
  let origin='http://127.0.0.1:'+port;
  const server=createServer(async(req,res)=>{
   const common={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer',
@@ -40,6 +41,10 @@ export function createConsoleServer(service,{port=18489,token=randomBytes(32).to
    if(req.method==='GET'&&path==='/api/report'){
     if([...url.searchParams.keys()].some(k=>!['project','operationId','artifact','offset'].includes(k)))throw Error('invalid_report_request');
     return reply(200,await report({project:url.searchParams.get('project'),operationId:url.searchParams.get('operationId'),artifact:url.searchParams.get('artifact')??'execution_log',offset:Number(url.searchParams.get('offset')??0)}));
+   }
+   if(req.method==='POST'&&path==='/api/project/remove'){
+    if(req.headers['content-type']?.split(';')[0]!=='application/json')throw Error('json_required');
+    const result=await remove(await jsonBody(req));await service.refresh();return reply(200,result);
    }
    if(req.method==='GET'&&path==='/api/export'){
     await service.diagnostics.flush();

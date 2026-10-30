@@ -1,3 +1,7 @@
+import {homedir} from 'node:os';
+import {readPrivateJson} from '../stage2/workflow-capabilities.mjs';
+import {inspectDirectAgent} from '../integrations/chatgpt-openclaw/agent.mjs';
+import {executionPolicy} from '../integrations/chatgpt-openclaw/project-execution-policy.mjs';
 import {join} from 'node:path';
 import {readdir,lstat} from 'node:fs/promises';
 import {registeredProjectBindings} from '../integrations/chatgpt-openclaw/project-binding.mjs';
@@ -8,6 +12,12 @@ import {PRIVATE_ROOT,AUDIT_ROOT} from './config.mjs';
 import {cleanText} from './diagnostics.mjs';
 
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,100}$/.test(x)?x:undefined;
+export function usedCapabilities(r,kind){
+ const result=kind==='execution'?r:r.result??r;
+ if(kind==='computer')return result.toolsUsed??(result.computerToolSucceeded===true?{evidence:'legacy_computer_receipt',successful:['computer']}:{evidence:'unavailable',successful:[]});
+ if(kind==='execution')return {evidence:'executor_steps',successful:[...new Set((r.steps??[]).filter(s=>s.state==='passed').map(s=>s.capability??(s.name==='fetch'||s.name==='fetched_commit'||s.name==='validate_tree'||s.name==='fast_forward'||s.name==='isolated_checkout'?'git':null)).filter(Boolean))],subprocessesEnumerated:false};
+ return {evidence:'connection_receipt',successful:result.state==='connected'?['project_connect']:[]};
+}
 export function activityRow(r,kind,project){
  const result=kind==='execution'?r:r.result??r;
  const state=result.state??r.state;
@@ -17,21 +27,24 @@ export function activityRow(r,kind,project){
   startedAt:r.startedAt??r.createdAt??r.started_at??null,finishedAt:r.finishedAt??r.finished_at??null,
   action:id(r.input?.action),reason:id(result.reason),agent:id(result.agent??r.agent),
   cached:['passed','failed','blocked','inconclusive','returned','connected'].includes(state),
+  toolsUsed:usedCapabilities(r,kind),
   modelInferenceInvoked:kind==='execution'?r.modelInferenceInvoked===true:undefined};
  if(kind==='execution')Object.assign(row,{
   commit:/^[a-f0-9]{40}$/.test(r.actualCommit)?r.actualCommit:null,worktreeClean:r.worktreeClean===true,
-  steps:Array.isArray(r.steps)?r.steps.map(s=>({name:id(s.name),state:id(s.state),exitCode:s.exitCode,startedAt:s.startedAt,finishedAt:s.finishedAt})):[],
+  steps:Array.isArray(r.steps)?r.steps.map(s=>({name:id(s.name),state:id(s.state),capability:id(s.capability),runtime:id(s.runtime),script:typeof s.script==='string'?cleanText(s.script):undefined,exitCode:s.exitCode,startedAt:s.startedAt,finishedAt:s.finishedAt})):[],
   artifacts:[{id:'execution_log'},...(r.artifacts??[]).map(a=>({id:id(a.artifact),bytes:a.bytes,format:id(a.format)}))]});
  return row;
 }
-export async function loadActivity({parent=PRIVATE_ROOT,bindings=registeredProjectBindings(),grants=readRepositoryTaskGrants()}={}){
- const activities=[],projects=[];
+export async function loadActivity({parent=PRIVATE_ROOT,bindings=registeredProjectBindings(),grants=readRepositoryTaskGrants(),configLoad=()=>readPrivateJson(join(homedir(),'.openclaw/openclaw.json')),inspect=inspectDirectAgent,policy=executionPolicy}={}){
+ const activities=[],projects=[];let config;try{config=await configLoad();}catch{}
  for(const b of Object.values(bindings)){
   const g=grants.projects[b.projectKey];
   const checkoutName=g?.repo?.split('/').at(-1)??b.projectKey;
   const isTest=/^mcp-(backend|generic)-acceptance-/.test(checkoutName);
-  projects.push({key:b.projectKey,agent:b.agentId,repository:g?.repository??null,branch:g?.branch??null,
-   name:checkoutName,kind:isTest?'test':'project'});
+  const status=config?await inspect({binding:b,load:async()=>config}):null;
+  const repositoryTask=Boolean(g||await policy(b));
+  projects.push({permissions:{state:status?.state??'unverified',toolAccess:status?.toolAccess??'unverified',computer:status?status.computerControlEnabled===true:null,repositoryTask},key:b.projectKey,agent:b.agentId,repository:g?.repository??null,branch:g?.branch??null,
+   removable:b.projectKey.startsWith('repo-'),name:checkoutName,kind:isTest?'test':'project'});
   for(const [kind,prefix] of [['execution','direct-project-execution-'],['computer','direct-computer-']]){
    for(const {path} of await privateJsonFiles(join(parent,prefix+b.projectKey),100)){
     try{const row=activityRow(JSON.parse(await privateRead(path)),kind,b.projectKey);if(row)activities.push(row);}catch{}}

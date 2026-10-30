@@ -109,3 +109,11 @@ test('identical operation IDs in independent projects cannot retrieve each other
  assert.equal(other.project,'alice-ai');assert.equal(other.cached,undefined);
  assert.equal(calls,2);
 });
+
+test('an aborted final answer retains proven tool use without claiming task success',async t=>{
+ const store=await fixture(t),aborted=structuredClone(reply);aborted.data.result.meta.aborted=true;
+ aborted.data.result.meta.agentMeta.terminalReceipt.successfulToolNames=['exec','computer'];
+ const r=await runComputerTask(input,{store,workspace,load:async()=>config,call:async()=>aborted});
+ assert.equal(r.state,'inconclusive');assert.deepEqual(r.toolsUsed.successful,['exec','computer']);
+ const cached=await computerTaskResult({operation_id:input.operation_id},{store});assert.equal(cached.cached,true);assert.deepEqual(cached.toolsUsed,r.toolsUsed);
+});

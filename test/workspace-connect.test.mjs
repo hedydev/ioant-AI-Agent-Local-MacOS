@@ -47,8 +47,8 @@ test('missing root grant, malformed inputs and disabled native provisioning do n
 });
 function config(){return {agents:{ownership:'explicit',defaults:{systemAgent:{agentId:'main'}},entries:{main:{name:'owner'},existing:{workspace:'/existing',unchanged:true}}},models:{providers:{ollama:{baseUrl:'http://127.0.0.1:11435',api:'ollama'}}},privateSetting:'never returned'};}
 test('native patch creates deny-all local Agent and cannot edit an existing or privileged identity',()=>{
- const binding=generatedProjectBinding({name:'Any Project',repository_id:'a'.repeat(24)}),before=config(),patch=nativeProjectPatch(before,binding);
- assert.deepEqual(patch.agents.entries[binding.agentId],projectAgentDefinition(binding));assert.deepEqual(before,config());
+ const binding=generatedProjectBinding({name:'Any Project',repository_id:'a'.repeat(24)}),before=config(),patch=nativeProjectPatch(before,binding,{fullAccess:false});
+ assert.deepEqual(patch.agents.entries[binding.agentId],projectAgentDefinition(binding,{fullAccess:false}));assert.deepEqual(before,config());
  const agent=patch.agents.entries[binding.agentId];assert.deepEqual(agent.tools.deny,['*']);assert.equal(agent.tools.exec.mode,'deny');assert.deepEqual(agent.subagents.allowAgents,[]);
  const occupied=config();occupied.agents.entries[binding.agentId]={};assert.throws(()=>nativeProjectPatch(occupied,binding),/identity_in_use/);
  assert.throws(()=>nativeProjectPatch(config(),{...binding,agentId:'main'}),/precondition/);
@@ -63,8 +63,8 @@ test('native provisioning dry-validates, backs up, adds one Agent and verifies d
   if(!args.includes('--dry-run')){const c=JSON.parse(await readFile(configPath,'utf8'));Object.assign(c.agents.entries,patch.agents.entries);await writeFile(configPath,JSON.stringify(c),{mode:0o600});}
   return '{}';
  };
- const r=await provisionProjectAgent(binding,{configPath,agentRoot,backups,command});assert.equal(r.nativeAgentCreated,true);assert.equal(r.modelInferenceInvoked,false);
+ const r=await provisionProjectAgent(binding,{configPath,agentRoot,backups,command,fullAccess:false});assert.equal(r.nativeAgentCreated,true);assert.equal(r.modelInferenceInvoked,false);
  assert.deepEqual(calls,['config patch --stdin --dry-run --json','config patch --stdin','gateway call config.get --json']);
  const after=JSON.parse(await readFile(configPath,'utf8'));delete after.agents.entries[binding.agentId];assert.equal(isDeepStrictEqual(after,before),true);
- assert.match(await readFile(join(binding.workspace,'AGENTS.md'),'utf8'),/No terminal/);
+ assert.match(await readFile(join(binding.workspace,'AGENTS.md'),'utf8'),/no-tools advisor/);
 });

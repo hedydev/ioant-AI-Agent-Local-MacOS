@@ -1,5 +1,6 @@
 // Initial direct MCP acceptance targets the existing no-tools local advisor.
 // No Worker, browser polling, remote delivery, model selection or shell input.
+import {fullProjectToolPolicy} from './project-access-policy.mjs';
 import {createHash} from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {homedir} from 'node:os';
@@ -44,8 +45,8 @@ export function directAgentPolicy(config,agentId=AGENT){
 export function projectComputerPolicy(c,binding=projectBinding()){
  const a=c?.agents?.entries?.[binding.agentId];
  return localModelPolicy(c,binding.agentId)&&projectWorkspacePolicy(c,binding)&&
-  Array.isArray(a?.tools?.allow)&&a.tools.allow.length===1&&
-  a.tools.allow[0]==='computer'&&!a.tools.deny?.includes('*')&&!a.tools.alsoAllow?.length;
+  (fullProjectToolPolicy(a)||Array.isArray(a?.tools?.allow)&&a.tools.allow.length===1&&
+  a.tools.allow[0]==='computer'&&!a.tools.deny?.includes('*')&&!a.tools.alsoAllow?.length);
 }
 
 export async function inspectDirectAgent({binding=projectBinding(),workspace=()=>inspectProjectWorkspace(binding),load=()=>readPrivateJson(
@@ -59,6 +60,7 @@ export async function inspectDirectAgent({binding=projectBinding(),workspace=()=
    await workspace(binding.agentId)==='present_private';
   return {state:ready?'ready':'blocked',agent:binding.agentId,project:binding.projectKey,localModelOnly:true,
    toolsEnabled:computer,computerControlEnabled:computer,
+   toolAccess:fullProjectToolPolicy(config.agents.entries[binding.agentId])?'full':computer?'computer':'advisor',
    preferredMessageTool:computer?'openclaw_computer_task':'openclaw_agent_message',
    workerRequired:false,readinessScope:'local_configuration_only'};
  }catch{return {state:'blocked',reason:'local_agent_policy_unverified'};}

@@ -1,5 +1,12 @@
 # Phase 1 — Local read-only browser audits
 
+## Separate operator-approved project console update
+
+Read PROJECT_AGENT_ACCESS_AND_UI_20261030.md for full project-tool opt-in, actual
+NetScale MCP permission readback, project-specific Web views and removal of two
+obsolete test Agents. Full1327 tests pass; actual Chrome UI was exercised. This
+changes the separately invoked MCP workflow, not Phase-1 read-only audit behavior.
+
 ## Current separate MCP rollout acceptance (2026-10-30)
 
 Live0.6.0, refreshed fifteen tools and registered dynamic routing. Real ChatGPT web

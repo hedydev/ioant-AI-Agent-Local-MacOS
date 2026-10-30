@@ -90,3 +90,15 @@ repository_task新增可选 `workspace_mode`：
 环境复现后固定所有进程身份ps调用的LC_ALL=C。没有忽略真正的端口冲突或停止
 已有服务。四种语言环境重复start均核对相同PID与ready=true；身份/控制/API
 专项6项通过。未为此清除进程记录或重新启动用户服务。
+
+## Project workspaces and full tools update
+
+The latest operator-approved state is documented in
+[PROJECT_AGENT_ACCESS_AND_UI_20261030.md](PROJECT_AGENT_ACCESS_AND_UI_20261030.md).
+The Tunnel was actually restarted at MCP0.8.1 and NetScale status returned full
+tools/computer enabled. Two obsolete generated test Agents were removed through
+the supported native lifecycle RPC; files/history are retained. The refreshed UI
+puts project capabilities on project pages with persistent sidebar selection.
+Full1327 tests passed. Backend restarts clear the memory-only key; private Web
+entry restores the Tunnel. Historical pending-key statements above describe prior
+checkpoints rather than permission failure.

@@ -27,7 +27,7 @@ export const tools=[{
  annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false}
 },{
  name:'openclaw_computer_task',
- description:'Delegate one small user-authorized desktop step to the selected registered project Agent, only after its computer permission is configured. Cannot select arbitrary Agents. Can affect applications/files through native computer tools. Keep each task bounded; multi-step UI loops may time out. Use a unique operation_id; never retry an uncertain action under a new ID. Local model only; no browser Worker. Returned text is not independent effect verification.',
+ description:'Delegate one bounded user-authorized local Agent step to the selected registered project Agent, only after its computer permission is configured. Cannot select arbitrary Agents. Can affect applications/files through its configured full or computer-only tool profile; status.toolAccess reports the configured scope. Git/tests prefer project_execute. Keep each task bounded; multi-step UI loops may time out. Use a unique operation_id; never retry an uncertain action under a new ID. Local model only; no browser Worker. Returned text is not independent effect verification.',
  inputSchema:{type:'object',properties:{
   operation_id:{type:'string',pattern:'^[A-Za-z0-9][A-Za-z0-9_-]{7,79}$'},
   conversation_key:{type:'string',pattern:'^[A-Za-z0-9][A-Za-z0-9_-]{7,63}$'},
@@ -57,7 +57,7 @@ export async function callTool(name,args,{status=inspectDirectAgent,message=mess
 
 export async function serve(binding=projectBinding(),route={shared:false,bindings:[binding]}){
  const {Server,StdioServerTransport,ListToolsRequestSchema,CallToolRequestSchema}=await loadSdk();
- const server=new Server({name:'ioant-openclaw-direct',version:'0.8.0'},
+ const server=new Server({name:'ioant-openclaw-direct',version:'0.8.1'},
   {capabilities:{tools:{}},instructions:routeInstructions(route)});
  server.setRequestHandler(ListToolsRequestSchema,async()=>({tools:routedCatalog(tools,route,[...handoffTools,...executionTools])}));
  server.setRequestHandler(CallToolRequestSchema,async request=>{

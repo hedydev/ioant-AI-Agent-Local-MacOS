@@ -21,11 +21,15 @@ export function renderStatus(snapshot,handlers,pending){
  document.getElementById('connection-flow').replaceChildren(...flow);
 }
 export function renderActivities(target,rows,onReport){
+ const expanded=new Set([...target.querySelectorAll('details[open]')].map(e=>e.dataset.operation));
  target.replaceChildren(...(rows.length?rows.map(r=>{
   const title=node('div',{class:'activity-top'},node('span',{class:'activity-name'},t('activity.'+r.kind)),badge(r.state));
   const actions=node('div',{class:'activity-footer'},node('code',{title:r.operationId},r.operationId),r.kind==='execution'?node('button',{class:'text-button','data-focus':r.id,onclick:()=>onReport(r)},t('activity.report')):node('span',{},time(r.finishedAt??r.startedAt)));
+  const used=node('div',{class:'capability-list'},node('span',{},t('capabilities.used')),
+  ...(r.toolsUsed?.successful?.length?r.toolsUsed.successful.map(x=>node('code',{},x)):[node('span',{},t(r.toolsUsed?.evidence==='unavailable'?'capabilities.unknown':'capabilities.none'))]));
+  const steps=r.steps?.length?node('details',{class:'execution-steps','data-operation':r.id,open:expanded.has(r.id)?true:undefined},node('summary',{'data-focus':r.id+':steps'},t('capabilities.steps')),...r.steps.map(s=>node('div',{},badge(s.state),node('code',{},[s.name,s.runtime,s.script].filter(Boolean).join(' · ')),node('small',{},s.exitCode!==undefined?'exit '+s.exitCode:'')))):null;
   const detail=r.steps?.length?t('activity.steps',{done:r.steps.filter(s=>s.state==='passed').length,total:r.steps.length}):r.reason??'';
-  return node('div',{class:'activity-row'},node('span',{class:'activity-icon'},r.kind==='execution'?'>_':r.kind==='connect'?'↗':'⌖'),node('div',{class:'activity-content'},title,node('p',{class:'activity-project',title:r.project},r.project),node('div',{class:'activity-footer'},node('span',{},detail),node('span',{},r.commit?r.commit.slice(0,8):time(r.finishedAt??r.startedAt))),actions));
+  return node('div',{class:'activity-row','data-operation-id':r.operationId},node('span',{class:'activity-icon'},r.kind==='execution'?'>_':r.kind==='connect'?'↗':r.kind==='remove'?'−':'⌖'),node('div',{class:'activity-content'},title,node('p',{class:'activity-project',title:r.project},r.project),node('div',{class:'activity-footer'},node('span',{},detail),node('span',{},r.commit?r.commit.slice(0,8):time(r.finishedAt??r.startedAt))),used,steps,actions));
  }):[empty('activity.empty')]));
 }
 export function renderCommunications(rows){
@@ -34,4 +38,14 @@ export function renderCommunications(rows){
 }
 export function renderLogs(rows){
  document.getElementById('log-feed').replaceChildren(...(rows.length?rows.map(r=>node('div',{class:'log-row'},node('time',{},time(r.ts)),node('span',{class:'log-level '+r.level},r.level.toUpperCase()),node('div',{class:'log-message'},[r.tool??r.event,r.state,r.reason,r.project,r.operationId,r.message].filter(Boolean).join(' · ')))):[empty('logs.noEvents')]));
+}
+
+export function renderPermissions(projects){
+ const target=document.getElementById('project-access');
+ target.replaceChildren(node('div',{class:'section-heading'},node('div',{},node('h2',{},t('permissions.title')),node('p',{},t('permissions.description')))),
+ ...projects.map(p=>node('div',{class:'permission-row'},node('div',{},node('strong',{},p.name??p.key),node('small',{class:'permission-identity'},p.key+' · '+p.agent)),
+ node('div',{class:'button-row'},node('span',{class:'badge '+(p.permissions?.toolAccess==='full'?'':'neutral')},t('permissions.'+(p.permissions?.toolAccess??'unverified'))),
+ node('span',{class:'badge '+(p.permissions?.computer===true?'':'neutral')},t('permissions.computer')+' · '+t(p.permissions?.computer===true?'permissions.enabled':p.permissions?.computer===false?'permissions.disabled':'permissions.unverified')),
+ ...(p.permissions?.toolAccess==='full'?['runtime','files','browser'].map(k=>node('span',{class:'badge neutral'},t('permissions.'+k))):[]),
+ node('span',{class:'badge neutral'},t('permissions.repository')+' · '+t(p.permissions?.repositoryTask?'permissions.enabled':'permissions.disabled'))))));
 }
