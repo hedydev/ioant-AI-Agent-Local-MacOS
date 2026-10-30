@@ -1,6 +1,6 @@
 ## Latest fetch checkpoint (2026-10-31)
 
-Read docs/MCP_REPOSITORY_FETCH_CHECKPOINT_20261030.md. MCP0.9.1 source and live same-child health are verified; project_actions advertises model-free repository_fetch for enrolled dirty checkouts. Full1338 tests passed. Operator already restarted, so do not restart again. Actual Chrome Refresh and workflow actions/inspect calls succeeded. Final web reply/action-enum confirmation is pending because foreground Chrome changed during window selection; read the existing response only, never resend the acceptance prompt or replay unknown jobs. Automatic continuation remains active for this last verification. Fetch changes remote refs, not local HEAD.
+Read docs/MCP_REPOSITORY_FETCH_CHECKPOINT_20261030.md. MCP0.9.1 source and live same-child health are verified; project_actions advertises model-free repository_fetch for enrolled dirty checkouts. Full1338 tests passed. Operator already restarted; no further restart or Refresh is needed. User-relayed final web acceptance confirms the fetch action enum, optional top-level expected_commit and successful read-only actions/inspect. This is not a real business fetch/build acceptance. The temporary automation was deleted at the user's direction to delegate verification to ChatGPT Chat. Prefer that Chat for supported execution/readback/validation and conserve Codex usage; use Codex for bridge changes. Fetch changes remote refs, not local HEAD. Never replay unknown operations.
 
 ## Latest execution routing and receipt repair (2026-10-30)
 

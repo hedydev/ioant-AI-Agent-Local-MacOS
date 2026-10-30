@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "event_id": "1311cbe1-31e6-4cba-868b-9c66b90cf81d",
+  "task_id": "f2afc52b-24c6-4bf1-a94f-1fbdc4e3a2af",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-30T18:16:15.338273Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "704e5aad6306759cebe03a51d290bfb3d0a85110",
+  "message": "Operator relayed final ChatGPT web PASS: actual schema has repository_fetch, expected_commit not top-level required, actions enabled with clean/task/SHA requirements false, inspector read-only/no model/no network. Only read-only initialization-conflict retry reported. No business fetch/build or uncertain operation replay. Technical verification complete for this repair, not human-authoritative completion of the wider task. User requests supported verification/execution in ChatGPT Chat to conserve Codex usage; temporary automation actually deleted. Documentation-only closure, no restart or repeated tests.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/MCP_REPOSITORY_FETCH_CHECKPOINT_20261030.md"
+    }
+  ],
+  "supersedes_event_id": null
+}
