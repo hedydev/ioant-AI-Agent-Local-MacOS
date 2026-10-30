@@ -32,9 +32,12 @@ export async function openclawCapabilities(input,{load=loadWorkspaceAccess,statu
  const access=checks[0].status==='fulfilled'?checks[0].value:null;
  return {state:'capabilities',readOnly:true,modelInferenceInvoked:false,
   repositoryTasks:{implemented:true,workspaceAccessConfigured:!!access,projectConnectForNewRepositories:true,
+   workspaceModes:['in_place','isolated'],execution:'deterministic_async',
+   catalogRequirement:'If project_execute has no workspace_mode parameter, refresh the plugin tools; do not conclude isolated execution is unsupported.',
    requiresChromeDebug:false,requiresComputerControl:false,requiresLocalModel:false,
-   tools:['openclaw_workspace_projects','openclaw_project_connect','openclaw_project_execute','openclaw_project_result','openclaw_project_report']},
-  nativeDesktop:{tool:'openclaw_computer_task',permissionPerProject:true,localModelRequired:true,
+   tools:['openclaw_project_inspect','openclaw_workspace_projects','openclaw_project_connect','openclaw_project_execute','openclaw_project_result','openclaw_project_report']},
+  nativeDesktop:{tool:'openclaw_computer_task',permissionPerProject:true,localModelRequired:true,agentTimeoutSeconds:120,
+   preferredFor:'Bounded native UI/Agent tasks. Git clone/update, scripts, builds and tests prefer repositoryTasks.',
    nativeInputRequiresChromeDebug:false,browserDomActionsMayRequireBrowserConsent:true},
   browser:checks[1].status==='fulfilled'?checks[1].value:{state:'unavailable',chromeDebugConnected:false},
   instructions:'Use repository tasks for Git, scripts and reports even when Chrome Debug is off. Only enable browser access for a user-requested browser UI task; never use it as an enrollment or shell workaround.'};

@@ -109,3 +109,11 @@ test('child prompt travels by stdin, not process argv and no --deliver or --mode
  assert.equal(args.includes('--local'),false);
  assert.equal(args.includes('--model'),false);
 });
+
+test('nonzero native JSON exposes terminal metadata for diagnostics without changing transport failure',async()=>{
+ const mockSpawn=()=>{
+  const child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();child.kill=()=>{};
+  child.stdin={end:()=>queueMicrotask(()=>{child.stdout.emit('data',JSON.stringify({status:'error',result:{meta:{aborted:true,timedOut:true}}}));child.emit('close',1);})};return child;
+ };
+ const r=await invokeDevCli(['agent'],'fixture',{spawnImpl:mockSpawn});assert.equal(r.state,'inconclusive');assert.equal(r.note,'gateway_cli_failed');assert.equal(r.data.result.meta.timedOut,true);assert.equal(r.diagnostics.exitCode,1);assert.equal(r.diagnostics.captureLimitExceeded,false);
+});

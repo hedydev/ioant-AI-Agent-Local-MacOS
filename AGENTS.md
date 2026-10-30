@@ -1,3 +1,19 @@
+## Latest execution routing and receipt repair (2026-10-30)
+
+Read docs/MCP_EXECUTION_ROUTING_AND_RECEIPTS_20261030.md. MCP0.9.0 adds a shared,
+read-only deterministic project_inspect tool (status/diff even in dirty trees),
+explicit Agent error classification and preservation of nonzero terminal JSON.
+Use async project_execute for tracked scripts/builds/tests. Native computer_task
+has a120-second total local-model budget, distinct from shell duration. Source
+inspection proved one actual exec success followed by Agent budget timeout; old
+unknown operations remain unknown and must not be replayed. Cloud catalog must
+expose workspace_mode/new inspector after actual Refresh, not merely local tests.
+Full1336 regressions pass. Actual Chrome Refresh showed16 tools; the authorized
+workflow Chat saw workspace_mode and successfully called the new read-only
+inspector, independently corroborated by MCP metadata. User task/working-tree preferences still decide whether
+in_place or optional isolated tests are appropriate; never automatically clone or
+clean every dirty project.
+
 # AI Agent Rules — Local macOS Phase 1
 
 ## Latest operator-approved project permissions and UI (2026-10-30)

@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "event_id": "ac53fd4d-a5d3-4f05-a2c5-48d38e7c0c61",
+  "task_id": "f2afc52b-24c6-4bf1-a94f-1fbdc4e3a2af",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-30T15:07:29.913607Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "167a58995cb1cac08fe99212fa98165d02897d36",
+  "message": "MCP0.9.0 fixes Agent result classification/nonzero terminal JSON, advertises optional isolated mode and adds deterministic dirty-tree Git inspection. Native metadata proved one exec success after ~118s preparation followed by total Agent timeout; other unknown jobs unchanged. Full1336 tests passed. Guarded reload waited for no active tasks and reused memory key. Actual Chrome Refresh showed16 tools. Authorized existing workflow web Chat confirmed workspace_mode visibility and successfully called actions/inspect; audit corroborated ~142ms inspect, no model/network/source mutation. No NetScale clone/build or historical job replay. Human acceptance pending.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/MCP_EXECUTION_ROUTING_AND_RECEIPTS_20261030.md"
+    }
+  ],
+  "supersedes_event_id": null
+}

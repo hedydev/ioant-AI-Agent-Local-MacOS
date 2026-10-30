@@ -41,7 +41,7 @@ function runner(ctx,{remote=after,testCode=0,tests=4,timeout=false}={}){
 }
 test('execution tool surface is explicit, fixed mode unchanged and shared catalog has eleven tools',()=>{
  const route=projectRoute(['--shared-projects','openclaw-workflow,alice-ai']);
- const catalog=routedCatalog(tools,route,[...handoffTools,...executionTools]);assert.equal(catalog.length,11);
+ const catalog=routedCatalog(tools,route,[...handoffTools,...executionTools]);assert.equal(catalog.length,12);
  for(const tool of catalog.slice(1))assert.ok(tool.inputSchema.required.includes('project_key'));
  assert.deepEqual(routedCatalog(tools,projectRoute(),executionTools),tools);
  assert.equal(executionTools[1].annotations.destructiveHint,true);

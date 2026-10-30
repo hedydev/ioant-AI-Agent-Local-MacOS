@@ -4,7 +4,7 @@ import {homedir} from 'node:os';
 import {join} from 'node:path';
 import {readPrivateJson} from '../../stage2/workflow-capabilities.mjs';
 import {invokeDevCli} from '../../stage2/openclaw-alice-dev-discuss.mjs';
-import {redactFeedback} from '../../stage2/protocol.mjs';
+import {AGENT_TIMEOUT_SECONDS,interpretAgentResult} from './agent-result.mjs';
 import {projectComputerPolicy,spawnAgentWithoutTransportSecrets} from './agent.mjs';
 import {ComputerTaskStore,operationId} from './computer-task-store.mjs';
 import {projectBinding,inspectProjectWorkspace} from './project-binding.mjs';
@@ -52,32 +52,20 @@ export async function runComputerTask(input,{binding=projectBinding(),store=proj
    {state:'inconclusive',operationId:id,reason:'task_already_started_do_not_repeat'};
  }
  const key=createHash('sha256').update(binding.projectKey+'\n'+input.conversation_key).digest('hex').slice(0,24);
- let result={state:'inconclusive',operationId:id,reason:'agent_receipt_unavailable_do_not_repeat'};
+ const started=performance.now();
+ let result;
  try{
   if(await projectRetired(binding.projectKey))throw Error('project_retired');
   const reply=await call(['agent','--agent',binding.agentId,'--session-key','agent:'+binding.agentId+':direct-'+key,
-   '--model',MODEL,'--thinking','off','--message-file','/dev/stdin','--timeout','120','--json'],
+   '--model',MODEL,'--thinking','off','--message-file','/dev/stdin','--timeout',String(AGENT_TIMEOUT_SECONDS),'--json'],
    INSTRUCTION+input.message);
-  const data=reply?.data,meta=data?.result?.meta,a=meta?.agentMeta;
-  const payloads=data?.result?.payloads;
-  const names=Array.isArray(a?.terminalReceipt?.successfulToolNames)?a.terminalReceipt.successfulToolNames:null;
-  const toolsUsed={evidence:names?'native_terminal_receipt':'unavailable',
-   successful:[...new Set((names??[]).filter(n=>typeof n==='string'&&/^[a-zA-Z0-9_.:/-]{1,100}$/.test(n)))].slice(0,100)};
-  // A run may have executed tools before its final answer was aborted/unavailable.
-  if(reply?.state==='reply'&&a?.provider==='ollama'&&a.model==='gemma4:26b-a4b')result.toolsUsed=toolsUsed;
-  if(reply?.state==='reply'&&data?.status==='ok'&&a?.provider==='ollama'&&
-   a.model==='gemma4:26b-a4b'&&meta?.aborted!==true&&Array.isArray(payloads)&&
-   payloads.length>0&&payloads.length<=8&&payloads.every(x=>typeof x?.text==='string')){
-   const text=redactFeedback(payloads.map(x=>x.text).join('\n')).trim();
-   if(text)result={state:'returned',operationId:id,agent:binding.agentId,project:binding.projectKey,provider:'ollama',
-    model:'gemma4:26b-a4b',workerUsed:false,text,outputIsUntrusted:true,
-    toolsUsed,
-    computerToolSucceeded:a?.terminalReceipt?.successfulToolNames?.includes('computer')===true,
-    effectIndependentlyVerified:false};
-  }
- }catch{/* The durable started claim remains authoritative; never rerun. */}
+  result=interpretAgentResult(reply,{operationId:id,binding,durationMs:performance.now()-started});
+ }catch{
+  result={...interpretAgentResult(null,{operationId:id,binding,durationMs:performance.now()-started}),reason:'agent_invocation_exception'};
+ }
+ result.receiptPersisted=true;
  try{await store.finish(id,digest,result);}
- catch{return {state:'inconclusive',operationId:id,reason:'receipt_persistence_failed_do_not_repeat'};}
+ catch{return {state:'inconclusive',operationId:id,reason:'receipt_persistence_failed_do_not_repeat',receiptPersisted:false,executionOutcome:'unverified',doNotRepeat:true};}
  return result;
 }
 export async function computerTaskResult(input,{binding=projectBinding(),store=projectStore(binding)}={}){

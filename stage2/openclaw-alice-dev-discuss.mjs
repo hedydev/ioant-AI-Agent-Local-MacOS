@@ -48,8 +48,9 @@ export function invokeDevCli(args,body,{spawnImpl=spawn}={}){
   let proc;
   try{proc=spawnImpl(CLI,args,{env,shell:false,stdio:['pipe','pipe','pipe']});}
   catch{return resolve({state:'inconclusive',note:'cli_launch_failed'});}
-  let ended=false,output='',overflow=false,timedOut=false;
-  const finish=result=>{if(ended)return;ended=true;clearTimeout(timer);resolve(result)};
+  const started=performance.now();
+  let exitCode=null,ended=false,output='',overflow=false,timedOut=false;
+  const finish=result=>{if(ended)return;ended=true;clearTimeout(timer);resolve({...result,diagnostics:{durationMs:Math.round(performance.now()-started),exitCode,timedOut,captureLimitExceeded:overflow}})};
   const timer=setTimeout(()=>{timedOut=true;try{proc.kill('SIGTERM')}catch{}},TIMEOUT);
   proc.stdout?.on('data',part=>{
    output+=String(part);
@@ -59,8 +60,15 @@ export function invokeDevCli(args,body,{spawnImpl=spawn}={}){
   proc.stderr?.on('data',()=>{});
   proc.on?.('error',()=>finish({state:'inconclusive',note:'cli_launch_failed'}));
   proc.on?.('close',code=>{
+   exitCode=Number.isInteger(code)?code:null;
    if(timedOut)return finish({state:'inconclusive',note:'gateway_timeout'});
-   if(code!==0||overflow)return finish({state:'inconclusive',note:'gateway_cli_failed'});
+   if(overflow)return finish({state:'inconclusive',note:'gateway_cli_failed'});
+   if(code!==0){
+    // Native timeouts can exit nonzero while still returning a valid terminal JSON.
+    // Keep the transport failure; consumers may inspect explicit metadata, never infer success.
+    try{return finish({state:'inconclusive',note:'gateway_cli_failed',data:JSON.parse(output)});}
+    catch{return finish({state:'inconclusive',note:'gateway_cli_failed'});}
+   }
    try{return finish({state:'reply',data:JSON.parse(output)});}
    catch{return finish({state:'inconclusive',note:'invalid_json'});}
   });

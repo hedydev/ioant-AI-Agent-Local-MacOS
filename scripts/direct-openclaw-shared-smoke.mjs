@@ -15,7 +15,7 @@ try{
   '--shared-projects','openclaw-workflow,alice-ai'],stderr:'pipe'});
  transport.stderr?.on('data',()=>{});await client.connect(transport);
  const catalog=await client.listTools();
- if(catalog.tools.length!==11)throw Error('catalog_mismatch');
+ if(catalog.tools.length!==12)throw Error('catalog_mismatch');
  const read=async(name,args)=>{
   const r=await client.callTool({name,arguments:args},undefined,{timeout:160000});if(r.isError)throw Error('tool_failed');
   return JSON.parse(r.content[0].text);

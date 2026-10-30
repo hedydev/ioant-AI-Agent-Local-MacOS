@@ -1,4 +1,5 @@
 // Async MCP admission and receipt/report reads. New process survives MCP disconnect.
+import {inspectionTool,inspectProjectRepository} from './project-inspection.mjs';
 import {projectRetired} from './project-lifecycle.mjs';
 import {createHash} from 'node:crypto';
 import {spawn} from 'node:child_process';
@@ -15,7 +16,7 @@ export const executionTools=[{
  name:'openclaw_project_actions',description:'List locally enrolled fixed Git/test actions for this project. No model or command execution. Does not grant arbitrary shell access.',
  inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,destructiveHint:false,openWorldHint:false}
 },{
- name:'openclaw_project_execute',description:'When normal conversation requires local execution, start one user-authorized enrolled task pinned to the exact full remote commit. For repository_task, author and commit the task definition and scripts yourself; supply task_file. The user need not write JSON or relay terminal commands. Requires local enrollment. Returns accepted quickly; poll project_result. No raw shell commands, arbitrary host paths, model calls or browser Worker. Repository code runs as the current user, not in an OS sandbox. Never repeat uncertain work under a new operation ID.',
+ name:'openclaw_project_execute',description:'When normal conversation requires local execution, start one user-authorized enrolled task pinned to the exact full remote commit. For repository_task, author and commit the task definition and scripts yourself; supply task_file. The user need not write JSON or relay terminal commands. When an isolated test/build checkout is appropriate and authorized, workspace_mode=isolated preserves local changes; it is optional, not an instruction to clone every dirty project. Requires local enrollment. Returns accepted quickly; poll project_result. No raw shell commands, arbitrary host paths, model calls or browser Worker. Repository code runs as the current user, not in an OS sandbox. Never repeat uncertain work under a new operation ID.',
  inputSchema:{type:'object',properties:{...props,conversation_key:{type:'string',pattern:'^[A-Za-z0-9][A-Za-z0-9_-]{7,63}$'},
   action:{type:'string',enum:['alice_mac_regression','repository_task']},
   task_file:{type:'string',pattern:'^\\.openclaw/tasks/[a-z][a-z0-9_-]{0,63}\\.json$',description:'For repository_task only: task definition authored and committed by ChatGPT. Never ask the user to write task JSON.'},
@@ -32,7 +33,7 @@ export const executionTools=[{
  inputSchema:{type:'object',properties:{...props,artifact_id:{type:'string',pattern:'^[a-z][a-z0-9_-]{0,47}$'},offset:{type:'integer',minimum:0,maximum:262144}},required:['operation_id'],additionalProperties:false},
  outputSchema:reportOutputSchema,
  annotations:{readOnlyHint:true,destructiveHint:false,openWorldHint:false}
-}];
+},inspectionTool];
 export function validExecutionInput(x){
  return x&&typeof x==='object'&&!Array.isArray(x)&&
   Object.keys(x).sort().join(',')===(x.action==='repository_task'?'action,conversation_key,expected_commit,operation_id,task_file'+(Object.hasOwn(x,'workspace_mode')?',workspace_mode':''):'action,conversation_key,expected_commit,operation_id')&&
@@ -58,14 +59,17 @@ export async function projectExecution(name,args,{binding,store=new ProjectExecu
  policy=executionPolicy,launch=launchExecution}={}){
  try{
   if(!args||typeof args!=='object'||Array.isArray(args))throw Error('invalid_project_execution_input');
+  if(name==='openclaw_project_inspect')return inspectProjectRepository(args,{binding,policy});
   if(name==='openclaw_project_actions'){
    if(Object.keys(args).length)throw Error('invalid_project_execution_input');
    const result=executionCatalog(binding,Boolean(await policy(binding)));
+   result.inspectionTool='openclaw_project_inspect';
    const generic=await policy(binding,{action:'repository_task'});
    if(generic?.action==='repository_task')result.actions.push({action:'repository_task',enabled:true,
     repository:generic.repository,branch:generic.branch,expectedCommitRequired:true,taskFileRequired:true,
     taskDefinitionPattern:'.openclaw/tasks/<name>.json',scriptRoots:generic.scriptRoots,
-    runtimes:Object.keys(generic.runtimes),scope:'Pinned tracked repository scripts as the current user; not an OS sandbox. No model inference.'});
+    runtimes:Object.keys(generic.runtimes),workspaceModes:['in_place','isolated'],
+    toolSchemaRequirement:'project_execute must expose workspace_mode; refresh the plugin tool catalog if absent. Do not use model-driven clone as a workaround.',scope:'Pinned tracked repository scripts as the current user; not an OS sandbox. No model inference.'});
    return result;
   }
   if(name==='openclaw_project_report'){

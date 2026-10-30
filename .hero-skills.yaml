@@ -2,7 +2,7 @@ version: 1
 
 source:
   repo: hedydev/hero-skills
-  ref: 3910a553c195afb86bd1351f46dae88987c5f4a7
+  ref: a0c41e48fc4688e16d159e0a7ac555f58975f601
   local_path: ../hero-skills
 
 required:

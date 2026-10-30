@@ -1,3 +1,14 @@
+## Current execution routes
+
+See [MCP routing and receipts](MCP_EXECUTION_ROUTING_AND_RECEIPTS_20261030.md).
+Use project_inspect for model-free Git status/diff, project_execute for asynchronous
+tracked scripts/builds/tests, and computer_task for bounded native Agent/UI tasks.
+Full1336 tests pass. The new dynamic catalog has16 tools, including optional
+workspace_mode on project_execute. Actual Chrome Refresh and an existing workflow Chat confirmed the new schema
+and inspector call. A client retaining older injected declarations must reload
+its Chat or reselect the plugin before using new parameters. Full tools remain enabled; isolated checkout
+is optional and does not authorize cleaning local edits or replaying unknown jobs.
+
 ## Current project console and tools
 
 See [project permissions and UI](PROJECT_AGENT_ACCESS_AND_UI_20261030.md).
