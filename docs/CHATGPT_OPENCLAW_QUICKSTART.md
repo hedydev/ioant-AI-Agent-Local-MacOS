@@ -1,3 +1,7 @@
+## Candidate 0.9.1: model-free fetch
+
+Read `MCP_REPOSITORY_FETCH_CHECKPOINT_20261030.md`. For an enrolled repository with local edits, fixed `project_execute(action=repository_fetch)` obtains verified remote refs without local inference, a task file, clone, merge or HEAD update. Read the cached project_result/report; never replay an uncertain operation. Optional expected_commit checks the fetched SHA. 1338 tests pass; live deployment and cloud action-enum refresh remain pending at the usage pause.
+
 ## Current execution routes
 
 See [MCP routing and receipts](MCP_EXECUTION_ROUTING_AND_RECEIPTS_20261030.md).

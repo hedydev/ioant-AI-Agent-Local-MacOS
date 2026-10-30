@@ -1,3 +1,7 @@
+## Latest fetch checkpoint (2026-10-30)
+
+Read docs/MCP_REPOSITORY_FETCH_CHECKPOINT_20261030.md. Source candidate0.9.1 adds fixed model-free repository_fetch through project_execute and local ref inspection. Live remains0.9.0 until guarded reload and actual catalog verification. Preserve dirty original checkouts; fetch updates refs, not HEAD. User usage pause reached5%; automatically resume after real reset, no unknown operation replay.
+
 ## Latest execution routing and receipt repair (2026-10-30)
 
 Read docs/MCP_EXECUTION_ROUTING_AND_RECEIPTS_20261030.md. MCP0.9.0 adds a shared,

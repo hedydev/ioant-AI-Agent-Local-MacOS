@@ -20,6 +20,8 @@ export async function inspectProjectRepository(input,{binding,policy=executionPo
   const git=async args=>{const r=await command('/usr/bin/git',[...GIT_ARGS,...args],{cwd:p.repo,timeout:15000,limit:131072});if(!r.ok||r.truncated)throw Error(r.truncated?'inspection_output_limit':r.timedOut?'inspection_git_timeout':'inspection_git_failed');return r.stdout;};
   const status=await git(['status','--porcelain=v1','--untracked-files=normal']);
   const out={...base,state:'repository_inspection',repository:p.repository,branch:before.branch,head:before.head,worktreeClean:!before.dirty,statusText:redactExecutionOutput(status),untrackedContentsRead:false};
+  for(const [key,ref] of [['remoteTrackingCommit','refs/remotes/origin/'+p.branch],['fetchHeadCommit','FETCH_HEAD^{commit}']]){const r=await command('/usr/bin/git',[...GIT_ARGS,'rev-parse','--verify','--quiet',ref],{cwd:p.repo});out[key]=r.ok&&/^[a-f0-9]{40}$/.test(r.stdout.trim())?r.stdout.trim():null;}
+  out.remoteRefsScope='Locally stored refs; not proof of current network reachability or latest remote HEAD.';
   if(input.details!=='diff')return out;
   const staged=await git(['diff','--no-ext-diff','--no-textconv','--cached','--']),working=await git(['diff','--no-ext-diff','--no-textconv','--']);
   const head=(await git(['rev-parse','--verify','HEAD'])).trim();if(head!==before.head)throw Error('repository_changed_during_inspection');

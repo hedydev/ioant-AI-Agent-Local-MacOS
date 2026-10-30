@@ -57,7 +57,7 @@ export async function callTool(name,args,{status=inspectDirectAgent,message=mess
 
 export async function serve(binding=projectBinding(),route={shared:false,bindings:[binding]}){
  const {Server,StdioServerTransport,ListToolsRequestSchema,CallToolRequestSchema}=await loadSdk();
- const server=new Server({name:'ioant-openclaw-direct',version:'0.9.0'},
+ const server=new Server({name:'ioant-openclaw-direct',version:'0.9.1'},
   {capabilities:{tools:{}},instructions:routeInstructions(route)});
  server.setRequestHandler(ListToolsRequestSchema,async()=>({tools:routedCatalog(tools,route,[...handoffTools,...executionTools])}));
  server.setRequestHandler(CallToolRequestSchema,async request=>{

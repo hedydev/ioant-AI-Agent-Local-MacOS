@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "event_id": "a52cea47-0e94-46fb-a1ee-d16793cf022a",
+  "task_id": "f2afc52b-24c6-4bf1-a94f-1fbdc4e3a2af",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-30T15:31:40.661004Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "861fae3543e5fcbfcec3478d6d56b7d7b3856074",
+  "message": "Candidate0.9.1 adds deterministic enrolled repository_fetch for dirty checkouts and explicit local remote refs. Targeted32 pass; no business fetch replay. Live remains0.9.0; guarded deployment/catalog acceptance pending. User5% usage pause checkpoint; human acceptance pending.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/MCP_REPOSITORY_FETCH_CHECKPOINT_20261030.md"
+    }
+  ],
+  "supersedes_event_id": null
+}

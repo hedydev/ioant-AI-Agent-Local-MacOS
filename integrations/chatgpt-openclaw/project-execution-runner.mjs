@@ -1,7 +1,7 @@
 // One registered Git fast-forward + Python test run. No arbitrary shell and no AI.
 import {lstat,realpath} from 'node:fs/promises';
 import {join} from 'node:path';
-import {executionCommand,GIT_ARGS,redactExecutionOutput} from './project-execution-command.mjs';
+import {executionCommand,executionEnvironment,GIT_ARGS,redactExecutionOutput} from './project-execution-command.mjs';
 import {SHA,executionPolicy} from './project-execution-policy.mjs';
 import {validateTreeListing} from '../../stage2/project-self-update.mjs';
 import {loadRepositoryTask,executeRepositoryTask,verifyTaskScript} from './repository-task.mjs';
@@ -51,12 +51,25 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
   policy=await policyLoad(binding,{action:record.input.action});
   if(!policy||record.input.action!==policy.action)throw Error('project_action_not_enabled');
   record.state='running';record.runnerPid=process.pid;record.startedAt=new Date().toISOString();await save();
+  const fetchOnly=record.input.action==='repository_fetch';
+  const readOptions={command:(file,args,options)=>command(file,args,{...options,env:{...executionEnvironment(),GIT_OPTIONAL_LOCKS:'0'}}),allowDirty:fetchOnly};
   const isolated=record.input.action==='repository_task'&&record.input.workspace_mode==='isolated';
-  const before=await inspect(policy,{command,allowDirty:isolated});record.beforeCommit=before.head;
+  const before=await inspect(policy,fetchOnly?readOptions:{command,allowDirty:isolated});record.beforeCommit=before.head;
   record.workspaceMode=isolated?'isolated':'in_place';
   if(isolated){record.sourceWorktreeDirty=before.dirty===true;policy=await createIsolatedRepository(policy,before.origin??policy.origins[0],{store,operationId,step});record.checkoutPath=policy.repo;}
   await save();
   const git=(name,args)=>step(name,'/usr/bin/git',[...GIT_ARGS,...args]);
+  if(fetchOnly){
+   record.sourceWorktreeDirty=before.dirty===true;record.sourceCheckoutUpdated=false;await save();
+   await step('fetch','/usr/bin/git',[...GIT_ARGS,'fetch','--no-tags','origin','refs/heads/'+policy.branch+':refs/remotes/origin/'+policy.branch],{timeout:300000});
+   record.fetchedCommit=(await git('fetched_commit',['rev-parse','--verify','FETCH_HEAD'])).stdout.trim();
+   record.remoteTrackingCommit=(await git('remote_tracking_commit',['rev-parse','--verify','refs/remotes/origin/'+policy.branch])).stdout.trim();
+   if(!SHA.test(record.fetchedCommit)||record.remoteTrackingCommit!==record.fetchedCommit)throw Error('fetched_refs_unverified');
+   const end=await inspect(policy,readOptions);record.actualCommit=end.head;record.worktreeClean=!end.dirty;
+   if(end.head!==before.head)throw Error('source_head_changed_during_fetch');
+   if(record.input.expected_commit&&record.fetchedCommit!==record.input.expected_commit)throw Error('remote_commit_mismatch');
+   record.state='passed';record.resultScope='Enrolled branch fetched; remote refs verified. Local HEAD/worktree not updated; no tests, clone, merge or deployment.';return;
+  }
   await git('fetch',['fetch',...(isolated?['--depth=1']:[]),'--no-tags','origin','refs/heads/'+policy.branch]);
   const fetched=(await git('fetched_commit',['rev-parse','--verify','FETCH_HEAD'])).stdout.trim();
   if(fetched!==record.input.expected_commit)throw Error('remote_commit_mismatch');

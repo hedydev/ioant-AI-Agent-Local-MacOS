@@ -20,6 +20,7 @@ export const ALICE_ACTION=Object.freeze({
 export const EXECUTION_ENROLLMENT=Object.freeze({schemaVersion:1,
  projects:{'alice-ai':{repository:ALICE_ACTION.repository,branch:'main',actions:['alice_mac_regression']}}});
 export async function executionPolicy(binding,{load=()=>readPrivateJson(EXECUTION_GRANT),action,repositoryLoad}={}){
+ if(action==='repository_fetch'){const p=await repositoryTaskPolicy(binding,repositoryLoad?{load:repositoryLoad}:{})??await executionPolicy(binding,{load});return p?{...p,action:'repository_fetch'}:null;}
  if(action==='repository_task')return repositoryTaskPolicy(binding,repositoryLoad?{load:repositoryLoad}:{});
  if(binding?.projectKey!==ALICE_ACTION.project||binding?.agentId!==ALICE_ACTION.agent)return null;
  try{
