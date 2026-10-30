@@ -6,27 +6,9 @@ import {SHA,executionPolicy} from './project-execution-policy.mjs';
 import {validateTreeListing} from '../../stage2/project-self-update.mjs';
 import {loadRepositoryTask,executeRepositoryTask,verifyTaskScript} from './repository-task.mjs';
 import {collectRepositoryArtifacts} from './repository-artifacts.mjs';
+import {inspectExecutionRepository,createIsolatedRepository} from './execution-repository.mjs';
+export {inspectExecutionRepository} from './execution-repository.mjs';
 
-export async function inspectExecutionRepository(policy,{command=executionCommand}={}){
- const s=await lstat(policy.repo);
- if(!s.isDirectory()||s.isSymbolicLink()||s.uid!==process.getuid()||await realpath(policy.repo)!==policy.repo)
-  throw Error('repository_path_unverified');
- const git=async(...args)=>{
-  const r=await command('/usr/bin/git',[...GIT_ARGS,...args],{cwd:policy.repo});
-  if(!r.ok||r.truncated)throw Error('git_preflight_failed');return r.stdout.trim();
- };
- if(await git('rev-parse','--show-toplevel')!==policy.repo||
-  await git('rev-parse','--absolute-git-dir')!==join(policy.repo,'.git'))throw Error('repository_identity_mismatch');
- if(await git('symbolic-ref','--quiet','--short','HEAD')!==policy.branch)throw Error('unexpected_branch');
- if(!policy.origins.includes(await git('remote','get-url','origin')))throw Error('unexpected_origin');
- if(await git('status','--porcelain=v1','--untracked-files=all'))throw Error('dirty_worktree');
- // Do not execute locally configured checkout filters while updating source.
- const filters=await command('/usr/bin/git',[...GIT_ARGS,'config','--get-regexp','^filter\\.'],{cwd:policy.repo});
- if(filters.exitCode!==1||filters.stdout.trim()||filters.timedOut||filters.spawnFailed||filters.truncated)
-  throw Error('repository_filters_require_review');
- const head=await git('rev-parse','--verify','HEAD');if(!SHA.test(head))throw Error('invalid_git_oid');
- return {head,branch:policy.branch,repository:policy.repository};
-}
 export function pythonTestEvidence(text,exitCode){
  const m=[...String(text).matchAll(/Ran (\d+) tests? in [^\r\n]+/g)].at(-1);
  const count=m?Number(m[1]):0;
@@ -67,18 +49,25 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
   policy=await policyLoad(binding,{action:record.input.action});
   if(!policy||record.input.action!==policy.action)throw Error('project_action_not_enabled');
   record.state='running';record.runnerPid=process.pid;record.startedAt=new Date().toISOString();await save();
-  const before=await inspect(policy,{command});record.beforeCommit=before.head;await save();
+  const isolated=record.input.action==='repository_task'&&record.input.workspace_mode==='isolated';
+  const before=await inspect(policy,{command,allowDirty:isolated});record.beforeCommit=before.head;
+  record.workspaceMode=isolated?'isolated':'in_place';
+  if(isolated){record.sourceWorktreeDirty=before.dirty===true;policy=await createIsolatedRepository(policy,before.origin??policy.origins[0],{store,operationId,step});record.checkoutPath=policy.repo;}
+  await save();
   const git=(name,args)=>step(name,'/usr/bin/git',[...GIT_ARGS,...args]);
-  await git('fetch',['fetch','--no-tags','origin','refs/heads/'+policy.branch]);
+  await git('fetch',['fetch',...(isolated?['--depth=1']:[]),'--no-tags','origin','refs/heads/'+policy.branch]);
   const fetched=(await git('fetched_commit',['rev-parse','--verify','FETCH_HEAD'])).stdout.trim();
   if(fetched!==record.input.expected_commit)throw Error('remote_commit_mismatch');
   const tree=await git('validate_tree',['ls-tree','-rlz','--full-tree',fetched]);
   if(tree.truncated)throw Error('candidate_tree_too_large');validateTreeListing(tree.stdout);
-  const ancestor=await command('/usr/bin/git',[...GIT_ARGS,'merge-base','--is-ancestor',before.head,fetched],{cwd:policy.repo});
-  if(!ancestor.ok)throw Error('fast_forward_required');
+  if(!isolated){const ancestor=await command('/usr/bin/git',[...GIT_ARGS,'merge-base','--is-ancestor',before.head,fetched],{cwd:policy.repo});if(!ancestor.ok)throw Error('fast_forward_required');}
   const plan=policy.action==='repository_task'?await loadRepositoryTask(policy,fetched,record.input.task_file,{command}):null;
-  const fresh=await inspect(policy,{command});if(fresh.head!==before.head)throw Error('repository_changed_before_update');
-  if(before.head!==fetched)await git('fast_forward',['merge','--ff-only','--no-edit',fetched]);
+  if(isolated){
+   await git('isolated_checkout',['checkout','--quiet','--detach',fetched]);policy={...policy,detachedCommit:fetched};
+  }else{
+   const fresh=await inspect(policy,{command});if(fresh.head!==before.head)throw Error('repository_changed_before_update');
+   if(before.head!==fetched)await git('fast_forward',['merge','--ff-only','--no-edit',fetched]);
+  }
   const updated=await inspect(policy,{command});
   if(updated.head!==fetched)throw Error('updated_commit_unverified');record.actualCommit=updated.head;
   record.testedCommit=fetched;await save();
@@ -103,13 +92,19 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
    if(!evidence.passed)throw Error('positive_test_evidence_required');
   }
   }
-  const end=await inspect(policy,{command});
+  const end=await inspect(policy,{command,allowDirty:isolated});
   if(end.head!==fetched)throw Error('repository_changed_during_tests');
-  record.actualCommit=end.head;record.worktreeClean=true;record.state='passed';
+  if(isolated&&end.dirty){
+   const tracked=await command('/usr/bin/git',[...GIT_ARGS,'diff','--no-ext-diff','--quiet','HEAD','--'],{cwd:policy.repo});
+   if(!tracked.ok)throw Error('tracked_checkout_changed_during_tests');
+  }
+  record.actualCommit=end.head;record.worktreeClean=!end.dirty;record.state='passed';
+  if(isolated){record.sourceCheckoutUpdated=false;record.generatedCheckoutFiles=end.dirty===true;}
   record.resultScope=plan?'Pinned repository task steps exited successfully; no independent deployment or application-effect acceptance.':'Local pinned Git update and Mac Python regressions only; no deployment or gameplay acceptance.';
  }catch(e){
   record.state=retainLock?'inconclusive':record.actualCommit?'failed':'blocked';
   record.reason=/^[a-z_]+$/.test(e.message)?e.message:'project_execution_requires_review';
+  if(e.preflight){record.preflight=e.preflight;await append('[preflight] '+JSON.stringify(e.preflight)+'\n');}
  }finally{
   record.finishedAt=new Date().toISOString();
   if(!record.report)record.report=await store.writeLog(operationId,log);

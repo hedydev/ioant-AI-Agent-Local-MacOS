@@ -17,7 +17,9 @@ export const executionTools=[{
  name:'openclaw_project_execute',description:'When normal conversation requires local execution, start one user-authorized enrolled task pinned to the exact full remote commit. For repository_task, author and commit the task definition and scripts yourself; supply task_file. The user need not write JSON or relay terminal commands. Requires local enrollment. Returns accepted quickly; poll project_result. No raw shell commands, arbitrary host paths, model calls or browser Worker. Repository code runs as the current user, not in an OS sandbox. Never repeat uncertain work under a new operation ID.',
  inputSchema:{type:'object',properties:{...props,conversation_key:{type:'string',pattern:'^[A-Za-z0-9][A-Za-z0-9_-]{7,63}$'},
   action:{type:'string',enum:['alice_mac_regression','repository_task']},
-  task_file:{type:'string',pattern:'^\\.openclaw/tasks/[a-z][a-z0-9_-]{0,63}\\.json$',description:'For repository_task only: task definition authored and committed by ChatGPT. Never ask the user to write task JSON.'},expected_commit:{type:'string',pattern:'^[0-9a-f]{40}$'}},
+  task_file:{type:'string',pattern:'^\\.openclaw/tasks/[a-z][a-z0-9_-]{0,63}\\.json$',description:'For repository_task only: task definition authored and committed by ChatGPT. Never ask the user to write task JSON.'},
+  workspace_mode:{type:'string',enum:['in_place','isolated'],description:'repository_task only. in_place requires a clean source checkout and fast-forwards it. For authorized tests/builds when preserving local edits, explicitly choose isolated: fetch the same approved remote into a new executor-owned checkout at expected_commit; do not modify or clean the original checkout. Not an OS sandbox. Never use it to repeat an uncertain or already executed task.'},
+  expected_commit:{type:'string',pattern:'^[0-9a-f]{40}$'}},
   required:['operation_id','conversation_key','action','expected_commit'],additionalProperties:false},
  annotations:{readOnlyHint:false,destructiveHint:true,openWorldHint:true}
 },{
@@ -32,10 +34,10 @@ export const executionTools=[{
 }];
 export function validExecutionInput(x){
  return x&&typeof x==='object'&&!Array.isArray(x)&&
-  Object.keys(x).sort().join(',')===(x.action==='repository_task'?'action,conversation_key,expected_commit,operation_id,task_file':'action,conversation_key,expected_commit,operation_id')&&
+  Object.keys(x).sort().join(',')===(x.action==='repository_task'?'action,conversation_key,expected_commit,operation_id,task_file'+(Object.hasOwn(x,'workspace_mode')?',workspace_mode':''):'action,conversation_key,expected_commit,operation_id')&&
   Object.values(x).every(v=>typeof v==='string')&&
   operationId.test(x.operation_id??'')&&CONVERSATION.test(x.conversation_key??'')&&
-  (x.action==='alice_mac_regression'||x.action==='repository_task'&&taskFilePath(x.task_file))&&SHA.test(x.expected_commit??'');
+  (x.action==='alice_mac_regression'||x.action==='repository_task'&&taskFilePath(x.task_file)&&(!Object.hasOwn(x,'workspace_mode')||['in_place','isolated'].includes(x.workspace_mode)))&&SHA.test(x.expected_commit??'');
 }
 function publicReceipt(r,cached=true){
  if(!r)return null;
@@ -77,7 +79,7 @@ export async function projectExecution(name,args,{binding,store=new ProjectExecu
   if(name!=='openclaw_project_execute'||!validExecutionInput(args))throw Error('invalid_project_execution_input');
   const digest=createHash('sha256').update(JSON.stringify([binding.projectKey,binding.agentId,
    args.operation_id,args.conversation_key,args.action,args.expected_commit,
-   ...(args.action==='repository_task'?[args.task_file]:[])])).digest('hex');
+   ...(args.action==='repository_task'?[args.task_file,...(args.workspace_mode==='isolated'?['isolated']:[])]:[])])).digest('hex');
   const previous=await store.get(args.operation_id);
   if(previous)return previous.digest===digest?publicReceipt(previous):{state:'blocked',reason:'operation_id_conflict'};
   const p=await policy(binding,{action:args.action});

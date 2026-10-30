@@ -44,7 +44,7 @@ test('generic MCP input requires a tracked-task name and includes it in operatio
  assert.equal(launched,1);
  assert.match(executionTools[1].inputSchema.properties.task_file.description,/Never ask the user/);
 });
-async function gitFixture(t,index,{missingArtifact=false}={}){
+async function gitFixture(t,index,{missingArtifact=false,generatedFile=false,mutateTracked=false}={}){
  const parent=await privateTemp(t),seed=join(parent,'seed'),repo=join(parent,'checkout');await mkdir(seed);
  const git=(cwd,...args)=>execFileSync('/usr/bin/git',args,{cwd,encoding:'utf8',env:executionEnvironment(),stdio:['ignore','pipe','pipe']}).trim();
  git(seed,'init','-q','-b','main');await writeFile(join(seed,'README.md'),'fixture\n');
@@ -53,7 +53,7 @@ async function gitFixture(t,index,{missingArtifact=false}={}){
  await mkdir(join(seed,'.openclaw/tasks'),{recursive:true});await mkdir(join(seed,'scripts'));
  const task={schemaVersion:1,title:'Independent fixture '+index,steps:[{name:'check',runtime:'node',script:'scripts/check.mjs',args:['@output_dir']}],artifacts:[{id:'summary',file:'summary.json',format:'json'}]};
  await writeFile(join(seed,'.openclaw/tasks/check.json'),JSON.stringify(task));
- await writeFile(join(seed,'scripts/check.mjs'),`import {writeFileSync} from 'node:fs';import {join} from 'node:path';${missingArtifact?'void 0':"writeFileSync(join(process.argv[2],'summary.json'),JSON.stringify({project:"+index+",ok:true,token:'sensitive-fixture-value'}))"};console.log('FIXTURE_PASSED');\n`);
+ await writeFile(join(seed,'scripts/check.mjs'),`import {writeFileSync} from 'node:fs';import {join} from 'node:path';${missingArtifact?'void 0':"writeFileSync(join(process.argv[2],'summary.json'),JSON.stringify({project:"+index+",ok:true,token:'sensitive-fixture-value'}))"};${generatedFile?"writeFileSync('generated-build-output.txt','build output');":''}${mutateTracked?"writeFileSync('README.md','mutated tracked file');":''}console.log('FIXTURE_PASSED');\n`);
  git(seed,'add','.');commit();const expected=git(seed,'rev-parse','HEAD');
  const binding={projectKey:'fixture-'+index,agentId:'fixture-'+index};
  const policy={project:binding.projectKey,agent:binding.agentId,action:'repository_task',repo,repository:'fixture/'+index,branch:'main',origins:[seed],scriptRoots:['scripts'],runtimes:{node:process.execPath}};
@@ -112,4 +112,26 @@ test('zero exit with a missing declared report cannot become a passed task',asyn
  const r=await projectExecution('openclaw_project_result',{operation_id:input.operation_id},options);
  assert.equal(r.state,'failed');assert.equal(r.cached,true);assert.equal(r.actualCommit,f.expected);
  assert.equal(r.artifacts,undefined);
+});
+
+test('isolated tasks preserve dirty source files and old HEAD while executing the pinned remote task',async t=>{
+ const f=await gitFixture(t,4,{generatedFile:true}),oldHead=f.git(f.repo,'rev-parse','HEAD');
+ await writeFile(join(f.repo,'README.md'),'operator edits must survive\n');await mkdir(join(f.repo,'build'));await writeFile(join(f.repo,'build','untracked.bin'),'local build output');
+ const status=f.git(f.repo,'status','--porcelain=v1','--untracked-files=all');
+ const input={operation_id:'isolated_acceptance_0001',conversation_key:'isolated_fixture_chat',action:'repository_task',expected_commit:f.expected,task_file:'.openclaw/tasks/check.json',workspace_mode:'isolated'};
+ const opts={...f,policy:async()=>f.policy,launch:async()=>{}};
+ assert.equal(validExecutionInput(input),true);assert.equal(validExecutionInput({...input,workspace_mode:'arbitrary_path'}),false);
+ await projectExecution('openclaw_project_execute',input,opts);await runRegisteredExecution(f.binding,input.operation_id,{store:f.store,policyLoad:async()=>f.policy});
+ const r=await projectExecution('openclaw_project_result',{operation_id:input.operation_id},opts);
+ assert.equal(r.state,'passed',JSON.stringify(r));assert.equal(r.workspaceMode,'isolated');assert.equal(r.sourceWorktreeDirty,true);assert.equal(r.sourceCheckoutUpdated,false);assert.equal(r.generatedCheckoutFiles,true);assert.equal(r.worktreeClean,false);
+ assert.equal(r.actualCommit,f.expected);assert.equal(r.cached,true);assert.equal(r.steps.some(s=>s.name==='isolated_checkout'),true);
+ assert.equal(f.git(f.repo,'rev-parse','HEAD'),oldHead);assert.equal(await readFile(join(f.repo,'README.md'),'utf8'),'operator edits must survive\n');assert.equal(await readFile(join(f.repo,'build/untracked.bin'),'utf8'),'local build output');assert.equal(f.git(f.repo,'status','--porcelain=v1','--untracked-files=all'),status);
+ const report=await projectExecution('openclaw_project_report',{operation_id:input.operation_id,artifact_id:'summary'},opts);assert.equal(JSON.parse(report.logText).ok,true);
+ assert.equal((await projectExecution('openclaw_project_execute',{...input,workspace_mode:'in_place'},opts)).reason,'operation_id_conflict');
+});
+test('isolated task cannot pass when a script changes tracked checkout files',async t=>{
+ const f=await gitFixture(t,5,{mutateTracked:true}),input={operation_id:'isolated_track_change_0001',conversation_key:'isolated_change_chat',action:'repository_task',expected_commit:f.expected,task_file:'.openclaw/tasks/check.json',workspace_mode:'isolated'};
+ await projectExecution('openclaw_project_execute',input,{...f,policy:async()=>f.policy,launch:async()=>{}});
+ await runRegisteredExecution(f.binding,input.operation_id,{store:f.store,policyLoad:async()=>f.policy});
+ const r=await f.store.get(input.operation_id);assert.equal(r.state,'failed');assert.equal(r.reason,'tracked_checkout_changed_during_tests');
 });

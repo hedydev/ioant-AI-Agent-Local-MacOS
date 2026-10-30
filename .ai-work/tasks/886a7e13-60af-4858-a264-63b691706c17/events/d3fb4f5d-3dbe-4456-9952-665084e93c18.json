@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "event_id": "d3fb4f5d-3dbe-4456-9952-665084e93c18",
+  "task_id": "886a7e13-60af-4858-a264-63b691706c17",
+  "event_type": "task_created",
+  "occurred_at": "2026-10-30T07:45:45.259021Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "8afe91b72b6d2cf82a04e1f503816d350fff5e30",
+  "message": "User authorized this repository change and delivery. Implement directly; preserve unrelated files. Runtime credentials remain outside Git and logs.",
+  "changes": {
+    "status": {
+      "from": "todo",
+      "to": "in_progress"
+    }
+  },
+  "evidence": [],
+  "supersedes_event_id": null
+}

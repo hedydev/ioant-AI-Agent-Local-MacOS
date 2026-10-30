@@ -9,6 +9,7 @@ import {projectHandoff,handoffTools} from './project-handoff.mjs';
 import {projectExecution,executionTools} from './project-execution.mjs';
 import {reportToolResult} from './project-report-contract.mjs';
 import {workspaceTool} from './workspace-tools.mjs';
+import {observeMcpCall,closeMcpAudit} from './observability.mjs';
 
 export const tools=[{
  name:'openclaw_agent_status',
@@ -56,11 +57,11 @@ export async function callTool(name,args,{status=inspectDirectAgent,message=mess
 
 export async function serve(binding=projectBinding(),route={shared:false,bindings:[binding]}){
  const {Server,StdioServerTransport,ListToolsRequestSchema,CallToolRequestSchema}=await loadSdk();
- const server=new Server({name:'ioant-openclaw-direct',version:'0.6.0'},
+ const server=new Server({name:'ioant-openclaw-direct',version:'0.8.0'},
   {capabilities:{tools:{}},instructions:routeInstructions(route)});
  server.setRequestHandler(ListToolsRequestSchema,async()=>({tools:routedCatalog(tools,route,[...handoffTools,...executionTools])}));
  server.setRequestHandler(CallToolRequestSchema,async request=>{
-  try{return await routeCall(request.params.name,request.params.arguments??{},{route,
+  try{return await observeMcpCall(request.params.name,request.params.arguments??{},()=>routeCall(request.params.name,request.params.arguments??{},{route,
    globalInvoke:async(name,args)=>{const result=await workspaceTool(name,args);return {content:[{type:'text',text:JSON.stringify(result)}],isError:['blocked','inconclusive'].includes(result.state)};},
    invoke:async(name,args,selected)=>{
     if(route.shared&&executionTools.some(t=>t.name===name)){
@@ -75,11 +76,11 @@ export async function serve(binding=projectBinding(),route={shared:false,binding
     return callTool(name,args,{
      status:()=>inspectDirectAgent({binding:selected}),message:x=>messageDirectAgent(x,{binding:selected}),
      computer:x=>runComputerTask(x,{binding:selected}),receipt:x=>computerTaskResult(x,{binding:selected})});
-   }});}
+   }}));}
   catch{return {isError:true,content:[{type:'text',text:'{"state":"inconclusive","reason":"adapter_failure"}'}]};}
  });
  await server.connect(new StdioServerTransport());
- process.stdin.on('end',()=>server.close());
+ process.stdin.on('end',async()=>{await closeMcpAudit();await server.close();});
  return server;
 }
 

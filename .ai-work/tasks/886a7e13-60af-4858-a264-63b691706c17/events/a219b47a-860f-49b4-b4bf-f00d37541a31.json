@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "event_id": "a219b47a-860f-49b4-b4bf-f00d37541a31",
+  "task_id": "886a7e13-60af-4858-a264-63b691706c17",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-30T08:26:54.791706Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "8afe91b72b6d2cf82a04e1f503816d350fff5e30",
+  "message": "Implemented local console, safe lifecycle controls, private diagnostics, explicit isolated repository tasks and preflight evidence. Full1317 tests passed. Actual detached server PPID1 and HTTP verified after tool-owned process died at app restart. launchd experiment proved Documents TCC denial; stopped its exact job and used independent authorized-host session without permission changes. Two fixture projects labeled explicitly. Web server restored; old Tunnel stopped at app restart. Real Tunnel restart/cloud schema refresh awaits private Runtime Key entry; never extract it. No NetScale job replay or production actions.",
+  "changes": {
+    "status": {
+      "from": "in_progress",
+      "to": "awaiting_device_validation"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/TUNNEL_CONSOLE_20261030.md"
+    }
+  ],
+  "supersedes_event_id": null
+}

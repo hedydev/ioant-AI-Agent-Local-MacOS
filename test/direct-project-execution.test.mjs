@@ -165,3 +165,20 @@ test('repository preflight refuses wrong branches, dirty trees, unrelated origin
   await assert.rejects(inspectExecutionRepository(p,{command}),/unexpected_branch|dirty_worktree|unexpected_origin|filters_require_review/);
  }
 });
+
+test('large positive git status is classified as dirty, with bounded diagnostic evidence',async t=>{
+ const ctx=await fixture(t),p=ctx.registered;
+ const command=async(file,args)=>{
+  const a=args.slice(GIT_ARGS.length);let stdout='';
+  if(a[0]==='rev-parse')stdout=a[1]==='--show-toplevel'?p.repo:a[1]==='--absolute-git-dir'?join(p.repo,'.git'):before;
+  if(a[0]==='symbolic-ref')stdout='main';if(a[0]==='remote')stdout=p.origins[0];
+  if(a[0]==='status')return {ok:true,exitCode:0,stdout:'?? huge-build-directory/\n',truncated:true};
+  if(a[0]==='config')return {exitCode:1,stdout:''};return {ok:true,exitCode:0,stdout};
+ };
+ await assert.rejects(inspectExecutionRepository(p,{command}),e=>e.message==='dirty_worktree'&&e.preflight.check==='worktree_status'&&e.preflight.exitCode===0&&e.preflight.truncated===true);
+ assert.equal((await inspectExecutionRepository(p,{command,allowDirty:true})).dirty,true);
+});
+test('preflight command failures preserve the failing check, exit and redacted stderr',async t=>{
+ const ctx=await fixture(t);
+ await assert.rejects(inspectExecutionRepository(ctx.registered,{command:async()=>({ok:false,exitCode:128,stderr:'fatal: token=must-not-be-logged'})}),e=>e.preflight.check==='toplevel'&&e.preflight.exitCode===128&&!e.preflight.stderr.includes('must-not-be-logged'));
+});

@@ -1,5 +1,16 @@
 # AI Agent Rules — Local macOS Phase 1
 
+## Current console and isolated execution checkpoint (2026-10-30)
+
+Read docs/TUNNEL_CONSOLE_20261030.md. The local console starts independently of chat
+through scripts/tunnel-console-service.sh start|status|stop. Runtime credentials
+are entered privately through its UI, never recovered from process/browser state.
+MCP0.8 adds metadata auditing, explicit isolated repository tasks and diagnostic
+preflight reasons. Full1317 tests pass; actual cloud rollout awaits Runtime Key
+after the user restarted the app and the old tool-owned Tunnel stopped. Do not
+claim new cloud deployment from the local SDK or replay NetScale/old jobs.
+
+
 ## Current generic MCP acceptance (2026-10-30)
 
 Live MCP0.6.0 and fifteen refreshed web tools passed real ordinary-chat onboarding,

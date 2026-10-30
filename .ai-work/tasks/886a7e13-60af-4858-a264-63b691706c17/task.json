@@ -1,0 +1,30 @@
+{
+  "schema_version": 2,
+  "task_id": "886a7e13-60af-4858-a264-63b691706c17",
+  "created_at": "2026-10-30T07:45:45.259021Z",
+  "created_by": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "objective": "Provide a local web console for observable Tunnel lifecycle, MCP communications and project activities",
+  "scope": [
+    "console",
+    "integrations/chatgpt-openclaw",
+    "scripts",
+    "test",
+    "docs"
+  ],
+  "target_ids": [],
+  "acceptance_criteria": [
+    "Loopback web UI shows live readiness, last successful poll, communications and existing project receipts",
+    "Start and stop are scoped to the configured Tunnel and never expose or persist runtime credentials",
+    "Durable redacted diagnostics and modern localized theme UI are usable on desktop and compact widths",
+    "Current native Tunnel can be inspected without interrupting unrelated project work"
+  ],
+  "deduplication_key": "tunnel-web-console",
+  "parent_task_id": null,
+  "relations": []
+}

@@ -1,5 +1,11 @@
 # ChatGPT 网页 + OpenClaw：项目使用入口
 
+最新控制台/0.8源码与隔离验收见 [Tunnel Console](TUNNEL_CONSOLE_20261030.md)。
+Web独立启动入口为 `bash scripts/tunnel-console-service.sh start`，状态/停止分别用
+`status` / `stop`。旧的工具会话实例已随应用重启停止；当前需在网页输入Runtime Key
+启动新版。下面0.6的已验收连接描述保留为历史，不能当作现在仍连通的证明。
+
+
 当前线上为 **0.6.0 / 15 个工具**，Tunnel 已更新、插件已刷新，完整网页验收和
 1299 项源码测试通过。详见 [实际验收](GENERIC_WORKSPACE_ACCEPTANCE_20261030.md)。
 

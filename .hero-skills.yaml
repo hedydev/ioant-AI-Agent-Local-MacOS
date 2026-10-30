@@ -2,7 +2,7 @@ version: 1
 
 source:
   repo: hedydev/hero-skills
-  ref: 71fc8e2d13386e338dc4e103efccc087034957c6
+  ref: 3910a553c195afb86bd1351f46dae88987c5f4a7
   local_path: ../hero-skills
 
 required:
@@ -13,6 +13,7 @@ required:
     - build-diagnostic-sessions
     - structure-modular-code
   standards:
+    - mcp-local-execution
     - ai-development-task-tracking
     - evidence-based-fixes
     - git-delivery

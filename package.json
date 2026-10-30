@@ -10,6 +10,9 @@
     "watch": "node src/audit.mjs --watch",
     "env:scan": "node src/environment.mjs scan",
     "env:save": "node src/environment.mjs save",
-    "env:check": "node src/environment.mjs check"
+    "env:check": "node src/environment.mjs check",
+    "console": "bash scripts/tunnel-console-service.sh start",
+    "console:status": "bash scripts/tunnel-console-service.sh status",
+    "console:stop": "bash scripts/tunnel-console-service.sh stop"
   }
 }

@@ -1,3 +1,5 @@
+> Local Web Console (2026-10-30): run `bash scripts/tunnel-console-service.sh start`, then open http://127.0.0.1:18489. Status, communications, saved task reports and scoped Tunnel controls are visible. See [startup, logs and rollout evidence](docs/TUNNEL_CONSOLE_20261030.md). The Web process runs independently of chat; Tunnel startup still requires a privately entered Runtime Key.
+
 # Ioant AI Agent — Local macOS
 
 > **Registered Git/test execution (2026-10-30):**
