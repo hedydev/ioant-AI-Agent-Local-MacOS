@@ -125,3 +125,18 @@ last Web restart. Tunnel returned ready. Actual MCP projects listed only the fou
 remaining registrations; Alice and NetScale status calls both returned full tools
 and computerControlEnabled:true. No further credential entry or permission change
 is needed for this delivered runtime. Final full regression:1327/1327 passed.
+
+## Permission label clarification
+
+User feedback identified that runtime/files/browser/repository capability tags used
+neutral gray styling even when enabled, making them look unavailable. All labels
+now show an explicit enabled/disabled/unverified state and a status symbol. Enabled
+capabilities consistently use the success style; unknown state uses a warning style.
+This is a frontend presentation correction, not a new permission grant. Existing
+Tunnel/Gateway processes and runtime credentials remain untouched; refresh the
+Chrome page to load the updated static assets.
+
+This clarification passed the two existing locale/text-rendering checks and was
+verified in ordinary Chrome: all six workflow permission labels read Enabled with
+the success style. Fresh console data confirmed four registered full-tool Agents
+and Tunnel ready. No service restart, credential entry or permission mutation.

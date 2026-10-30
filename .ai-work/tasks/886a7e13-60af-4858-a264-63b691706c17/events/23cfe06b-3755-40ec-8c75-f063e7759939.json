@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "event_id": "23cfe06b-3755-40ec-8c75-f063e7759939",
+  "task_id": "886a7e13-60af-4858-a264-63b691706c17",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-30T14:16:43.867090Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "dad5b257b2e542e8838193bdd07914b2c14209ba",
+  "message": "User feedback: neutral-gray capability labels looked disabled despite actual full permission. Unified labels to explicit enabled/disabled/unverified with symbols and consistent status colors. Existing two UI/locale checks passed. Actual Chrome verified six workflow labels enabled. Console readback: four full-tool/computer-enabled projects, Tunnel ready. Frontend refresh only; no service restart or new permission grant. Human visual acceptance pending.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/PROJECT_AGENT_ACCESS_AND_UI_20261030.md"
+    }
+  ],
+  "supersedes_event_id": null
+}

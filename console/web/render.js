@@ -40,12 +40,22 @@ export function renderLogs(rows){
  document.getElementById('log-feed').replaceChildren(...(rows.length?rows.map(r=>node('div',{class:'log-row'},node('time',{},time(r.ts)),node('span',{class:'log-level '+r.level},r.level.toUpperCase()),node('div',{class:'log-message'},[r.tool??r.event,r.state,r.reason,r.project,r.operationId,r.message].filter(Boolean).join(' · ')))):[empty('logs.noEvents')]));
 }
 
+function permissionBadge(key,value){
+ const state=value===true?'enabled':value===false?'disabled':'unverified';
+ return node('span',{class:'badge '+(value===true?'':value===false?'neutral':'warn')},
+  node('span',{'aria-hidden':'true'},value===true?'✓':value===false?'○':'?'),
+  t('permissions.status',{name:t('permissions.'+key),state:t('permissions.'+state)}));
+}
 export function renderPermissions(projects){
  const target=document.getElementById('project-access');
  target.replaceChildren(node('div',{class:'section-heading'},node('div',{},node('h2',{},t('permissions.title')),node('p',{},t('permissions.description')))),
- ...projects.map(p=>node('div',{class:'permission-row'},node('div',{},node('strong',{},p.name??p.key),node('small',{class:'permission-identity'},p.key+' · '+p.agent)),
- node('div',{class:'button-row'},node('span',{class:'badge '+(p.permissions?.toolAccess==='full'?'':'neutral')},t('permissions.'+(p.permissions?.toolAccess??'unverified'))),
- node('span',{class:'badge '+(p.permissions?.computer===true?'':'neutral')},t('permissions.computer')+' · '+t(p.permissions?.computer===true?'permissions.enabled':p.permissions?.computer===false?'permissions.disabled':'permissions.unverified')),
- ...(p.permissions?.toolAccess==='full'?['runtime','files','browser'].map(k=>node('span',{class:'badge neutral'},t('permissions.'+k))):[]),
- node('span',{class:'badge neutral'},t('permissions.repository')+' · '+t(p.permissions?.repositoryTask?'permissions.enabled':'permissions.disabled'))))));
+ ...projects.map(p=>{
+  const full=p.permissions?.toolAccess==='full';
+  const native=full?true:['advisor','computer'].includes(p.permissions?.toolAccess)?false:null;
+  return node('div',{class:'permission-row'},node('div',{},node('strong',{},p.name??p.key),node('small',{class:'permission-identity'},p.key+' · '+p.agent)),
+   node('div',{class:'button-row'},permissionBadge('full',full?true:native===false?false:null),
+    permissionBadge('computer',p.permissions?.computer),
+    ...['runtime','files','browser'].map(k=>permissionBadge(k,native)),
+    permissionBadge('repository',p.permissions?.repositoryTask)));
+ }));
 }

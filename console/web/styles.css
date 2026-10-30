@@ -9,3 +9,5 @@
 @media(max-width:760px){.project-nav{display:flex;overflow:auto;gap:var(--s2);margin-top:var(--s3)}.project-button{width:auto;flex:0 0 auto;max-width:210px}.project-heading{align-items:flex-start;flex-direction:column}.connection-flow{gap:6px}.flow-node{min-width:52px}.flow-node small{display:none}.flow-node strong{font-size:10px}}
 
 #view-project .permission-row>div:first-child{display:none}.badge{font-size:10px}.permission-row .badge{font-size:10px}.execution-steps summary{cursor:pointer;color:var(--accent)}.execution-steps>div{padding:var(--s2) 0}.project-heading .eyebrow{margin-bottom:var(--s2)}
+
+.permission-row .badge{display:inline-flex;align-items:center;gap:5px}
