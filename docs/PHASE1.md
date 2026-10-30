@@ -1,3 +1,7 @@
+## Latest MCP fetch continuation (2026-10-31)
+
+See [fetch checkpoint](MCP_REPOSITORY_FETCH_CHECKPOINT_20261030.md). MCP0.9.1 fixed refs-only fetch passed1338 regressions and is verified in live same-child health. Operator restart was already complete; continuation did not restart services. Actual actions advertises fetch and workflow read-only calls passed after one Chrome Refresh. Final caller-schema reply verification remains pending; no business task or unknown operation was replayed. Phase-1 audit boundaries are unchanged.
+
 # Phase 1 — Local read-only browser audits
 
 ## Separate operator-approved project console update

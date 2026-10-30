@@ -1,6 +1,6 @@
-## Latest fetch checkpoint (2026-10-30)
+## Latest fetch checkpoint (2026-10-31)
 
-Read docs/MCP_REPOSITORY_FETCH_CHECKPOINT_20261030.md. Source candidate0.9.1 adds fixed model-free repository_fetch through project_execute and local ref inspection. Live remains0.9.0 until guarded reload and actual catalog verification. Preserve dirty original checkouts; fetch updates refs, not HEAD. User usage pause reached5%; automatically resume after real reset, no unknown operation replay.
+Read docs/MCP_REPOSITORY_FETCH_CHECKPOINT_20261030.md. MCP0.9.1 source and live same-child health are verified; project_actions advertises model-free repository_fetch for enrolled dirty checkouts. Full1338 tests passed. Operator already restarted, so do not restart again. Actual Chrome Refresh and workflow actions/inspect calls succeeded. Final web reply/action-enum confirmation is pending because foreground Chrome changed during window selection; read the existing response only, never resend the acceptance prompt or replay unknown jobs. Automatic continuation remains active for this last verification. Fetch changes remote refs, not local HEAD.
 
 ## Latest execution routing and receipt repair (2026-10-30)
 
