@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Explicit local protocol acceptance; no ChatGPT account/API calls.
+import {setTimeout as delay} from 'node:timers/promises';
 import {randomUUID} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {loadClientSdk} from '../integrations/chatgpt-openclaw/sdk.mjs';
@@ -35,7 +36,11 @@ if(!['--status','--message-test','--computer-read-test'].includes(mode)||
     conversation_key:'mcp_probe_'+randomUUID(),
     message:'Reply with exactly DIRECT_MCP_READY. Do not use any tools.'}};
   const result=await client.callTool(request,undefined,{timeout:160000});
-  const data=JSON.parse(result.content[0].text);
+  let data=JSON.parse(result.content[0].text);
+  const deadline=Date.now()+650000;
+  while(mode==='--computer-read-test'&&['accepted','running'].includes(data.state)&&Date.now()<deadline){
+   await delay(1000);const pending=await client.callTool({name:'openclaw_computer_result',arguments:{operation_id:operation}});data=JSON.parse(pending.content[0].text);
+  }
   let passed=mode==='--status'?data.state==='ready':mode==='--computer-read-test'?
    data.state==='returned'&&data.computerToolSucceeded===true:
     data.state==='answered'&&data.text==='DIRECT_MCP_READY'&&data.provider==='ollama';

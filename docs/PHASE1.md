@@ -1,3 +1,7 @@
+## Resource-aware MCP candidate (2026-10-31)
+
+See [resource optimization](MCP_RESOURCE_OPTIMIZATION_20261031.md). Fixed exact-commit dirty-tree sync and detached native jobs passed1350 regressions; local SDK status passed with no model/desktop. All existing tool grants and Ollama configuration are unchanged. Runtime reload and calling-Chat schema verification are separate deployment gates; no real business action has been repeated. Phase-1 audit restrictions remain unchanged.
+
 ## Latest MCP fetch continuation (2026-10-31)
 
 See [fetch checkpoint](MCP_REPOSITORY_FETCH_CHECKPOINT_20261030.md). MCP0.9.1 fixed refs-only fetch passed1338 regressions and is verified in live same-child health. Operator restart was already complete; continuation did not restart services. Actual actions advertises fetch and workflow read-only calls passed after one Chrome Refresh. The operator relayed final caller-schema/read-only acceptance; no further browser verification is needed. Temporary automation was deleted; normal supported execution/verification goes to ChatGPT Chat. No business fetch/build or unknown operation was replayed. Phase-1 audit boundaries are unchanged.

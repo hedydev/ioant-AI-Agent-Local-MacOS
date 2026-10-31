@@ -2,6 +2,7 @@
 // New stdio client/process per invocation. Defaults are model/desktop-free;
 // explicit --computer-read-test invokes one local model and native cursor read.
 import {fileURLToPath} from 'node:url';
+import {setTimeout as delay} from 'node:timers/promises';
 import {randomUUID} from 'node:crypto';
 import {loadClientSdk} from '../integrations/chatgpt-openclaw/sdk.mjs';
 const allowed=['--status','--resume','--computer-read-test'];
@@ -29,9 +30,11 @@ try{
  if(mode==='--computer-read-test'){
   if(status.toolsEnabled!==true)throw Error('computer_not_enabled');
   const nonce=randomUUID();operation='shared_cursor_'+nonce;
-  const completed=await read('openclaw_computer_task',{project_key:key,operation_id:operation,
+  let completed=await read('openclaw_computer_task',{project_key:key,operation_id:operation,
    conversation_key:'shared_cursor_probe_'+nonce,
    message:'Use the computer tool exactly once with action get_cursor_position. Do not take screenshots, list apps/windows, move the pointer, click, type, open apps, read files, send messages or change settings. Do not retry a refused action. Report the actual outcome.'});
+  const deadline=Date.now()+650000;
+  while(['accepted','running'].includes(completed.state)&&Date.now()<deadline){await delay(1000);completed=await read('openclaw_computer_result',{project_key:key,operation_id:operation});}
   if(completed.state!=='returned'||completed.computerToolSucceeded!==true)throw Error('native_read_unverified');
   const saved=await read('openclaw_computer_result',{project_key:key,operation_id:operation});
   if(saved.operationId!==operation||saved.cached!==true||saved.computerToolSucceeded!==true)throw Error('cached_receipt_unverified');

@@ -1,3 +1,7 @@
+## Latest resource optimization (2026-10-31)
+
+Read docs/MCP_RESOURCE_OPTIMIZATION_20261031.md first. MCP0.10.0 candidate adds model-free exact-commit repository_sync preserving non-overlapping local changes, and detached computer_task jobs with same-ID polling and a bounded single MCP inference lane. Do not replay old uncertain operations or infer cloud deployment from source tests. Keep Ollama idle unload/context and all tool permissions; no Web/Gateway/Ollama restart or credential recovery. ChatGPT Chat owns final read-only catalog acceptance. Historical120-second synchronous descriptions below describe the prior runtime only after0.10.0 deployment is verified.
+
 ## Latest fetch checkpoint (2026-10-31)
 
 Read docs/MCP_REPOSITORY_FETCH_CHECKPOINT_20261030.md. MCP0.9.1 source and live same-child health are verified; project_actions advertises model-free repository_fetch for enrolled dirty checkouts. Full1338 tests passed. Operator already restarted; no further restart or Refresh is needed. User-relayed final web acceptance confirms the fetch action enum, optional top-level expected_commit and successful read-only actions/inspect. This is not a real business fetch/build acceptance. The temporary automation was deleted at the user's direction to delegate verification to ChatGPT Chat. Prefer that Chat for supported execution/readback/validation and conserve Codex usage; use Codex for bridge changes. Fetch changes remote refs, not local HEAD. Never replay unknown operations.

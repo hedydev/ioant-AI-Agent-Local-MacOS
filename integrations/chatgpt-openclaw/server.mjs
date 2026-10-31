@@ -27,7 +27,7 @@ export const tools=[{
  annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false}
 },{
  name:'openclaw_computer_task',
- description:'Delegate one bounded user-authorized local Agent step to the selected registered project Agent, only after its computer permission is configured. Cannot select arbitrary Agents. Can affect applications/files through its configured full or computer-only tool profile; status.toolAccess reports the configured scope. This synchronous local-model path has a 120-second Agent budget. Prefer deterministic async project_execute for Git clone/update, scripts, builds and tests; its optional isolated mode can preserve dirty source checkouts when appropriate to the user task. A missing Agent answer does not prove commands failed or did not run. Keep each task bounded; multi-step UI loops may time out. Use a unique operation_id; never retry an uncertain action under a new ID. Local model only; no browser Worker. Returned text is not independent effect verification.',
+ description:'Delegate one bounded user-authorized local Agent step to the selected registered project Agent, only after its computer permission is configured. Cannot select arbitrary Agents. Can affect applications/files through its configured full or computer-only tool profile; status.toolAccess reports the configured scope. This asynchronous local-model path persists admission and returns accepted quickly: poll computer_result for queued/running/final receipts. MCP computer jobs share one inference lane with four bounded waiting/admitted slots; the Agent has a 300-second run budget, separate from a 300-second queue wait. Unknown native completion retains its lane for reconciliation. Prefer deterministic async project_execute for Git clone/update, scripts, builds and tests; its optional isolated mode can preserve dirty source checkouts when appropriate to the user task. A missing Agent answer does not prove commands failed or did not run. Keep each task bounded; multi-step UI loops may time out. Use a unique operation_id; never retry an uncertain action under a new ID. Local model only; no browser Worker. Returned text is not independent effect verification.',
  inputSchema:{type:'object',properties:{
   operation_id:{type:'string',pattern:'^[A-Za-z0-9][A-Za-z0-9_-]{7,79}$'},
   conversation_key:{type:'string',pattern:'^[A-Za-z0-9][A-Za-z0-9_-]{7,63}$'},
@@ -36,7 +36,7 @@ export const tools=[{
  annotations:{readOnlyHint:false,destructiveHint:true,openWorldHint:true}
 },{
  name:'openclaw_computer_result',
- description:'Read the saved receipt for an existing computer operation without executing it again. A started or uncertain task must not be retried under a new ID.',
+ description:'Read the saved receipt for an existing computer operation without executing it again. Accepted/running is pending; poll the same ID. A started or uncertain task must not be retried under a new ID.',
  inputSchema:{type:'object',properties:{
   operation_id:{type:'string',pattern:'^[A-Za-z0-9][A-Za-z0-9_-]{7,79}$'}},
   required:['operation_id'],additionalProperties:false},
@@ -57,7 +57,7 @@ export async function callTool(name,args,{status=inspectDirectAgent,message=mess
 
 export async function serve(binding=projectBinding(),route={shared:false,bindings:[binding]}){
  const {Server,StdioServerTransport,ListToolsRequestSchema,CallToolRequestSchema}=await loadSdk();
- const server=new Server({name:'ioant-openclaw-direct',version:'0.9.1'},
+ const server=new Server({name:'ioant-openclaw-direct',version:'0.10.0'},
   {capabilities:{tools:{}},instructions:routeInstructions(route)});
  server.setRequestHandler(ListToolsRequestSchema,async()=>({tools:routedCatalog(tools,route,[...handoffTools,...executionTools])}));
  server.setRequestHandler(CallToolRequestSchema,async request=>{

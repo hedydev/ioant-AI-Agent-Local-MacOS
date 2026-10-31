@@ -4,10 +4,16 @@ import {mkdtemp,rm,writeFile,chmod,symlink,realpath} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {ComputerTaskStore} from '../integrations/chatgpt-openclaw/computer-task-store.mjs';
-import {computerAgentPolicy,runComputerTask,computerTaskResult}
+import {computerAgentPolicy,runComputerTask as admitComputerTask,performComputerTask,computerTaskResult}
  from '../integrations/chatgpt-openclaw/computer-agent.mjs';
 import {projectBinding} from '../integrations/chatgpt-openclaw/project-binding.mjs';
 
+import {runComputerJob} from '../integrations/chatgpt-openclaw/computer-job.mjs';
+// Complete the detached job under a mocked native boundary for result assertions.
+async function runComputerTask(input,opts={}){
+ const r=await admitComputerTask(input,{...opts,launch:async(binding,id)=>runComputerJob(binding,id,{store:opts.store,policy:async()=>true,residency:async()=>({state:'observed',models:[]}),perform:(x,{binding})=>performComputerTask(x,{binding,call:opts.call})})});
+ return r.state==='accepted'?computerTaskResult({operation_id:input.operation_id},opts):r;
+}
 const input={operation_id:'computer_probe_0001',conversation_key:'test_chat_123',
  message:'Read cursor position only. Do not move the pointer or take screenshots.'};
 const workspace=async()=>'present_private';
@@ -106,7 +112,7 @@ test('identical operation IDs in independent projects cannot retrieve each other
   {binding:alice,store:aliceStore});
  assert.equal(absent.state,'not_found');
  const other=await runComputerTask(input,{...opts,binding:alice,store:aliceStore});
- assert.equal(other.project,'alice-ai');assert.equal(other.cached,undefined);
+ assert.equal(other.project,'alice-ai');assert.equal(other.cached,true);
  assert.equal(calls,2);
 });
 

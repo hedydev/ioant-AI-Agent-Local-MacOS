@@ -31,7 +31,7 @@ export async function removeProject(input,{parent=EXECUTION_PARENT,grantPath=REP
   const execution=new ProjectExecutionStore(b,{parent});await execution.admit();projectLock=join(execution.dir,'active.lock');
   try{await writeFile(projectLock,JSON.stringify({operationId:input.operation_id,digest}),{mode:0o600,flag:'wx'});}catch{projectLock=null;throw Error('project_execution_busy');}
   for(const {path} of await privateJsonFiles(join(parent,'direct-computer-'+b.projectKey),500)){
-   const r=JSON.parse(await privateRead(path));if(r.state==='started'||r.result?.state==='inconclusive')throw Error('project_computer_task_unsettled');
+   const r=JSON.parse(await privateRead(path));if(['accepted','running','started'].includes(r.state)||r.result?.state==='inconclusive')throw Error('project_computer_task_unsettled');
   }
   const config=await readPrivateJson(configPath),agent=config.agents?.entries?.[b.agentId];
   if(agent?.workspace!==b.workspace)throw Error('project_agent_identity_changed');

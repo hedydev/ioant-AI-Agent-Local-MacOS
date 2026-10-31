@@ -1,4 +1,5 @@
 // Browser debugging is optional transport, never a dependency of repository jobs.
+import {modelResidency} from './model-residency.mjs';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {homedir} from 'node:os';
@@ -26,9 +27,9 @@ export async function browserSessionStatus({command=browserSessionCommand}={}){
   repositoryExecutionRequiresChromeDebug:false,modelInferenceInvoked:false,
   ...(attached?{}:{nextAction:'For an explicitly requested browser task, connect the existing OpenClaw Chrome Debug session. If Chrome requires a user confirmation, report it; never reinstall, reset permissions or keep reconnecting after cancellation.'})};
 }
-export async function openclawCapabilities(input,{load=loadWorkspaceAccess,status=browserSessionStatus}={}){
+export async function openclawCapabilities(input,{load=loadWorkspaceAccess,status=browserSessionStatus,residency=modelResidency}={}){
  if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).length)return {state:'blocked',reason:'invalid_capability_query'};
- const checks=await Promise.allSettled([load(),status()]);
+ const checks=await Promise.allSettled([load(),status(),residency()]);
  const access=checks[0].status==='fulfilled'?checks[0].value:null;
  return {state:'capabilities',readOnly:true,modelInferenceInvoked:false,
   repositoryTasks:{implemented:true,workspaceAccessConfigured:!!access,projectConnectForNewRepositories:true,
@@ -36,9 +37,10 @@ export async function openclawCapabilities(input,{load=loadWorkspaceAccess,statu
    catalogRequirement:'If project_execute has no workspace_mode parameter, refresh the plugin tools; do not conclude isolated execution is unsupported.',
    requiresChromeDebug:false,requiresComputerControl:false,requiresLocalModel:false,
    tools:['openclaw_project_inspect','openclaw_workspace_projects','openclaw_project_connect','openclaw_project_execute','openclaw_project_result','openclaw_project_report']},
-  nativeDesktop:{tool:'openclaw_computer_task',permissionPerProject:true,localModelRequired:true,agentTimeoutSeconds:120,
+  nativeDesktop:{tool:'openclaw_computer_task',permissionPerProject:true,localModelRequired:true,agentTimeoutSeconds:300,execution:'asynchronous',maxConcurrentMcpJobs:1,queueCapacity:4,queueWaitSeconds:300,
    preferredFor:'Bounded native UI/Agent tasks. Git clone/update, scripts, builds and tests prefer repositoryTasks.',
    nativeInputRequiresChromeDebug:false,browserDomActionsMayRequireBrowserConsent:true},
+  localInference:{residency:checks[2].status==='fulfilled'?checks[2].value:{state:'unavailable'},settingsChanged:false,scope:'MCP computer jobs serialized; direct OpenClaw UI/local-chat and external Ollama clients are outside this lane. Existing idle unloading remains unchanged.'},
   browser:checks[1].status==='fulfilled'?checks[1].value:{state:'unavailable',chromeDebugConnected:false},
   instructions:'Use repository tasks for Git, scripts and reports even when Chrome Debug is off. Only enable browser access for a user-requested browser UI task; never use it as an enrollment or shell workaround.'};
 }

@@ -1,0 +1,34 @@
+{
+  "schema_version": 2,
+  "task_id": "045deb71-97e8-4aec-9078-3a300c91e738",
+  "created_at": "2026-10-31T14:55:47.350386Z",
+  "created_by": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "objective": "Reduce unnecessary local-model memory and remove synchronous Agent timeouts while preserving MCP execution and desktop capabilities",
+  "scope": [
+    "integrations/chatgpt-openclaw",
+    "scripts/direct-openclaw-computer-job.mjs",
+    "console/activity.mjs",
+    "test",
+    "docs"
+  ],
+  "target_ids": [
+    "macos-audit-cli"
+  ],
+  "acceptance_criteria": [
+    "Dirty original checkouts can fast-forward to an exact enrolled commit without overwriting local edits or invoking a model",
+    "Computer tasks return durable accepted receipts immediately and run independently of MCP transport",
+    "Bounded shared MCP inference lane limits concurrent model jobs while deterministic tasks remain independent",
+    "Existing operation receipts and uncertain no-replay guarantees remain compatible",
+    "Model residency and actual execution routing are observable without loading models",
+    "Regression tests and runtime/catalog deployment status are documented and pushed"
+  ],
+  "deduplication_key": "mcp-resource-aware-async-computer-and-safe-sync",
+  "parent_task_id": "f2afc52b-24c6-4bf1-a94f-1fbdc4e3a2af",
+  "relations": []
+}

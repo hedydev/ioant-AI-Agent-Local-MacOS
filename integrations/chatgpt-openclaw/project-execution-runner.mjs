@@ -1,4 +1,5 @@
 // One registered Git fast-forward + Python test run. No arbitrary shell and no AI.
+import {assertNonoverlappingUpdate,verifyPreservation,preservationSnapshot} from './repository-preservation.mjs';
 import {lstat,realpath} from 'node:fs/promises';
 import {join} from 'node:path';
 import {executionCommand,executionEnvironment,GIT_ARGS,redactExecutionOutput} from './project-execution-command.mjs';
@@ -51,10 +52,10 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
   policy=await policyLoad(binding,{action:record.input.action});
   if(!policy||record.input.action!==policy.action)throw Error('project_action_not_enabled');
   record.state='running';record.runnerPid=process.pid;record.startedAt=new Date().toISOString();await save();
-  const fetchOnly=record.input.action==='repository_fetch';
-  const readOptions={command:(file,args,options)=>command(file,args,{...options,env:{...executionEnvironment(),GIT_OPTIONAL_LOCKS:'0'}}),allowDirty:fetchOnly};
+  const fetchOnly=record.input.action==='repository_fetch',syncOnly=record.input.action==='repository_sync';
+  const readOptions={command:(file,args,options)=>command(file,args,{...options,env:{...executionEnvironment(),GIT_OPTIONAL_LOCKS:'0'}}),allowDirty:fetchOnly||syncOnly};
   const isolated=record.input.action==='repository_task'&&record.input.workspace_mode==='isolated';
-  const before=await inspect(policy,fetchOnly?readOptions:{command,allowDirty:isolated});record.beforeCommit=before.head;
+  const before=await inspect(policy,fetchOnly||syncOnly?readOptions:{command,allowDirty:isolated});record.beforeCommit=before.head;
   record.workspaceMode=isolated?'isolated':'in_place';
   if(isolated){record.sourceWorktreeDirty=before.dirty===true;policy=await createIsolatedRepository(policy,before.origin??policy.origins[0],{store,operationId,step});record.checkoutPath=policy.repo;}
   await save();
@@ -75,6 +76,19 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
   if(fetched!==record.input.expected_commit)throw Error('remote_commit_mismatch');
   const tree=await git('validate_tree',['ls-tree','-rlz','--full-tree',fetched]);
   if(tree.truncated)throw Error('candidate_tree_too_large');validateTreeListing(tree.stdout);
+  if(syncOnly){
+   const ancestor=await command('/usr/bin/git',[...GIT_ARGS,'merge-base','--is-ancestor',before.head,fetched],{cwd:policy.repo});
+   if(!ancestor.ok)throw Error('fast_forward_required');
+   const preserved=await assertNonoverlappingUpdate(policy,before.head,fetched,{command});
+   const fresh=await inspect(policy,readOptions);if(fresh.head!==before.head)throw Error('repository_changed_before_update');
+   if((await preservationSnapshot(policy,{command})).digest!==preserved.digest)throw Error('local_changes_changed_before_sync');
+   if(before.head!==fetched)await git('fast_forward',['-c','merge.autoStash=false','merge','--ff-only','--no-overwrite-ignore','--no-autostash','--no-edit',fetched]);
+   const end=await inspect(policy,readOptions);record.actualCommit=end.head;
+   if(end.head!==fetched)throw Error('updated_commit_unverified');
+   record.preservedLocalChanges=await verifyPreservation(policy,preserved,{command});
+   record.sourceCheckoutUpdated=before.head!==fetched;record.worktreeClean=!end.dirty;record.state='passed';
+   record.resultScope='Exact Git fast-forward with verified preservation of local changes; no scripts, tests, clone or deployment.';return;
+  }
   if(!isolated){const ancestor=await command('/usr/bin/git',[...GIT_ARGS,'merge-base','--is-ancestor',before.head,fetched],{cwd:policy.repo});if(!ancestor.ok)throw Error('fast_forward_required');}
   const plan=policy.action==='repository_task'?await loadRepositoryTask(policy,fetched,record.input.task_file,{command}):null;
   if(isolated){

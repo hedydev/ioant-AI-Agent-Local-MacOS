@@ -20,7 +20,7 @@ export function usedCapabilities(r,kind){
 }
 export function activityRow(r,kind,project){
  const result=kind==='execution'?r:r.result??r;
- const state=result.state??r.state;
+ const state=r.job&&r.state!=='finished'?(r.phase==='queued'?'accepted':'running'):result.state??r.state;
  if(!id(r.operationId)||!id(project??result.project_key??result.project)||!id(state))return null;
  const row={id:kind+':'+(project??result.project_key??result.project)+':'+r.operationId,operationId:r.operationId,kind,
   project:project??result.project_key??result.project,state,
@@ -28,7 +28,8 @@ export function activityRow(r,kind,project){
   action:id(r.input?.action),reason:id(result.reason),agent:id(result.agent??r.agent),
   cached:['passed','failed','blocked','inconclusive','returned','connected'].includes(state),
   toolsUsed:usedCapabilities(r,kind),
-  modelInferenceInvoked:kind==='execution'?r.modelInferenceInvoked===true:undefined};
+  phase:id(r.phase),asynchronous:kind==='computer'?Boolean(r.job):undefined,
+  modelInferenceInvoked:kind==='execution'?r.modelInferenceInvoked===true:kind==='computer'?r.modelInferenceInvoked===true:undefined};
  if(kind==='execution')Object.assign(row,{
   commit:/^[a-f0-9]{40}$/.test(r.actualCommit)?r.actualCommit:null,worktreeClean:r.worktreeClean===true,
   steps:Array.isArray(r.steps)?r.steps.map(s=>({name:id(s.name),state:id(s.state),capability:id(s.capability),runtime:id(s.runtime),script:typeof s.script==='string'?cleanText(s.script):undefined,exitCode:s.exitCode,startedAt:s.startedAt,finishedAt:s.finishedAt})):[],

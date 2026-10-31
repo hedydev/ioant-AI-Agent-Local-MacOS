@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "event_id": "171104b2-9830-4b1a-9f04-2a7110e66123",
+  "task_id": "045deb71-97e8-4aec-9078-3a300c91e738",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-31T15:07:53.798992Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "6d53a9a72614ceca86b8c7739f0f4fc47c6d3757",
+  "message": "Candidate0.10.0: deterministic pinned sync with local staged/unstaged/untracked preservation and ignored-file overwrite refusal; detached same-ID computer jobs; four admitted slots/one active MCP model lane; native300s/CLI335s budgets, bounded watchdog; metadata-only residency. Full1350 pass, no skips/failures; targeted20 pass; real separate Node fixture and model-free local SDK status pass. FIFO tie found/fixed before final full run. Permissions/Ollama config/business repositories untouched. Runtime reload/catalog acceptance pending. Weekly10% remaining checkpoint; human acceptance pending.",
+  "changes": {
+    "status": {
+      "from": "in_progress",
+      "to": "awaiting_device_validation"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/MCP_RESOURCE_OPTIMIZATION_20261031.md"
+    }
+  ],
+  "supersedes_event_id": null
+}

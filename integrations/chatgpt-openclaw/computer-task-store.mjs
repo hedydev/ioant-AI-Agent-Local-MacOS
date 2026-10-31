@@ -23,24 +23,37 @@ export class ComputerTaskStore{
   await this.admit();const path=this.path(id);
   let s;try{s=await lstat(path);}catch(e){if(e.code==='ENOENT')return null;throw e;}
   if(!s.isFile()||s.isSymbolicLink()||(s.mode&0o077)!==0||s.uid!==process.getuid()||
-   s.size>16384||await realpath(path)!==path)throw Error('unsafe_task_record');
+   s.size>32768||await realpath(path)!==path)throw Error('unsafe_task_record');
   const d=JSON.parse(await readFile(path,'utf8'));
   if(d?.schemaVersion!==1||d.operationId!==id||!/^[0-9a-f]{64}$/.test(d.digest??'')||
-   !['started','finished'].includes(d.state))throw Error('invalid_task_record');
+   !['accepted','running','started','finished'].includes(d.state))throw Error('invalid_task_record');
   return d;
  }
- async begin(id,digest){
+ async begin(id,digest,job){
   await this.admit();const path=this.path(id);
   const existing=await this.get(id);if(existing)return {created:false,record:existing};
-  if((await readdir(this.dir)).length>=500)throw Error('task_ledger_full');
-  const record={schemaVersion:1,operationId:id,digest,state:'started',startedAt:new Date().toISOString()};
+  if((await readdir(this.dir)).filter(n=>n.endsWith('.json')).length>=500)throw Error('task_ledger_full');
+  const record={schemaVersion:1,operationId:id,digest,state:'started',startedAt:new Date().toISOString(),...(job?{job,phase:'queued'}:{})};
   try{await writeFile(path,JSON.stringify(record)+'\n',{mode:0o600,flag:'wx'});}
   catch(e){if(e.code==='EEXIST')return {created:false,record:await this.get(id)};throw e;}
   return {created:true,record};
  }
+ async start(id,digest){
+  const r=await this.get(id);if(!r?.job||r.state==='finished'||r.phase!=='queued'||r.digest!==digest)return null;
+  try{await writeFile(join(this.dir,id+'.runner'),digest,{mode:0o600,flag:'wx'});}
+  catch(e){if(e.code==='EEXIST')return null;throw e;}
+  return r;
+ }
+ async progress(id,digest,phase,extra={}){
+  const prior=await this.get(id);
+  if(!prior||prior.digest!==digest||!prior.job||prior.state==='finished')throw Error('task_reservation_changed');
+  const temporary=join(this.dir,'.receipt-'+randomUUID()+'.tmp');
+  await writeFile(temporary,JSON.stringify({...prior,...extra,phase,state:'started'})+'\n',{mode:0o600,flag:'wx'});
+  await rename(temporary,this.path(id));
+ }
  async finish(id,digest,result){
   const prior=await this.get(id);
-  if(prior?.state!=='started'||prior.digest!==digest)throw Error('task_reservation_changed');
+  if(!['accepted','running','started'].includes(prior?.state)||prior.digest!==digest)throw Error('task_reservation_changed');
   const temporary=join(this.dir,'.receipt-'+randomUUID()+'.tmp');
   await writeFile(temporary,JSON.stringify({...prior,state:'finished',
    finishedAt:new Date().toISOString(),result})+'\n',{mode:0o600,flag:'wx'});

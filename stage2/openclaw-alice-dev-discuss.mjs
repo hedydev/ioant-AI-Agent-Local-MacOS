@@ -40,7 +40,7 @@ export function readDevReply(data){
  if(text.length>MAX_REPLY)text=text.slice(0,MAX_REPLY-20)+'\n[truncated]';
  return {state:'answered',text};
 }
-export function invokeDevCli(args,body,{spawnImpl=spawn}={}){
+export function invokeDevCli(args,body,{spawnImpl=spawn,timeoutMs=TIMEOUT}={}){
  return new Promise(resolve=>{
   const env={...process.env};
   for(const key of ['OPENCLAW_GATEWAY_TOKEN','OPENCLAW_GATEWAY_PASSWORD',
@@ -49,9 +49,11 @@ export function invokeDevCli(args,body,{spawnImpl=spawn}={}){
   try{proc=spawnImpl(CLI,args,{env,shell:false,stdio:['pipe','pipe','pipe']});}
   catch{return resolve({state:'inconclusive',note:'cli_launch_failed'});}
   const started=performance.now();
-  let exitCode=null,ended=false,output='',overflow=false,timedOut=false;
-  const finish=result=>{if(ended)return;ended=true;clearTimeout(timer);resolve({...result,diagnostics:{durationMs:Math.round(performance.now()-started),exitCode,timedOut,captureLimitExceeded:overflow}})};
-  const timer=setTimeout(()=>{timedOut=true;try{proc.kill('SIGTERM')}catch{}},TIMEOUT);
+  let exitCode=null,ended=false,output='',overflow=false,timedOut=false,escalation;
+  const finish=result=>{if(ended)return;ended=true;clearTimeout(timer);clearTimeout(escalation);resolve({...result,diagnostics:{durationMs:Math.round(performance.now()-started),exitCode,timedOut,captureLimitExceeded:overflow}})};
+  const timer=setTimeout(()=>{timedOut=true;try{proc.kill('SIGTERM')}catch{}
+   escalation=setTimeout(()=>{try{proc.kill('SIGKILL')}catch{}finish({state:'inconclusive',note:'gateway_timeout'});},2000);
+  },timeoutMs);
   proc.stdout?.on('data',part=>{
    output+=String(part);
    if(output.length>MAX_CAPTURE){overflow=true;output=output.slice(0,MAX_CAPTURE);}

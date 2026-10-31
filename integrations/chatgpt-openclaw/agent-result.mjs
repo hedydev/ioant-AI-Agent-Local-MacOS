@@ -3,10 +3,10 @@ import {redactFeedback} from '../../stage2/protocol.mjs';
 export const AGENT_TIMEOUT_SECONDS=120;
 const TRANSPORT_REASONS={gateway_timeout:'agent_cli_timeout',cli_launch_failed:'agent_cli_launch_failed',
  gateway_cli_failed:'agent_cli_failed',invalid_json:'agent_result_invalid_json'};
-export function interpretAgentResult(reply,{operationId,binding,durationMs=0}={}){
+export function interpretAgentResult(reply,{operationId,binding,durationMs=0,agentTimeoutSeconds=AGENT_TIMEOUT_SECONDS}={}){
  const base={state:'inconclusive',operationId,project:binding.projectKey,agent:binding.agentId,
   doNotRepeat:true,executionOutcome:'unverified',effectIndependentlyVerified:false,
-  agentTimeoutSeconds:AGENT_TIMEOUT_SECONDS,durationMs:Math.max(0,Math.round(durationMs)),
+  agentTimeoutSeconds,durationMs:Math.max(0,Math.round(durationMs)),
   nextAction:'Query this operation receipt and reconcile actual effects. Do not repeat under a new ID. Prefer project_execute for authorized Git, scripts, builds and tests.'};
  const diagnostic=reply?.diagnostics;
  if(diagnostic)base.cli={exitCode:Number.isInteger(diagnostic.exitCode)?diagnostic.exitCode:null,
