@@ -63,10 +63,16 @@ Actual cloud MCP read calls then returned:
 
 The Ollama `/api/ps` read remained empty after these calls, corroborating that deterministic discovery/status does not require loading Gemma. No real computer_task was submitted just for acceptance. Async native behavior is covered by mocked native boundaries and a separate real Node fixture; actual native completion remains a later user-task validation, not a claim made from these reads. New console phase fields are source-ready; the current Web remains compatible without restarting it.
 
-Shared Hero standard was updated/pushed as `4631f3c`, teaching safe original sync, async polling and resource/budget boundaries without project-specific runtime facts. The consuming pin is updated. The final calling-Chat schema verification is intentionally delegated to ChatGPT Chat to conserve Codex usage. No automatic follow-up was installed. Refresh the existing plugin tools once before that read-only verification; **no additional Tunnel restart is needed**.
+Shared Hero standard was updated/pushed as `4631f3c`, teaching safe original sync, async polling and resource/budget boundaries without project-specific runtime facts. The consuming pin is updated. The final calling-Chat schema verification was delegated to ChatGPT Chat to conserve Codex usage and has now passed as relayed by the operator below. No automatic follow-up was installed. **No further Refresh or service restart is needed**.
 
-Suggested Chat prompt (no model load or business execution):
+Completed Chat prompt (historical; do not repeat):
 
 ```text
 仅使用 OpenClaw Mac 做只读验收：确认当前 project_execute.action 枚举包含 repository_sync；实际调用 openclaw_project_actions({"project_key":"openclaw-workflow"}) 和 openclaw_capabilities({})。报告 sync 的 enabled/expectedCommitRequired，以及 nativeDesktop 的 execution/agentTimeoutSeconds/maxConcurrentMcpJobs/queueCapacity、localInference.residency。不要调用 execute、computer_task、模型、脚本或修改文件。新动作不可见时只报告目录未刷新，不另找执行路径。
 ```
+
+## Final calling-Chat acceptance — operator-relayed
+
+The operator supplied the21-second ChatGPT Chat read-only report: actual project_execute action enum includes repository_sync; actions returned enabled=true, requiresCleanWorktree=false, taskFileRequired=false, expectedCommitRequired=true. Capabilities returned nativeDesktop.execution=asynchronous, agentTimeoutSeconds=300, maxConcurrentMcpJobs=1, queueCapacity=4, queueWaitSeconds=300. Only actions and capabilities were called; no execute, computer_task, model, script or file mutation was reported. This is relayed web evidence, not an additional Codex browser check.
+
+Queue capacity4 is the TOTAL admitted MCP computer jobs (at most1 active plus3 waiting), not4 extra waiting jobs. Direct local-chat and other Ollama clients remain outside this lane. Source/runtime/catalog/read-only technical verification is complete; real business sync/desktop outcomes and inference-time memory peaks were not measured by this acceptance. No repeat, model-loading probe or runtime restart is required for documentation closure.

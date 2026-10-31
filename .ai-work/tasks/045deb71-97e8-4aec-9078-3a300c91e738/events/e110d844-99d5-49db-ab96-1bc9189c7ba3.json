@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "event_id": "e110d844-99d5-49db-ab96-1bc9189c7ba3",
+  "task_id": "045deb71-97e8-4aec-9078-3a300c91e738",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-31T15:36:42.476479Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "0ae53a0a611d8c86af40d45fc40d0b99dd6b3f4a",
+  "message": "Operator relayed final21s web PASS: actual action enum repository_sync, enabled/no clean tree/no task/full SHA required, async native300s/one active/four total slots/300s queue. Only actions/capabilities read, no model or execution. Clarified four total slots=one active plus three waiting. No Codex repeat or restart; docs-only closure. Technical source/runtime/catalog/read-only evidence complete, real business/desktop acceptance separate; human-authoritative task completion not inferred from pasted AI report.",
+  "changes": {
+    "status": {
+      "from": "awaiting_device_validation",
+      "to": "awaiting_user_acceptance"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/MCP_RESOURCE_OPTIMIZATION_20261031.md"
+    }
+  ],
+  "supersedes_event_id": null
+}
