@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "event_id": "9e5887b2-064b-4e9b-bf9b-eb189a6120a7",
+  "task_id": "045deb71-97e8-4aec-9078-3a300c91e738",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-10-31T15:12:42.820605Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "91629f6b9a1effd86266291760e39f9157fde973",
+  "message": "Source pushed/remote verified; no-active-task console memory-key restart once. Same-child health0.10.0 ready. Actual cloud reads expose sync, async300s/one active/four admitted slots, empty model residency; full computer tools remain ready. No Web/Gateway/Ollama restart, model load, business sync or old-job replay. Full1350 tests pass. Hero4631f3c promoted/pinned. Final caller-schema read-only verification delegated to ChatGPT Chat after plugin Refresh per user preference; no automatic follow-up. Human acceptance pending.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/MCP_RESOURCE_OPTIMIZATION_20261031.md"
+    }
+  ],
+  "supersedes_event_id": null
+}

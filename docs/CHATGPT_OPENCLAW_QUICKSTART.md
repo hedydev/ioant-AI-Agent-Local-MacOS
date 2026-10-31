@@ -1,6 +1,6 @@
-## Resource-aware MCP0.10.0 candidate
+## Resource-aware MCP0.10.0
 
-Read `MCP_RESOURCE_OPTIMIZATION_20261031.md` for source/runtime evidence. For a pinned original-checkout update preserving local edits use repository_sync; fetch only updates refs. Scripts/builds/tests use repository_task, not computer_task. Desktop jobs now return accepted immediately; poll computer_result, never resubmit pending/uncertain work. New MCP computer jobs share one bounded inference lane. This does not disable full tools or change Ollama idle/context settings. Final tool-catalog verification belongs to ChatGPT Chat; do not redo business operations for infrastructure acceptance.
+Read `MCP_RESOURCE_OPTIMIZATION_20261031.md` for source/runtime evidence. Full1350 tests pass; live0.10.0 and read-only cloud calls are verified. No additional service restart; refresh plugin tools once for final calling-Chat schema verification. For a pinned original-checkout update preserving local edits use repository_sync; fetch only updates refs. Scripts/builds/tests use repository_task, not computer_task. Desktop jobs now return accepted immediately; poll computer_result, never resubmit pending/uncertain work. New MCP computer jobs share one bounded inference lane. This does not disable full tools or change Ollama idle/context settings. Final tool-catalog verification belongs to ChatGPT Chat; do not redo business operations for infrastructure acceptance.
 
 ## MCP 0.9.1: model-free fetch
 

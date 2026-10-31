@@ -49,3 +49,24 @@ bash scripts/dev-env.sh exec node scripts/direct-openclaw-shared-smoke.mjs --sta
 For an actual future MCP upgrade, use the existing Web console Restart Tunnel after no native call is in flight, then Refresh tools in the plugin settings. Do not stop/restart the Web daemon or blindly repeat historical jobs.
 
 Usage checkpoint: weekly account window reached90% used (10% remaining), five-hour window20% used. Source/tests/docs are being committed/pushed before runtime reload. No repeat of historical acceptance is required.
+
+## Actual deployment evidence
+
+Source commit `91629f6b9a1effd86266291760e39f9157fde973` was pushed and remote SHA independently verified. After the console reported no accepted/running/started tasks, its existing memory-key Restart Tunnel API was used once. Web, Gateway and Ollama were not restarted and no credential was read or re-entered. Same-child health subsequently confirmed `ioant-openclaw-direct` **0.10.0**, Tunnel ready.
+
+Actual cloud MCP read calls then returned:
+
+- workflow actions: `repository_sync.enabled=true`, clean-tree/task-file requirements false, expected commit required true, modelInferenceInvoked=false;
+- capabilities: nativeDesktop.execution=asynchronous, agentTimeoutSeconds=300, maxConcurrentMcpJobs=1, queueCapacity=4, queueWaitSeconds=300;
+- localInference.residency.models=[], settingsChanged=false;
+- workflow Agent status: ready, full tools, computerControlEnabled=true.
+
+The Ollama `/api/ps` read remained empty after these calls, corroborating that deterministic discovery/status does not require loading Gemma. No real computer_task was submitted just for acceptance. Async native behavior is covered by mocked native boundaries and a separate real Node fixture; actual native completion remains a later user-task validation, not a claim made from these reads. New console phase fields are source-ready; the current Web remains compatible without restarting it.
+
+Shared Hero standard was updated/pushed as `4631f3c`, teaching safe original sync, async polling and resource/budget boundaries without project-specific runtime facts. The consuming pin is updated. The final calling-Chat schema verification is intentionally delegated to ChatGPT Chat to conserve Codex usage. No automatic follow-up was installed. Refresh the existing plugin tools once before that read-only verification; **no additional Tunnel restart is needed**.
+
+Suggested Chat prompt (no model load or business execution):
+
+```text
+仅使用 OpenClaw Mac 做只读验收：确认当前 project_execute.action 枚举包含 repository_sync；实际调用 openclaw_project_actions({"project_key":"openclaw-workflow"}) 和 openclaw_capabilities({})。报告 sync 的 enabled/expectedCommitRequired，以及 nativeDesktop 的 execution/agentTimeoutSeconds/maxConcurrentMcpJobs/queueCapacity、localInference.residency。不要调用 execute、computer_task、模型、脚本或修改文件。新动作不可见时只报告目录未刷新，不另找执行路径。
+```

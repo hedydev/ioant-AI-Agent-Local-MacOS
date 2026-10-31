@@ -1,6 +1,6 @@
-## Resource-aware MCP candidate (2026-10-31)
+## Resource-aware MCP rollout (2026-10-31)
 
-See [resource optimization](MCP_RESOURCE_OPTIMIZATION_20261031.md). Fixed exact-commit dirty-tree sync and detached native jobs passed1350 regressions; local SDK status passed with no model/desktop. All existing tool grants and Ollama configuration are unchanged. Runtime reload and calling-Chat schema verification are separate deployment gates; no real business action has been repeated. Phase-1 audit restrictions remain unchanged.
+See [resource optimization](MCP_RESOURCE_OPTIMIZATION_20261031.md). Fixed exact-commit dirty-tree sync and detached native jobs passed1350 regressions; local SDK status passed with no model/desktop. All existing tool grants and Ollama configuration are unchanged. Live0.10.0 health and actual cloud actions/capabilities/status are now verified with no loaded model; final calling-Chat schema verification is delegated after one plugin Refresh. No more service restart or real business replay is required. Phase-1 audit restrictions remain unchanged.
 
 ## Latest MCP fetch continuation (2026-10-31)
 
