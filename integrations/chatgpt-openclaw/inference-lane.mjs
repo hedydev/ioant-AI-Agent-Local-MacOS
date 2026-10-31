@@ -24,6 +24,21 @@ export class InferenceLane{
   return null;
  }
  async read(name){const p=join(this.dir,name);await privateExecutionPath(p);return JSON.parse(await readFile(p,'utf8'));}
+ async snapshot(){
+  try{
+   await privateExecutionPath(this.dir,true);const jobs=[];
+   for(let slot=0;slot<INFERENCE_CAPACITY;slot++){
+    try{const r=await this.read('slot-'+slot+'.json');jobs.push({
+     project:typeof r.project==='string'&&/^[a-z][a-z0-9-]{0,47}$/.test(r.project)?r.project:null,
+     operationId:typeof r.operationId==='string'&&/^[A-Za-z0-9][A-Za-z0-9_-]{7,79}$/.test(r.operationId)?r.operationId:null});
+    }catch(e){if(e.code!=='ENOENT')throw e;}
+   }
+   let active=false;try{await this.read('active.json');active=true;}catch(e){if(e.code!=='ENOENT')throw e;}
+   return {state:active?'active_or_unsettled':jobs.length?'reserved':'idle',admittedJobs:jobs.length,
+    activeOrUnsettled:active,waitingReservations:Math.max(0,jobs.length-(active?1:0)),capacity:INFERENCE_CAPACITY,jobs,
+    scope:'MCP computer-job reservations only; inspect operation receipts for live status. No stale lock takeover. Not global Ollama activity.'};
+  }catch(e){return e.code==='ENOENT'?{state:'idle',admittedJobs:0,activeOrUnsettled:false,waitingReservations:0,capacity:INFERENCE_CAPACITY,jobs:[]}:{state:'unavailable'};}
+ }
  async acquire(reservation){
   await this.admit();const own=await this.read('slot-'+reservation.slot+'.json');
   if(own.token!==reservation.token)throw Error('inference_slot_conflict');

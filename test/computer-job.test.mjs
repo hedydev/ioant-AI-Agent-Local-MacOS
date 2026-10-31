@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {mkdtemp,realpath,chmod,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
 import {ComputerTaskStore} from '../integrations/chatgpt-openclaw/computer-task-store.mjs';
-import {runComputerTask,computerTaskResult} from '../integrations/chatgpt-openclaw/computer-agent.mjs';
+import {runComputerTask,computerTaskResult,performComputerTask} from '../integrations/chatgpt-openclaw/computer-agent.mjs';
 import {runComputerJob} from '../integrations/chatgpt-openclaw/computer-job.mjs';
 import {InferenceLane} from '../integrations/chatgpt-openclaw/inference-lane.mjs';
 import {projectBinding} from '../integrations/chatgpt-openclaw/project-binding.mjs';
@@ -65,4 +65,16 @@ test('residency status is metadata-only, bounded, and never preloads a model',as
  let calls=0;const r=await modelResidency({fetchImpl:async(url,options)=>{calls++;assert.equal(url,'http://127.0.0.1:11435/api/ps');assert.equal(options.method,undefined);return new Response(JSON.stringify({models:[{name:'gemma4:26b-a4b',size:25000000000,context_length:32768,secret:'never return'}]}));}});
  assert.equal(r.models[0].residentBytes,25000000000);assert.equal(calls,1);assert.equal(JSON.stringify(r).includes('secret'),false);assert.equal(r.modelInferenceInvoked,false);
  assert.equal((await modelResidency({fetchImpl:async()=>{throw Error('private');}})).state,'unavailable');
+});
+
+test('new desktop operations use separate bounded sessions while retaining project Agent, model and tools',async()=>{
+ const keys=[];const call=async(args,body)=>{keys.push(args[args.indexOf('--session-key')+1]);assert.equal(args[args.indexOf('--agent')+1],binding.agentId);assert.equal(args[args.indexOf('--model')+1],'ollama/gemma4:26b-a4b');assert.match(body,/fresh execution session/);return {state:'reply',data:{status:'ok',result:{payloads:[{text:'fixture'}],meta:{agentMeta:{provider:'ollama',model:'gemma4:26b-a4b'}}}}};};
+ await performComputerTask(input,{binding,call});await performComputerTask({...input,operation_id:'async_computer_002'},{binding,call});await performComputerTask(input,{binding,call});
+ assert.notEqual(keys[0],keys[1]);assert.equal(keys[0],keys[2]);assert.ok(keys.every(k=>k.startsWith('agent:'+binding.agentId+':computer-')));
+});
+test('queue snapshot reads reservations without running a model, claiming slots or exposing owner tokens',async t=>{
+ const f=await fixture(t);assert.equal((await f.lane.snapshot()).state,'idle');
+ const slot=await f.lane.reserve('fixture','snapshot_operation');await f.lane.acquire(slot);const x=await f.lane.snapshot();
+ assert.equal(x.admittedJobs,1);assert.equal(x.waitingReservations,0);assert.equal(x.activeOrUnsettled,true);assert.equal(JSON.stringify(x).includes(slot.token),false);
+ await f.lane.release(slot,{active:true});assert.equal((await f.lane.snapshot()).state,'idle');
 });
