@@ -1,6 +1,6 @@
 ## Fresh executor context follow-up (2026-11-01)
 
-Read the last section of docs/MCP_RESOURCE_OPTIMIZATION_20261031.md. MCP0.10.1 uses a fresh native session per computer operation and exposes read-only laneStatus/sessionScope. Queue already serialized observed jobs; one27GB loaded model was not multiple concurrent models. Preserve full tools/32K, existing chats/handoffs and uncertain receipts. Do not claim a measured memory reduction or force unload. Runtime state is documented in the latest validation event.
+Read the last section of docs/MCP_RESOURCE_OPTIMIZATION_20261031.md. MCP0.10.1 is live/same-child verified and uses a fresh native session per computer operation and exposes read-only laneStatus/sessionScope. Queue already serialized observed jobs; one27GB loaded model was not multiple concurrent models. Preserve full tools/32K, existing chats/handoffs and uncertain receipts. Do not claim a measured memory reduction or force unload. Full1352 tests pass; actual capabilities show operation scope and idle lane/empty model residency. No more restart needed. Managed Tunnel restart hit an exit-event race; confirmed-stopped recovery via memory-key start succeeded, but that console defect is not fixed. Weekly5% checkpoint, no automatic follow-up. Runtime evidence is in the latest validation event.
 
 ## Latest resource optimization (2026-10-31)
 
