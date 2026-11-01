@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "event_id": "1771a434-f223-446f-845f-79dd2006a746",
+  "task_id": "17aa84a7-2f01-44be-a177-7edf45666d15",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-11-01T13:56:44.257025Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "c7d515cbcf11da710878aa3c149ae6814df7e3d8",
+  "message": "Source pushed/remote SHA verified. Quiescent memory-key stop/confirmed code0/start reloaded managed Tunnel without Web/Gateway/Ollama restart. Actual cloud capabilities default current and live inspect branch metadata succeeded with no model/network/source change. Independent local SDK initialized0.11.0/new modes. Calling Chat schema remains cached; no plugin Refresh API and Chrome user foreground left untouched. Calling-Chat Refresh/read-only acceptance and human acceptance remain pending; no NetScale business task replay.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/MCP_CURRENT_WORKSPACE_20261101.md"
+    }
+  ],
+  "supersedes_event_id": null
+}

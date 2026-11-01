@@ -36,7 +36,7 @@
 
 ## 验证与部署状态
 
-源码回归已完成，当前仍为未重载运行端的候选；部署证据待现有 Tunnel 安全重载后补充。
+源码回归及运行端重载已完成；最终调用 Chat 的缓存目录刷新仍需单独确认，见下方部署记录。
 真实 Git 临时仓库测试覆盖 dirty detached/其他分支下任务执行、HEAD/索引/引用保留、
 精确提交不匹配、入口脚本变化、Git 操作未结束、旧 ID 兼容及同步保留分支关联。
 没有为了验收而更新 NetScale、重跑旧 Cargo、修改远端服务或加载本地模型。
@@ -76,3 +76,28 @@ openclaw_project_actions 与 openclaw_project_inspect。报告 defaultWorkspaceM
 
 Hero Skills `ebd9b45689881b16f6b3d217ebe4ec8546f0235e` 已推送并核对远端，
 Git Skill 验证器通过，项目消费引用已更新。没有安装模型、依赖或第三方桌面工具。
+
+## 运行端部署与只读验收
+
+源码提交 `c7d515cbcf11da710878aa3c149ae6814df7e3d8` 已推送，远端 SHA 已核对。
+在控制台确认项目任务为零、MCP 推理 lane idle/admittedJobs=0、Tunnel 队列为0后，
+仅停止受管理的旧 Tunnel。待控制台确认旧进程已退出（code0）且内存密钥仍保留后，
+通过已有 start 接口启动新版，避开已知 stop/exit-event 竞态。未重启 Web/Gateway/Ollama，
+未恢复、读取或输出 Runtime Key，未安装额外模型或调用付费推理。
+
+控制台随后返回新 Tunnel ready（PID13369，stdio child PID13372）。独立本地 SDK
+initialize 报告 MCP0.11.0，实际工具目录包含 current/in_place/isolated 与 repository_sync。
+经现有云端 MCP 实际调用 capabilities，返回 defaultWorkspaceMode=current、三个模式、
+lane idle 和空模型驻留；实际 project_inspect 返回 repository_inspection、headState、
+branch、registeredBranch、gitOperation，保留本地修改，无模型/网络调用。
+
+只读观察时 NetScale 已由其所属 Chat 的另一个操作恢复 main 关联；本 Chat 未替它
+执行该修复、同步代码、重跑 Cargo 或运行审计脚本。游离 HEAD 的新行为由真实 Git
+临时仓库回归证明，不能把当前已关联 main 的只读查询冒充真实游离仓库运行验收。
+
+本 Codex Chat 注入的 project_execute schema 仍保留旧枚举，不能据源码/运行端已更新
+就宣称所有调用 Chat 缓存已刷新。插件管理连接器无 Refresh tools 接口，本轮未操作
+前台浏览器进行刷新。后续调用 Chat 在插件设置 Refresh tools 后用上面的只读提示
+验收即可；无需再次重启 Tunnel。
+当前默认模式即使省略 workspace_mode 也由运行端选择 current，但客户端旧说明不应
+当作新能力缺失的证据。未做业务同步/构建验收，人的最终任务验收仍待确认。
