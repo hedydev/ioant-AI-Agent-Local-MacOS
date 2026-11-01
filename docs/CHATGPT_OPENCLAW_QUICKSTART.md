@@ -1,3 +1,9 @@
+## 当前执行规则入口
+
+先读 [MCP 执行选择与构建检查清单](MCP_EXECUTION_PLAYBOOK.md)。Git、脚本、编译和测试
+使用固定执行器，应用界面任务才走本地模型 Agent。本文下面按版本保留历史验收，
+不代表当前连接或目录状态；实际工具以当前会话 schema 和能力查询为准。
+
 ## Resource-aware MCP0.10.0
 
 Read `MCP_RESOURCE_OPTIMIZATION_20261031.md` for source/runtime evidence. Full1350 tests pass; live0.10.0 and read-only cloud calls are verified. Operator-relayed final web schema/read-only acceptance also passed; no additional service restart or Refresh. For a pinned original-checkout update preserving local edits use repository_sync; fetch only updates refs. Scripts/builds/tests use repository_task, not computer_task. Desktop jobs now return accepted immediately; poll computer_result, never resubmit pending/uncertain work. New MCP computer jobs share one bounded inference lane. This does not disable full tools or change Ollama idle/context settings. Final tool-catalog verification belongs to ChatGPT Chat; do not redo business operations for infrastructure acceptance.

@@ -430,3 +430,13 @@ model call, Git update, test run or report/receipt mutation occurred. Full sourc
 regression remains 1265/1265; only docs/ledger updated after the source fix.
 Technical acceptance is ready; human task completion remains explicit. Do not
 repeat restart/Refresh/cursor probes/completed Git or Python work.
+
+## 2026-11-01 — Execution playbook clarification
+
+Added docs/MCP_EXECUTION_PLAYBOOK.md and linked it from AI/ChatGPT entry points.
+It specifies deterministic Git/build/test routing, verified tool paths and cwd,
+tracked task/artifact requirements, optional isolation and reconciliation before
+new work after an uncertain Agent timeout. Read-only MCP calls observed enabled
+repository tasks, a cached native timeout with exec/write evidence and a generic
+Git inspection failure; no business task was submitted. Those failures remain
+unresolved. Documentation does not change tool schemas or runtime behavior.

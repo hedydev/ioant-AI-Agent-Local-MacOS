@@ -1,3 +1,7 @@
+## Execution playbook (2026-11-01)
+
+Read docs/MCP_EXECUTION_PLAYBOOK.md before selecting local execution tools. Git/build/test tasks use the deterministic executor; validate tool paths, checkout cwd, manifest, exit status and declared artifacts in committed scripts. Reconcile uncertain old operations before any new build. Catalog mismatch and generic git_preflight_failed require distinct diagnosis, not model-terminal fallback. This is documentation guidance only; no runtime repair or deployment is implied.
+
 ## Fresh executor context follow-up (2026-11-01)
 
 Read the last section of docs/MCP_RESOURCE_OPTIMIZATION_20261031.md. MCP0.10.1 is live/same-child verified and uses a fresh native session per computer operation and exposes read-only laneStatus/sessionScope. Queue already serialized observed jobs; one27GB loaded model was not multiple concurrent models. Preserve full tools/32K, existing chats/handoffs and uncertain receipts. Do not claim a measured memory reduction or force unload. Full1352 tests pass; actual capabilities show operation scope and idle lane/empty model residency. No more restart needed. Managed Tunnel restart hit an exit-event race; confirmed-stopped recovery via memory-key start succeeded, but that console defect is not fixed. Weekly5% checkpoint, no automatic follow-up. Runtime evidence is in the latest validation event.
