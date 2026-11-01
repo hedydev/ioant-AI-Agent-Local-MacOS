@@ -34,8 +34,8 @@ export async function openclawCapabilities(input,{load=loadWorkspaceAccess,statu
  const access=checks[0].status==='fulfilled'?checks[0].value:null;
  return {state:'capabilities',readOnly:true,modelInferenceInvoked:false,
   repositoryTasks:{implemented:true,workspaceAccessConfigured:!!access,projectConnectForNewRepositories:true,
-   workspaceModes:['in_place','isolated'],execution:'deterministic_async',
-   catalogRequirement:'If project_execute has no workspace_mode parameter, refresh the plugin tools; do not conclude isolated execution is unsupported.',
+   workspaceModes:['current','in_place','isolated'],defaultWorkspaceMode:'current',execution:'deterministic_async',
+   catalogRequirement:'If project_execute has no workspace_mode parameter, refresh the plugin tools; verify current mode is present; never create a separate checkout unless the user explicitly requests one.',
    requiresChromeDebug:false,requiresComputerControl:false,requiresLocalModel:false,
    tools:['openclaw_project_inspect','openclaw_workspace_projects','openclaw_project_connect','openclaw_project_execute','openclaw_project_result','openclaw_project_report']},
   nativeDesktop:{tool:'openclaw_computer_task',permissionPerProject:true,localModelRequired:true,agentTimeoutSeconds:300,execution:'asynchronous',sessionScope:'operation',maxConcurrentMcpJobs:1,queueCapacity:4,queueWaitSeconds:300,

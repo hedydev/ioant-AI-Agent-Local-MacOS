@@ -440,3 +440,11 @@ new work after an uncertain Agent timeout. Read-only MCP calls observed enabled
 repository tasks, a cached native timeout with exec/write evidence and a generic
 Git inspection failure; no business task was submitted. Those failures remain
 unresolved. Documentation does not change tool schemas or runtime behavior.
+
+## 2026-11-01 — Current checkout policy and deterministic execution
+
+See docs/MCP_CURRENT_WORKSPACE_20261101.md. Operator requires the existing directory
+and checkout state by default, with no implicit branch/HEAD attachment or isolation.
+Source candidate0.11.0 adds current-mode tasks, detached-aware read-only inspection
+and branch-preserving sync. Runtime/validation evidence is recorded in that document.
+Old uncertain operations and business repositories are not replayed or repaired.

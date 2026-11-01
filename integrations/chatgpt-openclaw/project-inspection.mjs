@@ -16,20 +16,22 @@ export async function inspectProjectRepository(input,{binding,policy=executionPo
    input.snapshot_sha256!==undefined&&!/^[a-f0-9]{64}$/.test(input.snapshot_sha256)||
    (input.offset??0)>0&&!input.snapshot_sha256||(input.offset!==undefined||input.snapshot_sha256!==undefined)&&input.details!=='diff')throw Error('invalid_inspection_input');
   const p=await policy(binding,{action:'repository_task'})??await policy(binding);if(!p)throw Error('project_repository_not_enabled');
-  const before=await inspectExecutionRepository(p,{command,allowDirty:true});
+  const before=await inspectExecutionRepository(p,{command,allowDirty:true,requireRegisteredBranch:false});
   const git=async args=>{const r=await command('/usr/bin/git',[...GIT_ARGS,...args],{cwd:p.repo,timeout:15000,limit:131072});if(!r.ok||r.truncated)throw Error(r.truncated?'inspection_output_limit':r.timedOut?'inspection_git_timeout':'inspection_git_failed');return r.stdout;};
   const status=await git(['status','--porcelain=v1','--untracked-files=normal']);
-  const out={...base,state:'repository_inspection',repository:p.repository,branch:before.branch,head:before.head,worktreeClean:!before.dirty,statusText:redactExecutionOutput(status),untrackedContentsRead:false};
+  const out={...base,state:'repository_inspection',repository:p.repository,branch:before.branch,headState:before.headState,registeredBranch:before.registeredBranch,gitOperation:before.gitOperation,head:before.head,worktreeClean:!before.dirty,statusText:redactExecutionOutput(status),untrackedContentsRead:false};
   for(const [key,ref] of [['remoteTrackingCommit','refs/remotes/origin/'+p.branch],['fetchHeadCommit','FETCH_HEAD^{commit}']]){const r=await command('/usr/bin/git',[...GIT_ARGS,'rev-parse','--verify','--quiet',ref],{cwd:p.repo});out[key]=r.ok&&/^[a-f0-9]{40}$/.test(r.stdout.trim())?r.stdout.trim():null;}
   out.remoteRefsScope='Locally stored refs; not proof of current network reachability or latest remote HEAD.';
   if(input.details!=='diff')return out;
   const staged=await git(['diff','--no-ext-diff','--no-textconv','--cached','--']),working=await git(['diff','--no-ext-diff','--no-textconv','--']);
   const head=(await git(['rev-parse','--verify','HEAD'])).trim();if(head!==before.head)throw Error('repository_changed_during_inspection');
-  const snapshotSha256=createHash('sha256').update(JSON.stringify([head,status,staged,working])).digest('hex');
+  const after=await inspectExecutionRepository(p,{command,allowDirty:true,requireRegisteredBranch:false});
+  if(after.branch!==before.branch||after.gitOperation!==before.gitOperation)throw Error('repository_changed_during_inspection');
+  const snapshotSha256=createHash('sha256').update(JSON.stringify([head,before.branch,before.gitOperation,status,staged,working])).digest('hex');
   if(input.snapshot_sha256&&input.snapshot_sha256!==snapshotSha256)return {...base,state:'changed',reason:'inspection_snapshot_changed',snapshotSha256};
   const text=redactExecutionOutput('[staged diff]\n'+staged+'\n[working tree diff]\n'+working),offset=input.offset??0;
   if(offset>text.length)throw Error('invalid_inspection_offset');
   const diffText=text.slice(offset,offset+4000),next=offset+diffText.length;
   return {...out,snapshotSha256,diffText,offset,totalCharacters:text.length,nextOffset:next<text.length?next:null,contentIsUntrusted:true};
- }catch(e){return {...base,state:'blocked',reason:/^[a-z_]+$/.test(e.message)?e.message:'inspection_unavailable'};}
+ }catch(e){return {...base,state:'blocked',reason:/^[a-z_]+$/.test(e.message)?e.message:'inspection_unavailable',...(e.preflight?{preflight:e.preflight}:{})};}
 }

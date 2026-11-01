@@ -36,3 +36,14 @@ test('ignored local files are never overwritten by a newly tracked remote file',
  const f=await fixture(t),old=f.git(f.repo,'rev-parse','HEAD');await writeFile(join(f.repo,'ignored.txt'),'private local\n');await writeFile(join(f.remote,'ignored.txt'),'remote\n');f.git(f.remote,'add','-f','ignored.txt');f.git(f.remote,'commit','--quiet','-m','remote');
  const r=await execute(f,'sync_ignored_001');assert.notEqual(r.state,'passed');assert.equal(f.git(f.repo,'rev-parse','HEAD'),old);assert.equal(await readFile(join(f.repo,'ignored.txt'),'utf8'),'private local\n');
 });
+
+test('explicit sync preserves detached HEAD or the current different branch without attaching main',async t=>{
+ for(const state of ['detached','other']){
+  const f=await fixture(t),main=f.git(f.repo,'rev-parse','refs/heads/main');
+  f.git(f.repo,'checkout',...(state==='detached'?['--detach','HEAD']:['-b','operator-topic']));
+  await writeFile(join(f.repo,'local.txt'),'operator edit\n');await writeFile(join(f.repo,'untracked.txt'),'keep\n');
+  await writeFile(join(f.remote,'new.txt'),'remote\n');f.git(f.remote,'add','new.txt');f.git(f.remote,'commit','--quiet','-m','remote');
+  const r=await execute(f,'sync_state_'+state);assert.equal(r.state,'passed',JSON.stringify(r));assert.equal(r.beforeBranch,state==='detached'?null:'operator-topic');assert.equal(r.afterBranch,r.beforeBranch);
+  assert.equal(f.git(f.repo,'rev-parse','--abbrev-ref','HEAD'),state==='detached'?'HEAD':'operator-topic');assert.equal(f.git(f.repo,'rev-parse','refs/heads/main'),main);assert.equal(await readFile(join(f.repo,'local.txt'),'utf8'),'operator edit\n');assert.equal(await readFile(join(f.repo,'untracked.txt'),'utf8'),'keep\n');assert.equal(r.preservedLocalChanges.verified,true);
+ }
+});

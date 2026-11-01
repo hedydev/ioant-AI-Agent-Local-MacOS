@@ -1,3 +1,7 @@
+## Operator checkout policy and MCP0.11.0 (2026-11-01)
+
+The user explicitly requires current-directory/current-checkout development unless they request branches or a separate checkout. Never create/switch branches, attach HEAD to main or automatically isolate to bypass preflight. This supersedes older default-main/optional-isolation recommendations below. Read docs/MCP_CURRENT_WORKSPACE_20261101.md and docs/MCP_EXECUTION_PLAYBOOK.md. Generic repository_task now defaults to current: pinned current HEAD, dirty edits and detached HEAD allowed, no fetch/update/branch change. Explicit repository_sync retains checkout association while protecting local changes. Deployment/validation state is recorded in that document; do not infer live upgrade from source changes.
+
 ## Execution playbook (2026-11-01)
 
 Read docs/MCP_EXECUTION_PLAYBOOK.md before selecting local execution tools. Git/build/test tasks use the deterministic executor; validate tool paths, checkout cwd, manifest, exit status and declared artifacts in committed scripts. Reconcile uncertain old operations before any new build. Catalog mismatch and generic git_preflight_failed require distinct diagnosis, not model-terminal fallback. This is documentation guidance only; no runtime repair or deployment is implied.

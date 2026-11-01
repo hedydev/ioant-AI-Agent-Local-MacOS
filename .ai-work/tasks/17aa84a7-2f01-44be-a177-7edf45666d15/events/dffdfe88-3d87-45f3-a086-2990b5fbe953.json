@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "event_id": "dffdfe88-3d87-45f3-a086-2990b5fbe953",
+  "task_id": "17aa84a7-2f01-44be-a177-7edf45666d15",
+  "event_type": "task_created",
+  "occurred_at": "2026-11-01T13:42:26.688509Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "5b29d626b1f4f46df28f9743d60026ec76e19e0a",
+  "message": "Operator requested shared skill rules and MCP implementation together: current workspace/checkout by default; branch or separate checkout only on explicit request. No business repository repair or uncertain operation replay.",
+  "changes": {
+    "status": {
+      "from": null,
+      "to": "in_progress"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/MCP_CURRENT_WORKSPACE_20261101.md"
+    }
+  ],
+  "supersedes_event_id": null
+}

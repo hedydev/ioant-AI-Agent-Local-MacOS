@@ -32,3 +32,10 @@ test('diff redaction happens before pagination and oversized captures are omitte
  await writeFile(join(f.repo,'file.txt'),'long text line\n'.repeat(18000));
  const large=await inspectProjectRepository({details:'diff'},f);assert.equal(large.reason,'inspection_output_limit');assert.equal(large.diffText,undefined);
 });
+
+test('read-only inspection reports detached HEAD and Git operation without repairing either',async t=>{
+ const f=await fixture(t);f.git('checkout','--quiet','--detach','HEAD');const head=await readFile(join(f.repo,'.git/HEAD')),index=await readFile(join(f.repo,'.git/index'));
+ await writeFile(join(f.repo,'.git/MERGE_HEAD'),f.git('rev-parse','HEAD'));
+ const r=await inspectProjectRepository({},f);assert.equal(r.state,'repository_inspection',JSON.stringify(r));assert.equal(r.branch,null);assert.equal(r.headState,'detached');assert.equal(r.registeredBranch,'main');assert.equal(r.gitOperation,'merge');
+ assert.deepEqual(await readFile(join(f.repo,'.git/HEAD')),head);assert.deepEqual(await readFile(join(f.repo,'.git/index')),index);
+});

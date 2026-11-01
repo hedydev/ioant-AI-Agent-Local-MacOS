@@ -4,6 +4,7 @@ import {mkdtemp,realpath,chmod,mkdir,writeFile,readFile,rm,symlink} from 'node:f
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {validateRepositoryTaskGrants,repositoryTaskPolicy} from '../integrations/chatgpt-openclaw/repository-task-policy.mjs';
 import {ProjectExecutionStore} from '../integrations/chatgpt-openclaw/project-execution-store.mjs';
 import {projectExecution,validExecutionInput,executionTools} from '../integrations/chatgpt-openclaw/project-execution.mjs';
@@ -32,7 +33,7 @@ test('data grants support independent workspaces and never infer a grant from ta
 });
 test('generic MCP input requires a tracked-task name and includes it in operation identity',async t=>{
  const parent=await privateTemp(t),binding={projectKey:'example',agentId:'example'},store=new ProjectExecutionStore(binding,{parent});
- const input={operation_id:'generic_request_0001',conversation_key:'conversation_0001',action:'repository_task',expected_commit:'a'.repeat(40),task_file:'.openclaw/tasks/check.json'};
+ const input={operation_id:'generic_request_0001',conversation_key:'conversation_0001',action:'repository_task',expected_commit:'a'.repeat(40),task_file:'.openclaw/tasks/check.json',workspace_mode:'in_place'};
  assert.equal(validExecutionInput(input),true);
  assert.equal(new RegExp(executionTools[1].inputSchema.properties.task_file.pattern).test(input.task_file),true);
  assert.equal(validExecutionInput({...input,task_file:'/tmp/untrusted.json'}),false);
@@ -61,7 +62,7 @@ async function gitFixture(t,index,{missingArtifact=false,generatedFile=false,mut
 }
 test('two real Git projects use the same MCP admission, pinned update, runner, artifact and cached receipt',async t=>{
  for(let index=1;index<=2;index++){
-  const f=await gitFixture(t,index),input={operation_id:'end_to_end_operation_0001',conversation_key:'independent_chat_'+index,action:'repository_task',expected_commit:f.expected,task_file:'.openclaw/tasks/check.json'};
+  const f=await gitFixture(t,index),input={operation_id:'end_to_end_operation_0001',conversation_key:'independent_chat_'+index,action:'repository_task',expected_commit:f.expected,task_file:'.openclaw/tasks/check.json',workspace_mode:'in_place'};
   let launches=0;const options={...f,policy:async()=>f.policy,launch:async()=>{launches++;}};
   assert.equal((await projectExecution('openclaw_project_execute',input,options)).state,'accepted');
   await runRegisteredExecution(f.binding,input.operation_id,{store:f.store,policyLoad:async()=>f.policy});
@@ -105,7 +106,7 @@ test('data registry adds independent projects and rejects aliasing existing Agen
 });
 
 test('zero exit with a missing declared report cannot become a passed task',async t=>{
- const f=await gitFixture(t,3,{missingArtifact:true}),input={operation_id:'missing_report_task_0001',conversation_key:'missing_report_chat',action:'repository_task',expected_commit:f.expected,task_file:'.openclaw/tasks/check.json'};
+ const f=await gitFixture(t,3,{missingArtifact:true}),input={operation_id:'missing_report_task_0001',conversation_key:'missing_report_chat',action:'repository_task',expected_commit:f.expected,task_file:'.openclaw/tasks/check.json',workspace_mode:'in_place'};
  const options={...f,policy:async()=>f.policy,launch:async()=>{}};
  await projectExecution('openclaw_project_execute',input,options);
  await runRegisteredExecution(f.binding,input.operation_id,{store:f.store,policyLoad:async()=>f.policy});
@@ -134,4 +135,64 @@ test('isolated task cannot pass when a script changes tracked checkout files',as
  await projectExecution('openclaw_project_execute',input,{...f,policy:async()=>f.policy,launch:async()=>{}});
  await runRegisteredExecution(f.binding,input.operation_id,{store:f.store,policyLoad:async()=>f.policy});
  const r=await f.store.get(input.operation_id);assert.equal(r.state,'failed');assert.equal(r.reason,'tracked_checkout_changed_during_tests');
+});
+
+test('default current tasks run in dirty detached or other-branch checkouts without updating refs, files or index',async t=>{
+ for(const state of ['detached','topic']){
+  const f=await gitFixture(t,state==='detached'?6:7);
+  f.git(f.repo,'pull','--ff-only');
+  f.git(f.repo,'checkout',...(state==='detached'?['--detach',f.expected]:['-b','operator-topic']));
+  await writeFile(join(f.repo,'README.md'),'staged operator edit\n');f.git(f.repo,'add','README.md');
+  await writeFile(join(f.repo,'README.md'),'unstaged operator edit\n');await writeFile(join(f.repo,'untracked.txt'),'keep\n');
+  const head=await readFile(join(f.repo,'.git/HEAD')),index=await readFile(join(f.repo,'.git/index'));
+  const main=f.git(f.repo,'rev-parse','refs/heads/main'),fetch=await readFile(join(f.repo,'.git/FETCH_HEAD'));
+  const input={action:'repository_task',operation_id:'current_task_'+state,conversation_key:'current_fixture_chat',expected_commit:f.expected,task_file:'.openclaw/tasks/check.json'};
+  let launches=0;const opts={...f,policy:async()=>f.policy,launch:async()=>{launches++;}};
+  await projectExecution('openclaw_project_execute',input,opts);
+  assert.equal((await f.store.get(input.operation_id)).input.workspace_mode,'current');
+  await runRegisteredExecution(f.binding,input.operation_id,{store:f.store,policyLoad:async()=>f.policy});
+  const r=await projectExecution('openclaw_project_result',{operation_id:input.operation_id},opts);
+  assert.equal(r.state,'passed',JSON.stringify(r));assert.equal(r.workspaceMode,'current');assert.equal(r.sourceWorktreeDirty,true);assert.equal(r.sourceCheckoutUpdated,false);assert.equal(r.worktreeClean,false);
+  assert.equal(r.steps.length,1);assert.equal(r.steps[0].capability,'script');assert.equal(r.beforeBranch,state==='detached'?null:'operator-topic');assert.equal(r.afterBranch,r.beforeBranch);
+  assert.deepEqual(await readFile(join(f.repo,'.git/HEAD')),head);assert.deepEqual(await readFile(join(f.repo,'.git/index')),index);assert.deepEqual(await readFile(join(f.repo,'.git/FETCH_HEAD')),fetch);
+  assert.equal(f.git(f.repo,'rev-parse','refs/heads/main'),main);assert.equal(await readFile(join(f.repo,'README.md'),'utf8'),'unstaged operator edit\n');assert.equal(await readFile(join(f.repo,'untracked.txt'),'utf8'),'keep\n');
+  assert.equal(JSON.parse((await projectExecution('openclaw_project_report',{operation_id:input.operation_id,artifact_id:'summary'},opts)).logText).ok,true);
+  await projectExecution('openclaw_project_execute',input,opts);assert.equal(launches,1);
+  assert.equal((await projectExecution('openclaw_project_execute',{...input,workspace_mode:'current'},opts)).state,'passed');
+  assert.equal((await projectExecution('openclaw_project_execute',{...input,workspace_mode:'in_place'},opts)).reason,'operation_id_conflict');assert.equal(launches,1);
+ }
+});
+
+test('current mode refuses a different commit without fetching or checking out',async t=>{
+ const f=await gitFixture(t,8),old=f.git(f.repo,'rev-parse','HEAD');
+ const input={action:'repository_task',operation_id:'current_mismatch_001',conversation_key:'current_fixture_chat',expected_commit:f.expected,task_file:'.openclaw/tasks/check.json',workspace_mode:'current'};
+ await projectExecution('openclaw_project_execute',input,{...f,policy:async()=>f.policy,launch:async()=>{}});
+ await runRegisteredExecution(f.binding,input.operation_id,{store:f.store,policyLoad:async()=>f.policy});
+ const r=await f.store.get(input.operation_id);assert.equal(r.state,'blocked');assert.equal(r.reason,'current_commit_mismatch');assert.equal(r.steps.length,0);assert.equal(f.git(f.repo,'rev-parse','HEAD'),old);await assert.rejects(readFile(join(f.repo,'.git/FETCH_HEAD')),/ENOENT/);
+});
+
+test('current mode does not execute an entry script changed outside the pinned commit',async t=>{
+ const f=await gitFixture(t,9);f.git(f.repo,'pull','--ff-only');await writeFile(join(f.repo,'scripts/check.mjs'),'throw Error("unreviewed")');
+ const input={action:'repository_task',operation_id:'current_entry_changed_001',conversation_key:'current_fixture_chat',expected_commit:f.expected,task_file:'.openclaw/tasks/check.json',workspace_mode:'current'};
+ await projectExecution('openclaw_project_execute',input,{...f,policy:async()=>f.policy,launch:async()=>{}});
+ await runRegisteredExecution(f.binding,input.operation_id,{store:f.store,policyLoad:async()=>f.policy});
+ const r=await f.store.get(input.operation_id);assert.equal(r.reason,'task_script_revision_changed');assert.equal(r.steps.length,0);assert.equal(await readFile(join(f.repo,'scripts/check.mjs'),'utf8'),'throw Error("unreviewed")');
+});
+
+test('current mode blocks an in-progress Git operation without changing checkout state',async t=>{
+ const f=await gitFixture(t,10);f.git(f.repo,'pull','--ff-only');await writeFile(join(f.repo,'.git/MERGE_HEAD'),f.expected+'\n');
+ const input={action:'repository_task',operation_id:'current_merging_001',conversation_key:'current_fixture_chat',expected_commit:f.expected,task_file:'.openclaw/tasks/check.json'};
+ await projectExecution('openclaw_project_execute',input,{...f,policy:async()=>f.policy,launch:async()=>{}});
+ await runRegisteredExecution(f.binding,input.operation_id,{store:f.store,policyLoad:async()=>f.policy});
+ const r=await f.store.get(input.operation_id);assert.equal(r.state,'blocked');assert.equal(r.reason,'git_operation_in_progress');assert.equal(r.steps.length,0);assert.equal(await readFile(join(f.repo,'.git/MERGE_HEAD'),'utf8'),f.expected+'\n');
+});
+
+test('old mode-less jobs retain their original identity and are never migrated or relaunched',async t=>{
+ const f=await gitFixture(t,11),input={action:'repository_task',operation_id:'legacy_task_default_001',conversation_key:'legacy_fixture_chat',expected_commit:f.expected,task_file:'.openclaw/tasks/check.json'};
+ const digest=createHash('sha256').update(JSON.stringify([f.binding.projectKey,f.binding.agentId,input.operation_id,input.conversation_key,input.action,input.expected_commit,input.task_file])).digest('hex');
+ await f.store.begin(input,digest);let launched=0;const opts={...f,policy:async()=>f.policy,launch:async()=>{launched++;}};
+ assert.equal((await projectExecution('openclaw_project_execute',input,opts)).state,'accepted');
+ assert.equal((await projectExecution('openclaw_project_execute',{...input,workspace_mode:'in_place'},opts)).state,'accepted');
+ assert.equal((await projectExecution('openclaw_project_execute',{...input,workspace_mode:'current'},opts)).reason,'operation_id_conflict');
+ assert.equal((await f.store.get(input.operation_id)).input.workspace_mode,undefined);assert.equal(launched,0);
 });

@@ -53,10 +53,30 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
   if(!policy||record.input.action!==policy.action)throw Error('project_action_not_enabled');
   record.state='running';record.runnerPid=process.pid;record.startedAt=new Date().toISOString();await save();
   const fetchOnly=record.input.action==='repository_fetch',syncOnly=record.input.action==='repository_sync';
-  const readOptions={command:(file,args,options)=>command(file,args,{...options,env:{...executionEnvironment(),GIT_OPTIONAL_LOCKS:'0'}}),allowDirty:fetchOnly||syncOnly};
+  const readOptions={command:(file,args,options)=>command(file,args,{...options,env:{...executionEnvironment(),GIT_OPTIONAL_LOCKS:'0'}}),allowDirty:true,requireRegisteredBranch:false,requireIdle:!fetchOnly};
   const isolated=record.input.action==='repository_task'&&record.input.workspace_mode==='isolated';
-  const before=await inspect(policy,fetchOnly||syncOnly?readOptions:{command,allowDirty:isolated});record.beforeCommit=before.head;
-  record.workspaceMode=isolated?'isolated':'in_place';
+  const current=record.input.action==='repository_task'&&record.input.workspace_mode==='current';
+  const before=await inspect(policy,fetchOnly||syncOnly||current||isolated?readOptions:{command,requireIdle:true});record.beforeCommit=before.head;
+  record.beforeBranch=before.branch??null;record.headState=before.headState;
+  record.workspaceMode=current?'current':isolated?'isolated':'in_place';
+  if(current){
+   record.sourceWorktreeDirty=before.dirty;record.sourceCheckoutUpdated=false;
+   if(before.head!==record.input.expected_commit)throw Error('current_commit_mismatch');
+   record.actualCommit=before.head;await save();
+   const plan=await loadRepositoryTask(policy,before.head,record.input.task_file,{command:readOptions.command});
+   const verify=async(p,task,item)=>{
+    const fresh=await inspect(p,readOptions);
+    if(fresh.head!==before.head||fresh.branch!==before.branch)throw Error('repository_changed_before_task');
+    await verifyTaskScript(p,task,item,{command:readOptions.command});
+   };
+   const outputDir=await store.outputDirectory(operationId);
+   record.task=await executeRepositoryTask(plan,policy,{operationId,outputDir,step,verify});
+   record.artifacts=await collectRepositoryArtifacts(plan,outputDir,store,operationId);
+   const end=await inspect(policy,readOptions);
+   if(end.head!==before.head||end.branch!==before.branch)throw Error('repository_changed_during_tests');
+   record.afterBranch=end.branch??null;record.worktreeClean=!end.dirty;record.state='passed';
+   record.resultScope='Current workspace task with pinned committed entry scripts; other files may contain local edits. No fetch, update, branch switch, HEAD attachment or clone; no independent deployment acceptance.';return;
+  }
   if(isolated){record.sourceWorktreeDirty=before.dirty===true;policy=await createIsolatedRepository(policy,before.origin??policy.origins[0],{store,operationId,step});record.checkoutPath=policy.repo;}
   await save();
   const git=(name,args)=>step(name,'/usr/bin/git',[...GIT_ARGS,...args]);
@@ -67,7 +87,7 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
    record.remoteTrackingCommit=(await git('remote_tracking_commit',['rev-parse','--verify','refs/remotes/origin/'+policy.branch])).stdout.trim();
    if(!SHA.test(record.fetchedCommit)||record.remoteTrackingCommit!==record.fetchedCommit)throw Error('fetched_refs_unverified');
    const end=await inspect(policy,readOptions);record.actualCommit=end.head;record.worktreeClean=!end.dirty;
-   if(end.head!==before.head)throw Error('source_head_changed_during_fetch');
+   if(end.head!==before.head||end.branch!==before.branch)throw Error('source_head_changed_during_fetch');
    if(record.input.expected_commit&&record.fetchedCommit!==record.input.expected_commit)throw Error('remote_commit_mismatch');
    record.state='passed';record.resultScope='Enrolled branch fetched; remote refs verified. Local HEAD/worktree not updated; no tests, clone, merge or deployment.';return;
   }
@@ -80,11 +100,12 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
    const ancestor=await command('/usr/bin/git',[...GIT_ARGS,'merge-base','--is-ancestor',before.head,fetched],{cwd:policy.repo});
    if(!ancestor.ok)throw Error('fast_forward_required');
    const preserved=await assertNonoverlappingUpdate(policy,before.head,fetched,{command});
-   const fresh=await inspect(policy,readOptions);if(fresh.head!==before.head)throw Error('repository_changed_before_update');
+   const fresh=await inspect(policy,readOptions);if(fresh.head!==before.head||fresh.branch!==before.branch)throw Error('repository_changed_before_update');
    if((await preservationSnapshot(policy,{command})).digest!==preserved.digest)throw Error('local_changes_changed_before_sync');
    if(before.head!==fetched)await git('fast_forward',['-c','merge.autoStash=false','merge','--ff-only','--no-overwrite-ignore','--no-autostash','--no-edit',fetched]);
    const end=await inspect(policy,readOptions);record.actualCommit=end.head;
-   if(end.head!==fetched)throw Error('updated_commit_unverified');
+   if(end.head!==fetched||end.branch!==before.branch)throw Error('updated_commit_unverified');
+   record.afterBranch=end.branch??null;
    record.preservedLocalChanges=await verifyPreservation(policy,preserved,{command});
    record.sourceCheckoutUpdated=before.head!==fetched;record.worktreeClean=!end.dirty;record.state='passed';
    record.resultScope='Exact Git fast-forward with verified preservation of local changes; no scripts, tests, clone or deployment.';return;

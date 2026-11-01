@@ -16,11 +16,11 @@ export const executionTools=[{
  name:'openclaw_project_actions',description:'List locally enrolled fixed Git/test actions for this project. No model or command execution. Does not grant arbitrary shell access.',
  inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,destructiveHint:false,openWorldHint:false}
 },{
- name:'openclaw_project_execute',description:'When normal conversation requires local execution, start one user-authorized enrolled task pinned to the exact full remote commit. For repository_task, author and commit the task definition and scripts yourself; supply task_file. The user need not write JSON or relay terminal commands. When an isolated test/build checkout is appropriate and authorized, workspace_mode=isolated preserves local changes; it is optional, not an instruction to clone every dirty project. repository_fetch is a fixed model-free fetch for the enrolled origin/branch: works with local edits, needs no task file and leaves HEAD/worktree untouched. Use it to fetch before deciding how to integrate changes. repository_sync performs an exact-commit fast-forward of the original checkout, preserving non-overlapping tracked/untracked local edits; overlap blocks without cleanup. Requires expected_commit, no task file or model. Requires local enrollment. Returns accepted quickly; poll project_result. No raw shell commands, arbitrary host paths, model calls or browser Worker. Repository code runs as the current user, not in an OS sandbox. Never repeat uncertain work under a new operation ID.',
+ name:'openclaw_project_execute',description:'When normal conversation requires local execution, start one user-authorized enrolled task pinned to the exact full source commit. For repository_task, author and commit the task definition and scripts yourself; supply task_file. The user need not write JSON or relay terminal commands. repository_task defaults to workspace_mode=current: run committed entry scripts at the exact current HEAD in the existing directory, allowing local edits and detached HEAD without fetching, updating or switching branches. If the desired SHA differs, inspect and use a separately authorized repository_sync first. Only use isolated when the user explicitly requests a separate checkout. repository_fetch is a fixed model-free fetch for the enrolled origin/branch: works with local edits, needs no task file and leaves HEAD/worktree untouched. Use it to fetch before deciding how to integrate changes. repository_sync performs an exact-commit fast-forward of the original checkout, preserving non-overlapping tracked/untracked local edits and the current attached/detached state; overlap blocks without cleanup. Requires expected_commit, no task file or model. Requires local enrollment. Returns accepted quickly; poll project_result. No raw shell commands, arbitrary host paths, model calls or browser Worker. Repository code runs as the current user, not in an OS sandbox. Never repeat uncertain work under a new operation ID.',
  inputSchema:{type:'object',properties:{...props,conversation_key:{type:'string',pattern:'^[A-Za-z0-9][A-Za-z0-9_-]{7,63}$'},
   action:{type:'string',enum:['alice_mac_regression','repository_task','repository_fetch','repository_sync']},
   task_file:{type:'string',pattern:'^\\.openclaw/tasks/[a-z][a-z0-9_-]{0,63}\\.json$',description:'For repository_task only: task definition authored and committed by ChatGPT. Never ask the user to write task JSON.'},
-  workspace_mode:{type:'string',enum:['in_place','isolated'],description:'repository_task only. in_place requires a clean source checkout and fast-forwards it. For authorized tests/builds when preserving local edits, explicitly choose isolated: fetch the same approved remote into a new executor-owned checkout at expected_commit; do not modify or clean the original checkout. Not an OS sandbox. Never use it to repeat an uncertain or already executed task.'},
+  workspace_mode:{type:'string',enum:['current','in_place','isolated'],description:'repository_task only. Default current runs in the existing checkout at expected_commit without fetch/update/branch changes; local edits and detached HEAD are allowed. in_place is the explicit legacy clean registered-branch update mode. isolated creates a separate checkout only when the user explicitly requests it. Not an OS sandbox. Never use it to repeat an uncertain or already executed task.'},
   expected_commit:{type:'string',pattern:'^[0-9a-f]{40}$',description:'Required for code execution/tests. Optional for repository_fetch, which updates enrolled remote refs only and never changes HEAD/worktree.'}},
   required:['operation_id','conversation_key','action'],additionalProperties:false},
  annotations:{readOnlyHint:false,destructiveHint:true,openWorldHint:true}
@@ -39,7 +39,7 @@ export function validExecutionInput(x){
  const required=['action','conversation_key','operation_id'],optional=[];
  if(x.action==='repository_fetch')optional.push('expected_commit');
  else if(x.action==='alice_mac_regression'||x.action==='repository_sync')required.push('expected_commit');
- else if(x.action==='repository_task'){required.push('expected_commit','task_file');optional.push('workspace_mode');if(!taskFilePath(x.task_file)||x.workspace_mode!==undefined&&!['in_place','isolated'].includes(x.workspace_mode))return false;}
+ else if(x.action==='repository_task'){required.push('expected_commit','task_file');optional.push('workspace_mode');if(!taskFilePath(x.task_file)||x.workspace_mode!==undefined&&!['current','in_place','isolated'].includes(x.workspace_mode))return false;}
  else return false;
  return required.every(k=>Object.hasOwn(x,k))&&Object.keys(x).every(k=>required.includes(k)||optional.includes(k))&&(x.expected_commit===undefined||SHA.test(x.expected_commit));
 }
@@ -70,10 +70,10 @@ export async function projectExecution(name,args,{binding,store=new ProjectExecu
    if(generic?.action==='repository_task')result.actions.push({action:'repository_task',enabled:true,
     repository:generic.repository,branch:generic.branch,expectedCommitRequired:true,taskFileRequired:true,
     taskDefinitionPattern:'.openclaw/tasks/<name>.json',scriptRoots:generic.scriptRoots,
-    runtimes:Object.keys(generic.runtimes),workspaceModes:['in_place','isolated'],
+    runtimes:Object.keys(generic.runtimes),workspaceModes:['current','in_place','isolated'],defaultWorkspaceMode:'current',currentHeadRequired:true,
     toolSchemaRequirement:'project_execute must expose workspace_mode; refresh the plugin tool catalog if absent. Do not use model-driven clone as a workaround.',scope:'Pinned tracked repository scripts as the current user; not an OS sandbox. No model inference.'});
    if(await policy(binding,{action:'repository_fetch'}))result.actions.push({action:'repository_fetch',enabled:true,requiresCleanWorktree:false,taskFileRequired:false,expectedCommitRequired:false,modelInferenceInvoked:false,scope:'Fetch enrolled origin/branch into FETCH_HEAD and its remote-tracking ref only. HEAD, index and local files are preserved; no merge, checkout, clone or tests.'});
-   if(await policy(binding,{action:'repository_sync'}))result.actions.push({action:'repository_sync',enabled:true,requiresCleanWorktree:false,taskFileRequired:false,expectedCommitRequired:true,modelInferenceInvoked:false,scope:'Exact enrolled-branch fast-forward only; preserve non-overlapping local edits and untracked files, block conflicts. No stash/reset/cleanup/clone/tests.'});
+   if(await policy(binding,{action:'repository_sync'}))result.actions.push({action:'repository_sync',enabled:true,requiresCleanWorktree:false,taskFileRequired:false,expectedCommitRequired:true,modelInferenceInvoked:false,scope:'Fast-forward current checkout to an exact enrolled-remote commit without switching or attaching its branch; preserve non-overlapping local edits and untracked files, block conflicts. No stash/reset/cleanup/clone/tests.'});
    return result;
   }
   if(name==='openclaw_project_report'){
@@ -86,15 +86,20 @@ export async function projectExecution(name,args,{binding,store=new ProjectExecu
    const r=await store.get(args.operation_id);return r?publicReceipt(r):{state:'not_found',operationId:args.operation_id};
   }
   if(name!=='openclaw_project_execute'||!validExecutionInput(args))throw Error('invalid_project_execution_input');
+  const previous=await store.get(args.operation_id);
+  // Old persisted jobs without a mode keep their original in_place identity.
+  // Only a genuinely new request defaults to current; reads never migrate work.
+  const legacyMode=previous&&previous.input.workspace_mode===undefined;
+  const mode=args.workspace_mode??(legacyMode?'in_place':'current');
   const digest=createHash('sha256').update(JSON.stringify([binding.projectKey,binding.agentId,
    args.operation_id,args.conversation_key,args.action,args.expected_commit,
-   ...(args.action==='repository_task'?[args.task_file,...(args.workspace_mode==='isolated'?['isolated']:[])]:[])])).digest('hex');
-  const previous=await store.get(args.operation_id);
+   ...(args.action==='repository_task'?[args.task_file,...(['isolated','current'].includes(mode)?[mode]:[])]:[])])).digest('hex');
   if(previous)return previous.digest===digest?publicReceipt(previous):{state:'blocked',reason:'operation_id_conflict'};
   if(await projectRetired(binding.projectKey))return {state:'blocked',reason:'project_retired'};
   const p=await policy(binding,{action:args.action});
   if(!p||p.action!==args.action)return {state:'blocked',reason:'project_action_not_enabled'};
-  const claim=await store.begin(args,digest);
+  const input=args.action==='repository_task'?{...args,workspace_mode:mode}:args;
+  const claim=await store.begin(input,digest);
   if(!claim.created)return claim.record.digest===digest?publicReceipt(claim.record):{state:'blocked',reason:'operation_id_conflict'};
   try{await launch(binding,args.operation_id);}
   catch{
