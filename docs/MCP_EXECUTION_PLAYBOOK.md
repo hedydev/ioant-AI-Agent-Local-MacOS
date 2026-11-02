@@ -81,6 +81,13 @@
 入口、回执、审核边界见 [Alice 生命周期批准](ALICE_CLIENT_LIFECYCLE_APPROVAL_20261103.md)。
 平台再次拒绝时停止，不通过模型终端、改脚本或换 ID 绕过。无需用户手动运行 restart。
 
+## 结果不明而保留的生命周期锁
+
+`project_execution_busy` 不保证会自行排队结束。Alice restart 结果不明时，先查原
+result/report，再使用 [受控恢复入口](ALICE_LIFECYCLE_RECOVERY_20261103.md) inspect
+取得独立现场证据，审阅后 resolve。原记录不改为成功，不删锁，不换ID重启。
+该只读现场核查不需要排入已被阻止的 repository_task。
+
 ## 历史容量已满
 
 `execution_history_full` 是项目近期回执达到500条的入场限制，不是权限、内存或Chat上限。先读现有回执，不换ID或改走模型重放。管理员在本机控制台归档较早的已结束任务，保留操作编号、完整回执和报告后恢复空位；运行中/不明记录与锁不清除。须先确认新版读取器真正加载，旧运行进程不能识别归档。归档不会减少总磁盘占用，也不撤销之前的安全拒绝。详见[MCP历史归档](MCP_EXECUTION_HISTORY_20261102.md)。

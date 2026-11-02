@@ -65,6 +65,12 @@ test('standard success requires a distinct single replacement, current heartbeat
  const good=result('approved_restart_test01');validateAliceLifecycleReceipt(good,good.operationId);
  for(const edit of [{newPid:100},{sessionEstablished:false},{bdsRestarted:true},{worldChanged:true},{replacementCount:2},{existingTask:true},{state:'blocked'}])assert.throws(()=>validateAliceLifecycleReceipt({...good,...edit},good.operationId),/unverified/);
 });
+test('schema3 known exit is accepted only with explicit offline proof, legacy receipts remain valid',()=>{
+ const legacy=result('approved_restart_test01');validateAliceLifecycleReceipt(legacy,legacy.operationId);
+ const failed={...legacy,schemaVersion:3,state:'failed',failureReason:'client_exited_before_login',processAlive:false,heartbeatFresh:false,connected:false,sessionEstablished:false,exitVerified:true};
+ validateAliceLifecycleReceipt(failed,failed.operationId);
+ for(const change of [{exitVerified:false},{processAlive:true},{newPid:null},{replacementCount:0}])assert.throws(()=>validateAliceLifecycleReceipt({...failed,...change},failed.operationId),/unverified/);
+});
 test('approved runner surfaces lifecycle receipt, cached same-ID never launches twice',async t=>{
  const ctx=await fixture(t);let launches=0,runs=0;
  const opts={...ctx,launch:async()=>{launches++;},lifecycleApproval:async()=>ctx.approval};
@@ -95,4 +101,17 @@ test('revoked/changed approval at runner time blocks before scripts',async t=>{
  assert.equal((await ctx.store.get(ctx.input.operation_id)).reason,'alice_lifecycle_approval_required');
  // Only committed task metadata was read; no Python/script execution.
  assert.ok(commands>0);
+});
+test('a proven exited replacement fails and releases the project lock without a second launch',async t=>{
+ const ctx=await fixture(t);await projectExecution('openclaw_project_execute',ctx.input,{...ctx,launch:async()=>{},lifecycleApproval:async()=>ctx.approval});let attempts=0;
+ const command=async(file,args,options)=>{
+  if(file==='/usr/bin/git')return executionCommand(file,args,options);
+  if(args[1]==='--restart'){
+   attempts++;await writeFile(join(options.env.OPENCLAW_OUTPUT_DIR,'alice_17879_client_restart.json'),JSON.stringify({...result(ctx.input.operation_id),schemaVersion:3,state:'failed',failureReason:'client_exited_before_login',exitVerified:true,processAlive:false,heartbeatFresh:false,connected:false,sessionEstablished:false}),{mode:0o600});
+  }
+  return {ok:true,stdout:'',stderr:'',exitCode:0};
+ };
+ await runRegisteredExecution(ctx.binding,ctx.input.operation_id,{store:ctx.store,policyLoad:ctx.policy,lifecycleApproval:async()=>ctx.approval,command,inspect:async()=>({head:ctx.head,branch:'main',dirty:false})});
+ const r=await ctx.store.get(ctx.input.operation_id);assert.equal(r.state,'failed');assert.equal(r.reason,'client_exited_before_login');assert.equal(attempts,1);
+ await assert.rejects(ctx.store.owns(r.operationId,r.digest),/ENOENT/);
 });

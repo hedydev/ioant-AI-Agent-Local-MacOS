@@ -348,3 +348,13 @@ Only current workspace, verified original world/port/owner, healthy idle/no-job,
 original config and one replacement are permitted. Poll original receipts; uncertain
 outcomes retain the lock. Follow the deployment record, not source presence, to
 know whether this permission and receipt interpretation are actually loaded.
+## Reviewed Alice lifecycle recovery (2026-11-03)
+
+Read docs/ALICE_LIFECYCLE_RECOVERY_20261103.md. Unknown restart locks never expire
+by waiting. The maintenance/MCP reconcile entrypoint can inspect while busy,
+then requires a fresh reviewed digest and independently rechecked settled remote
+claim, runner exit and exact current owner/offline proof before compare-and-release.
+Preserve the original inconclusive receipt and claims; write a separate audit.
+Resolve never starts a client. A separately authorized normal offline start is
+distinct from retrying the failed restart. Schema3's proven client exit can be a
+known failed result without a retained lock; legacy false flags are not proof.

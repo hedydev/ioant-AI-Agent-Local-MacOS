@@ -45,12 +45,16 @@ export async function verifyAliceLifecycleScript(policy,approval){
 }
 export function validateAliceLifecycleReceipt(r,id){
  const bools=['restartAttempted','processAlive','heartbeatFresh','connected','sessionEstablished','ownerVerified','worldVerified','portVerified','existingTask','bdsRestarted','worldChanged'];
+ if(r?.schemaVersion===3)bools.push('exitVerified');
  if(!keys(r,['schemaVersion','operationId','state','failureReason','oldPid','newPid','replacementCount',...bools])||
-  r.schemaVersion!==2||r.operationId!==id||!['completed','blocked','inconclusive'].includes(r.state)||
+  ![2,3].includes(r.schemaVersion)||r.operationId!==id||!['completed','blocked','inconclusive',...(r.schemaVersion===3?['failed']:[])].includes(r.state)||
   !/^[a-z_]{1,80}$/.test(r.failureReason??'')||bools.some(k=>typeof r[k]!=='boolean')||
   [r.oldPid,r.newPid].some(p=>p!==null&&(!Number.isSafeInteger(p)||p<=1))||
   ![0,1].includes(r.replacementCount)||r.bdsRestarted||r.worldChanged)throw Error('alice_lifecycle_receipt_unverified');
  if(r.state==='blocked'&&(r.restartAttempted||r.newPid!==null||r.replacementCount!==0))throw Error('alice_lifecycle_receipt_unverified');
+ if(r.state==='failed'&&(!r.exitVerified||!r.restartAttempted||r.failureReason!=='client_exited_before_login'||
+  r.oldPid===null||r.newPid===null||r.oldPid===r.newPid||r.replacementCount!==1||r.processAlive||r.heartbeatFresh||r.connected||r.sessionEstablished))throw Error('alice_lifecycle_receipt_unverified');
+ if(r.schemaVersion===3&&r.state!=='failed'&&r.exitVerified)throw Error('alice_lifecycle_receipt_unverified');
  if(r.state==='completed'&&(r.failureReason!=='none'||r.oldPid===null||r.newPid===null||r.oldPid===r.newPid||
   r.replacementCount!==1||r.existingTask||['restartAttempted','processAlive','heartbeatFresh','connected','sessionEstablished','ownerVerified','worldVerified','portVerified'].some(k=>!r[k])))throw Error('alice_lifecycle_receipt_unverified');
  return r;

@@ -11,6 +11,7 @@ import {executionEnvironment} from './project-execution-command.mjs';
 import {reportOutputSchema} from './project-report-contract.mjs';
 import {taskFilePath} from './repository-task.mjs';
 import {ALICE_RESTART_TASK,PRIOR_DENIED_RESTART,aliceLifecycleApproval} from './alice-lifecycle-policy.mjs';
+import {reconciliationTool,reconcileAliceLifecycle,lifecycleRecoveryReceipt} from './alice-lifecycle-recovery.mjs';
 
 const props={operation_id:{type:'string',pattern:'^[A-Za-z0-9][A-Za-z0-9_-]{7,79}$'}};
 export const executionTools=[{
@@ -34,7 +35,7 @@ export const executionTools=[{
  inputSchema:{type:'object',properties:{...props,artifact_id:{type:'string',pattern:'^[a-z][a-z0-9_-]{0,47}$'},offset:{type:'integer',minimum:0,maximum:262144}},required:['operation_id'],additionalProperties:false},
  outputSchema:reportOutputSchema,
  annotations:{readOnlyHint:true,destructiveHint:false,openWorldHint:false}
-},inspectionTool];
+},inspectionTool,reconciliationTool];
 export function validExecutionInput(x){
  if(!x||typeof x!=='object'||Array.isArray(x)||!Object.values(x).every(v=>typeof v==='string')||!operationId.test(x.operation_id??'')||!CONVERSATION.test(x.conversation_key??''))return false;
  const required=['action','conversation_key','operation_id'],optional=[];
@@ -62,6 +63,7 @@ export async function projectExecution(name,args,{binding,store=new ProjectExecu
  policy=executionPolicy,launch=launchExecution,lifecycleApproval=aliceLifecycleApproval}={}){
  try{
   if(!args||typeof args!=='object'||Array.isArray(args))throw Error('invalid_project_execution_input');
+  if(name==='openclaw_project_reconcile')return reconcileAliceLifecycle(args,{binding,store});
   if(name==='openclaw_project_inspect')return inspectProjectRepository(args,{binding,policy});
   if(name==='openclaw_project_actions'){
    if(Object.keys(args).length)throw Error('invalid_project_execution_input');
@@ -90,7 +92,10 @@ export async function projectExecution(name,args,{binding,store=new ProjectExecu
   }
   if(name==='openclaw_project_result'){
    if(Object.keys(args).join(',')!=='operation_id'||typeof args.operation_id!=='string'||!operationId.test(args.operation_id))throw Error('invalid_operation_id');
-   const r=await store.get(args.operation_id);return r?publicReceipt(r):{state:'not_found',operationId:args.operation_id};
+   const r=await store.get(args.operation_id);
+   if(!r)return {state:'not_found',operationId:args.operation_id};
+   const recovery=await lifecycleRecoveryReceipt(store,args.operation_id);
+   return {...publicReceipt(r),...(recovery?{reconciliation:recovery}:{})};
   }
   if(name!=='openclaw_project_execute'||!validExecutionInput(args))throw Error('invalid_project_execution_input');
   const previous=await store.get(args.operation_id);
