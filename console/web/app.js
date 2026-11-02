@@ -1,11 +1,11 @@
 import {decodeRoute,routeHash,projectSelection} from './navigation.js';
 import {api,subscribe} from './api-client.js';
 import {t,errorText,time,setLocale,localePreference} from './i18n.js';
-import {node,renderStatus,renderPermissions,renderActivities,renderCommunications,renderLogs} from './render.js';
+import {node,renderStatus,renderPermissions,renderHistory,renderActivities,renderCommunications,renderLogs} from './render.js';
 
 const $=id=>document.getElementById(id);
 const state={snapshot:null,view:decodeRoute(location.hash).view,selectedProject:decodeRoute(location.hash).project,pending:null,project:'all',status:'all',search:'',logLevel:'all',logSearch:'',paused:false,logRows:[],stream:false};
-let removingProject,toastTimer,controlAction,focusBeforeDialog,reportRow,reportOffset=0,reportNext=null,lastProjectKeys='';
+let historyProject,historyOffset=0,historyNext=null,archiveProject,archiving=false,removingProject,toastTimer,controlAction,focusBeforeDialog,reportRow,reportOffset=0,reportNext=null,lastProjectKeys='';
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5000);}
 function fail(code){$('persistent-error').textContent=errorText(code);$('persistent-error').hidden=false;}
 function options(select,rows,current){select.replaceChildren(...rows.map(([value,text])=>node('option',{value},text)));select.value=current;}
@@ -51,7 +51,7 @@ function render(){
  if(state.view==='project'){
   const p=snapshot.projects.find(p=>p.key===state.selectedProject),jobs=snapshot.activities.filter(r=>r.project===p.key);
   $('project-name').textContent=p.name??p.key;$('project-identity').textContent=[...new Set([p.key,p.agent,p.repository,p.branch].filter(Boolean))].join(' · ');
-  renderPermissions([p]);renderActivities($('project-activity'),jobs,openReport);
+  renderPermissions([p]);renderHistory(p,openArchive,openHistory,archiving);renderActivities($('project-activity'),jobs,openReport);
   $('remove-project').hidden=!p.removable;$('remove-project').disabled=jobs.some(r=>['running','accepted','started'].includes(r.state));
   $('project-summary').replaceChildren(...[['total',jobs.length],['running',jobs.filter(r=>['running','accepted','started'].includes(r.state)).length],['passed',jobs.filter(r=>['passed','returned'].includes(r.state)).length],['blocked',jobs.filter(r=>['failed','blocked','inconclusive'].includes(r.state)).length]].map(([k,v])=>node('div',{class:'metric'},node('div',{class:'metric-label'},t('project.'+k)),node('div',{class:'metric-value'},v))));
  }
@@ -107,6 +107,33 @@ $('remove-submit').onclick=async()=>{
   if(result.state!=='removed')throw {code:result.reason??'project_removal_inconclusive'};
   $('remove-dialog').close();toast(t('project.removed'));state.snapshot=await api('/api/snapshot');changeView('overview');lastProjectKeys='';render();
  }catch(e){$('remove-error').textContent=errorText(e.code);$('remove-error').hidden=false;}finally{button.disabled=false;}
+};
+async function loadHistory(){
+ $('history-prev').disabled=true;$('history-next').disabled=true;$('history-rows').textContent=t('common.loading');
+ try{
+  const r=await api('/api/project/history?'+new URLSearchParams({project:historyProject,offset:historyOffset}));
+  renderActivities($('history-rows'),r.rows,openReport);historyNext=r.nextOffset;
+  $('history-prev').disabled=historyOffset===0;$('history-next').disabled=!Number.isInteger(historyNext);
+ }catch(e){$('history-rows').textContent=errorText(e.code);}
+}
+function openHistory(){historyProject=state.selectedProject;historyOffset=0;$('history-dialog').showModal();loadHistory();}
+$('history-close').onclick=()=>$('history-dialog').close();
+$('history-next').onclick=()=>{if(Number.isInteger(historyNext)){historyOffset=historyNext;loadHistory();}};
+$('history-prev').onclick=()=>{historyOffset=Math.max(0,historyOffset-30);loadHistory();};
+function openArchive(){
+ archiveProject=state.snapshot.projects.find(p=>p.key===state.selectedProject);if(!archiveProject)return;
+ $('archive-description').textContent=t('history.confirmDescription',{name:archiveProject.name??archiveProject.key,retain:100});
+ $('archive-error').hidden=true;$('archive-dialog').showModal();$('archive-cancel').focus();
+}
+$('archive-cancel').onclick=()=>{$('archive-dialog').close();};
+$('archive-submit').onclick=async()=>{
+ if(archiving)return;archiving=true;$('archive-submit').disabled=true;render();
+ try{
+  const result=await api('/api/project/archive',{method:'POST',body:{project_key:archiveProject.key,operation_id:'archive_'+crypto.randomUUID().replaceAll('-',''),retain_recent:100}});
+  if(result.state!=='archived')throw {code:result.reason??'execution_archive_failed'};
+  $('archive-dialog').close();toast(t('history.archivedResult',{count:result.archivedCount}));state.snapshot=await api('/api/snapshot');
+ }catch(e){$('archive-error').textContent=errorText(e.code);$('archive-error').hidden=false;}
+ finally{archiving=false;$('archive-submit').disabled=false;render();}
 };
 window.addEventListener('hashchange',()=>{const route=decodeRoute(location.hash);changeView(route.view,route.project);render();});
 $('project-filter').onchange=e=>{state.project=e.target.value;render();};$('state-filter').onchange=e=>{state.status=e.target.value;render();};$('activity-search').oninput=e=>{state.search=e.target.value;render();};

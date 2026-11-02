@@ -3,8 +3,9 @@ import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {randomBytes,timingSafeEqual} from 'node:crypto';
-import {activityReport} from './activity.mjs';
+import {activityReport,executionHistoryPage} from './activity.mjs';
 import {boundedFetch} from './health.mjs';
+import {archiveHistory} from './execution-history.mjs';
 
 const ASSETS={
  '/':'index.html','/app.js':'app.js','/api-client.js':'api-client.js','/i18n.js':'i18n.js',
@@ -13,7 +14,7 @@ const ASSETS={
 const TYPES={html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8'};
 async function jsonBody(req){let text='';for await(const chunk of req){text+=chunk;if(Buffer.byteLength(text)>4096)throw Error('request_too_large');}try{const data=text?JSON.parse(text):{};if(!data||typeof data!=='object'||Array.isArray(data))throw Error();return data;}catch{throw Error('invalid_json');}}
 function equal(a,b){return typeof a==='string'&&a.length===b.length&&timingSafeEqual(Buffer.from(a),Buffer.from(b));}
-export function createConsoleServer(service,{port=18489,token=randomBytes(32).toString('hex'),report=activityReport,remove=removeProject}={}){
+export function createConsoleServer(service,{port=18489,token=randomBytes(32).toString('hex'),report=activityReport,remove=removeProject,archive=archiveHistory,history=executionHistoryPage}={}){
  let origin='http://127.0.0.1:'+port;
  const server=createServer(async(req,res)=>{
   const common={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer',
@@ -42,9 +43,19 @@ export function createConsoleServer(service,{port=18489,token=randomBytes(32).to
     if([...url.searchParams.keys()].some(k=>!['project','operationId','artifact','offset'].includes(k)))throw Error('invalid_report_request');
     return reply(200,await report({project:url.searchParams.get('project'),operationId:url.searchParams.get('operationId'),artifact:url.searchParams.get('artifact')??'execution_log',offset:Number(url.searchParams.get('offset')??0)}));
    }
+   if(req.method==='GET'&&path==='/api/project/history'){
+    if([...url.searchParams.keys()].some(k=>!['project','offset'].includes(k)))throw Error('invalid_history_request');
+    return reply(200,await history({project:url.searchParams.get('project'),offset:Number(url.searchParams.get('offset')??0)}));
+   }
    if(req.method==='POST'&&path==='/api/project/remove'){
     if(req.headers['content-type']?.split(';')[0]!=='application/json')throw Error('json_required');
     const result=await remove(await jsonBody(req));await service.refresh();return reply(200,result);
+   }
+   if(req.method==='POST'&&path==='/api/project/archive'){
+    if(req.headers['content-type']?.split(';')[0]!=='application/json')throw Error('json_required');
+    const result=await archive(await jsonBody(req));
+    service.diagnostics.record('execution_history_archived',{source:'console',state:result.state});
+    await service.refresh();return reply(200,result);
    }
    if(req.method==='GET'&&path==='/api/export'){
     await service.diagnostics.flush();

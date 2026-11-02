@@ -1,3 +1,7 @@
+## Execution history archival (2026-11-02)
+
+Read docs/MCP_EXECUTION_HISTORY_20261102.md. MCP0.12.0 adds local-console project capacity and explicit archival of settled receipts while preserving full claims/reports and same-ID replay protection. New reader processes must be loaded before archiving; private PID/start markers reject old/mixed runtimes. Retain running/uncertain records, never clear locks or delete claims to recover capacity. Source/tests pass; deployment/actual archival evidence is recorded in that document. No business task may be replayed because storage capacity is restored.
+
 ## Operator checkout policy and MCP0.11.0 (2026-11-01)
 
 The user explicitly requires current-directory/current-checkout development unless they request branches or a separate checkout. Never create/switch branches, attach HEAD to main or automatically isolate to bypass preflight. This supersedes older default-main/optional-isolation recommendations below. Read docs/MCP_CURRENT_WORKSPACE_20261101.md and docs/MCP_EXECUTION_PLAYBOOK.md. Generic repository_task now defaults to current: pinned current HEAD, dirty edits and detached HEAD allowed, no fetch/update/branch change. Explicit repository_sync retains checkout association while protecting local changes. Deployment/validation state is recorded in that document; do not infer live upgrade from source changes.

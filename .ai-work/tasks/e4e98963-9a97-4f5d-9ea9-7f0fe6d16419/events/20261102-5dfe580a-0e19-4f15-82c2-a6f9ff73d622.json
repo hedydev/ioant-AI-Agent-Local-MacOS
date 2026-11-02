@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "event_id": "5dfe580a-0e19-4f15-82c2-a6f9ff73d622",
+  "task_id": "e4e98963-9a97-4f5d-9ea9-7f0fe6d16419",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-11-02T00:34:19.626559Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": null,
+  "message": "Proven500-receipt limit fixed in source. Full1367 tests and real read-only UI preview pass; live archive awaits updated readers and coordinated Web/key rollout. No business task replay or record deletion.",
+  "changes": {
+    "status": {
+      "from": "in_progress",
+      "to": "awaiting_device_validation"
+    }
+  },
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/MCP_EXECUTION_HISTORY_20261102.md"
+    }
+  ],
+  "supersedes_event_id": null
+}

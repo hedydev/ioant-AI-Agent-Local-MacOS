@@ -1,3 +1,7 @@
+## 2026-11-02 — Safe execution history archive (source)
+
+Actual Alice history reached500 receipts, causing execution_history_full. New0.12.0 archive reader + console capacity/confirmation/history pagination preserve original claims and reports, retain100 recent settled tasks, block active leases/old readers and never replay jobs. Initial full1367 run passed; archive-focused28 passed; three legacy Worker timing failures from later parallel runs passed separately unchanged (details recorded). Actual read-only preview works. The operator deferred runtime upgrade; existing Web/Tunnel and all500 real receipts remain untouched. See MCP_EXECUTION_HISTORY_20261102.md for source/runtime distinction and private-key rollout requirement.
+
 # Current Project State — 2026-10-23
 
 ## Objective

@@ -17,3 +17,15 @@ test('loopback console blocks cross-site controls, protects API state, and serve
  assert.equal((await fetch(url+'/api/export',{headers})).headers.get('content-disposition'),'attachment; filename="openclaw-console-diagnostics.json"');
  const ac=new AbortController();r=await fetch(url+'/api/events',{headers,signal:ac.signal});assert.equal(r.headers.get('content-type'),'text/event-stream');const chunk=await r.body.getReader().read();assert.match(new TextDecoder().decode(chunk.value),/^data:/);ac.abort();
 });
+test('archive is a local CSRF-protected POST and history is a bounded scoped read',async t=>{
+ const calls=[],snapshot={tunnel:{},projects:[],activities:[]};
+ const service={snapshot,listeners:new Set(),refresh:async()=>snapshot,diagnostics:{record:()=>{}}};
+ const app=createConsoleServer(service,{port:0,archive:async input=>{calls.push(input);return {state:'archived',archivedCount:400};},history:async input=>({state:'history',...input,rows:[]})});
+ await new Promise(r=>app.server.listen(0,'127.0.0.1',r));t.after(()=>{app.server.closeAllConnections();app.server.close();});
+ const headers={'x-console-token':app.token,'content-type':'application/json',origin:app.origin},body=JSON.stringify({project_key:'alice-ai',operation_id:'archive_http_0001',retain_recent:100});
+ assert.equal((await fetch(app.origin+'/api/project/archive',{method:'POST',headers:{...headers,origin:'https://evil.invalid'},body})).status,403);assert.equal(calls.length,0);
+ assert.equal((await fetch(app.origin+'/api/project/archive',{headers})).status,404);assert.equal(calls.length,0);
+ const r=await fetch(app.origin+'/api/project/archive',{method:'POST',headers,body});assert.equal((await r.json()).archivedCount,400);assert.equal(calls.length,1);
+ assert.equal((await fetch(app.origin+'/api/project/history?project=alice-ai&offset=30',{headers})).status,200);
+ assert.equal((await fetch(app.origin+'/api/project/history?project=alice-ai&path=/tmp',{headers})).status,400);
+});

@@ -11,3 +11,5 @@
 #view-project .permission-row>div:first-child{display:none}.badge{font-size:10px}.permission-row .badge{font-size:10px}.execution-steps summary{cursor:pointer;color:var(--accent)}.execution-steps>div{padding:var(--s2) 0}.project-heading .eyebrow{margin-bottom:var(--s2)}
 
 .permission-row .badge{display:inline-flex;align-items:center;gap:5px}
+
+.history-panel{margin-bottom:var(--s5)}.history-body{padding:0 var(--s5) var(--s5)}.history-capacity{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.history-body progress{display:block;width:100%;height:10px;margin:16px 0 22px;accent-color:var(--accent)}.history-stats{display:flex;gap:28px;flex-wrap:wrap}.history-stats small,.history-stats strong{display:block}.history-stats small{color:var(--muted);font-size:11px;margin-bottom:8px}.history-stats strong{font:18px var(--mono)}.history-panel .section-heading{gap:16px;flex-wrap:wrap}

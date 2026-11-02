@@ -23,7 +23,7 @@ export function renderStatus(snapshot,handlers,pending){
 export function renderActivities(target,rows,onReport){
  const expanded=new Set([...target.querySelectorAll('details[open]')].map(e=>e.dataset.operation));
  target.replaceChildren(...(rows.length?rows.map(r=>{
-  const title=node('div',{class:'activity-top'},node('span',{class:'activity-name'},t('activity.'+r.kind)),badge(r.state));
+  const title=node('div',{class:'activity-top'},node('span',{class:'activity-name'},t('activity.'+r.kind)),r.archived?node('span',{class:'badge neutral'},t('history.archived')):null,badge(r.state));
   const actions=node('div',{class:'activity-footer'},node('code',{title:r.operationId},r.operationId),r.kind==='execution'?node('button',{class:'text-button','data-focus':r.id,onclick:()=>onReport(r)},t('activity.report')):node('span',{},time(r.finishedAt??r.startedAt)));
   const used=node('div',{class:'capability-list'},node('span',{},t('capabilities.used')),
   ...(r.toolsUsed?.successful?.length?r.toolsUsed.successful.map(x=>node('code',{},x)):[node('span',{},t(r.toolsUsed?.evidence==='unavailable'?'capabilities.unknown':'capabilities.none'))]));
@@ -58,4 +58,25 @@ export function renderPermissions(projects){
     ...['runtime','files','browser'].map(k=>permissionBadge(k,native)),
     permissionBadge('repository',p.permissions?.repositoryTask)));
  }));
+}
+
+export function renderHistory(project,onArchive,onBrowse,pending=false){
+ const h=project.history,target=document.getElementById('project-history');
+ if(h?.state!=='observed'){
+  target.replaceChildren(node('div',{class:'section-heading'},node('div',{},node('h2',{},t('history.title')),node('p',{},t('history.unavailable')))));return;
+ }
+ const stats=[[t('history.total'),number(h.hotCount+h.archivedCount)],
+  [t('history.archived'),number(h.archivedCount)],[t('history.active'),number(h.activeCount)],
+  [t('history.uncertain'),number(h.uncertainCount)],[t('history.bytes'),(h.trackedBytes/1048576).toFixed(2)+' MiB']];
+ const heading=node('div',{class:'section-heading'},
+  node('div',{},node('h2',{},t('history.title')),node('p',{},t('history.description'))),
+  node('div',{class:'button-row'},node('button',{class:'button secondary',onclick:onBrowse},t('history.browse')),
+   node('button',{class:'button secondary',disabled:pending||!h.archiveAllowed||h.settledCount<=100,onclick:onArchive},t('history.archive'))));
+ const capacity=node('div',{class:'history-capacity'},
+  node('strong',{},t('history.hotCount',{count:h.hotCount,limit:h.limit})),
+  node('span',{class:h.remaining===0?'badge danger':'badge neutral'},t(h.remaining===0?'history.full':'history.remaining',{count:h.remaining})));
+ const body=node('div',{class:'history-body'},capacity,
+  node('progress',{max:h.limit,value:h.hotCount,'aria-label':t('history.title')}),
+  node('div',{class:'history-stats'},...stats.map(([k,v])=>node('div',{},node('small',{},k),node('strong',{},v)))));
+ target.replaceChildren(heading,body,node('p',{class:'panel-footer'},t(!h.archiveAllowed?'history.busy':'history.preserve')));
 }

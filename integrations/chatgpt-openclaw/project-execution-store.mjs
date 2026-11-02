@@ -1,5 +1,6 @@
 // Persistent claims, project-wide serialization and bounded private text reports.
-import {lstat,realpath,mkdir,readFile,writeFile,rename,unlink,readdir} from 'node:fs/promises';
+import {lstat,realpath,mkdir,readFile,writeFile,rename,unlink,readdir,open} from 'node:fs/promises';
+import {constants} from 'node:fs';
 import {join} from 'node:path';
 import {randomUUID,createHash} from 'node:crypto';
 import {operationId} from './computer-task-store.mjs';
@@ -7,6 +8,7 @@ import {EXECUTION_PARENT} from './project-execution-policy.mjs';
 
 const FINAL=new Set(['passed','failed','blocked','inconclusive']);
 export const finalExecution=state=>FINAL.has(state);
+export const EXECUTION_HISTORY_LIMIT=500;
 export async function privateExecutionPath(path,directory=false){
  const s=await lstat(path);
  if((directory?!s.isDirectory():!s.isFile())||s.isSymbolicLink()||s.uid!==process.getuid()||
@@ -27,11 +29,36 @@ export class ProjectExecutionStore{
   if(typeof id!=='string'||!operationId.test(id)||!['json','log'].includes(suffix))throw Error('invalid_operation_id');
   return join(this.dir,id+'.'+suffix);
  }
+ async archivedDirectory(id){
+  this.path(id);const root=join(this.dir,'archive');
+  await privateExecutionPath(root,true);const dir=join(root,id);await privateExecutionPath(dir,true);return dir;
+ }
+ async readPath(id,name){
+  // Publish the archive before removing hot files. A racing reader can always
+  // fall back, including readers that fetched the receipt before maintenance.
+  const hot=join(this.dir,name);try{await privateExecutionPath(hot);return hot;}
+  catch(e){if(e.code!=='ENOENT')throw e;}
+  const archived=join(await this.archivedDirectory(id),name);await privateExecutionPath(archived);return archived;
+ }
+ async readStored(id,name,limit){
+  this.path(id);
+  for(let attempt=0;attempt<2;attempt++){
+   let file;
+   try{
+    const path=attempt===0?await this.readPath(id,name):join(await this.archivedDirectory(id),name);
+    await privateExecutionPath(path);file=await open(path,constants.O_RDONLY|constants.O_NOFOLLOW);
+    const s=await file.stat();
+    if(!s.isFile()||s.uid!==process.getuid()||(s.mode&0o077)!==0)throw Error('private_execution_path_required');
+    if(s.size>limit)throw Error(limit===65536?'execution_receipt_too_large':'execution_report_too_large');
+    return await file.readFile('utf8');
+   }catch(e){if(e.code!=='ENOENT'||attempt===1)throw e;}
+   finally{await file?.close();}
+  }
+ }
  async get(id){
-  await this.admit();const path=this.path(id);let s;
-  try{s=await privateExecutionPath(path);}catch(e){if(e.code==='ENOENT')return null;throw e;}
-  if(s.size>65536)throw Error('execution_receipt_too_large');
-  const r=JSON.parse(await readFile(path,'utf8'));
+  await this.admit();this.path(id);let text;
+  try{text=await this.readStored(id,id+'.json',65536);}catch(e){if(e.code==='ENOENT')return null;throw e;}
+  const r=JSON.parse(text);
   if(r.schemaVersion!==1||r.operationId!==id||r.project!==this.binding.projectKey||
    r.agent!==this.binding.agentId||!SHA256.test(r.digest??'')||
    !['accepted','running',...FINAL].includes(r.state)||!Array.isArray(r.steps))throw Error('invalid_execution_receipt');
@@ -39,7 +66,7 @@ export class ProjectExecutionStore{
  }
  async begin(input,digest){
   await this.admit();const old=await this.get(input.operation_id);if(old)return {created:false,record:old};
-  if((await readdir(this.dir)).filter(n=>n.endsWith('.json')).length>=500)throw Error('execution_history_full');
+  if((await readdir(this.dir)).filter(n=>n.endsWith('.json')).length>=EXECUTION_HISTORY_LIMIT)throw Error('execution_history_full');
   const record={schemaVersion:1,operationId:input.operation_id,project:this.binding.projectKey,
    agent:this.binding.agentId,digest,input,state:'accepted',steps:[],createdAt:new Date().toISOString(),
    executor:'mcp_fixed_project_runner',modelInferenceInvoked:false,workerUsed:false};
@@ -97,9 +124,8 @@ export class ProjectExecutionStore{
   if(typeof artifact!=='string'||!/^[a-z][a-z0-9_-]{0,47}$/.test(artifact))throw Error('invalid_artifact');
   const meta=artifact==='execution_log'?r.report:r.artifacts?.find(a=>a.artifact===artifact);
   if(!meta)return {state:'unavailable',operationId:id,reason:'no_declared_artifact'};
-  const p=artifact==='execution_log'?this.path(id,'log'):join(this.dir,id+'.artifact-'+artifact+'.txt'),s=await privateExecutionPath(p);
-  if(s.size>262144)throw Error('execution_report_too_large');
-  const text=await readFile(p,'utf8');
+  const name=artifact==='execution_log'?id+'.log':id+'.artifact-'+artifact+'.txt';
+  const text=await this.readStored(id,name,262144);
   if(createHash('sha256').update(text).digest('hex')!==meta.sha256)throw Error('execution_report_changed');
   if(offset>text.length)throw Error('invalid_report_offset');
   const logText=text.slice(offset,offset+4000),next=offset+logText.length;

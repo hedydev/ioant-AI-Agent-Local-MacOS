@@ -1,3 +1,7 @@
+## Separate MCP execution history archive (2026-11-02)
+
+Operator-approved local maintenance addresses the proven500-receipt admission limit. See MCP_EXECUTION_HISTORY_20261102.md. Initial full1367 run and archive-focused28 pass; subsequent legacy Worker timing variance/reconciliation is recorded in the linked document. Actual read-only UI preview passed. The operator deferred runtime upgrade. Original Phase-1 audit boundaries and business/game authority remain unchanged.
+
 ## Resource-aware MCP rollout (2026-10-31)
 
 See [resource optimization](MCP_RESOURCE_OPTIMIZATION_20261031.md). Fixed exact-commit dirty-tree sync and detached native jobs passed1350 regressions; local SDK status passed with no model/desktop. All existing tool grants and Ollama configuration are unchanged. Live0.10.0 health and actual cloud actions/capabilities/status are now verified with no loaded model; operator-relayed final calling-Chat schema/read-only acceptance also passed. No more service restart or real business replay is required. Phase-1 audit restrictions remain unchanged.

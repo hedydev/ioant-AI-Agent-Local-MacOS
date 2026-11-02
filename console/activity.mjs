@@ -10,6 +10,7 @@ import {ProjectExecutionStore} from '../integrations/chatgpt-openclaw/project-ex
 import {privateDirectory,privateRead,privateJsonFiles} from './private-files.mjs';
 import {PRIVATE_ROOT,AUDIT_ROOT} from './config.mjs';
 import {cleanText} from './diagnostics.mjs';
+import {historyStatus,recentExecutionFiles} from './execution-history.mjs';
 
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,100}$/.test(x)?x:undefined;
 export function usedCapabilities(r,kind){
@@ -44,11 +45,14 @@ export async function loadActivity({parent=PRIVATE_ROOT,bindings=registeredProje
   const isTest=/^mcp-(backend|generic)-acceptance-/.test(checkoutName);
   const status=config?await inspect({binding:b,load:async()=>config}):null;
   const repositoryTask=Boolean(g||await policy(b));
-  projects.push({permissions:{state:status?.state??'unverified',toolAccess:status?.toolAccess??'unverified',computer:status?status.computerControlEnabled===true:null,repositoryTask},key:b.projectKey,agent:b.agentId,repository:g?.repository??null,branch:g?.branch??null,
+  const executionStore=new ProjectExecutionStore(b,{parent});let history;
+  try{history=await historyStatus(executionStore);}catch{history={state:'unavailable'};}
+  projects.push({history,permissions:{state:status?.state??'unverified',toolAccess:status?.toolAccess??'unverified',computer:status?status.computerControlEnabled===true:null,repositoryTask},key:b.projectKey,agent:b.agentId,repository:g?.repository??null,branch:g?.branch??null,
    removable:b.projectKey.startsWith('repo-'),name:checkoutName,kind:isTest?'test':'project'});
   for(const [kind,prefix] of [['execution','direct-project-execution-'],['computer','direct-computer-']]){
-   for(const {path} of await privateJsonFiles(join(parent,prefix+b.projectKey),100)){
-    try{const row=activityRow(JSON.parse(await privateRead(path)),kind,b.projectKey);if(row)activities.push(row);}catch{}}
+   let files=[];try{files=kind==='execution'?await recentExecutionFiles(executionStore):await privateJsonFiles(join(parent,prefix+b.projectKey),100);}catch{}
+   for(const {path,archived=false} of files){
+    try{const row=activityRow(JSON.parse(await privateRead(path)),kind,b.projectKey);if(row)activities.push({...row,archived});}catch{}}
   }
  }
  for(const {path} of await privateJsonFiles(join(parent,'direct-workspace-connect'),100)){
@@ -60,6 +64,15 @@ export async function activityReport({project,operationId,artifact='execution_lo
  if(!id(project)||!id(operationId)||!/^[a-z][a-z0-9_-]{0,47}$/.test(artifact)||!Number.isSafeInteger(offset)||offset<0||offset>262144)throw Error('invalid_report_request');
  const b=bindings[project];if(!b)throw Error('project_not_registered');
  return new ProjectExecutionStore(b,{parent}).report(operationId,offset,artifact);
+}
+export async function executionHistoryPage({project,offset=0},{bindings=registeredProjectBindings(),parent=PRIVATE_ROOT}={}){
+ if(!id(project)||!Number.isSafeInteger(offset)||offset<0||offset>100000)throw Error('invalid_history_request');
+ const b=bindings[project];if(!b)throw Error('project_not_registered');
+ const files=await recentExecutionFiles(new ProjectExecutionStore(b,{parent}),offset+31);
+ const rows=[];for(const {path,archived} of files.slice(offset,offset+30)){
+  const row=activityRow(JSON.parse(await privateRead(path)),'execution',project);if(row)rows.push({...row,archived});
+ }
+ return {state:'history',project,rows,offset,nextOffset:files.length>offset+30?offset+30:null};
 }
 export async function recentMcpEvents({root=AUDIT_ROOT}={}){
  try{

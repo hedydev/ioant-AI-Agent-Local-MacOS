@@ -34,6 +34,7 @@ export async function openclawCapabilities(input,{load=loadWorkspaceAccess,statu
  const access=checks[0].status==='fulfilled'?checks[0].value:null;
  return {state:'capabilities',readOnly:true,modelInferenceInvoked:false,
   repositoryTasks:{implemented:true,workspaceAccessConfigured:!!access,projectConnectForNewRepositories:true,
+   executionHistory:{hotLimit:500,archiveLookupVersion:1,archiveControl:'local_console',retainsOperationClaims:true},
    workspaceModes:['current','in_place','isolated'],defaultWorkspaceMode:'current',execution:'deterministic_async',
    catalogRequirement:'If project_execute has no workspace_mode parameter, refresh the plugin tools; verify current mode is present; never create a separate checkout unless the user explicitly requests one.',
    requiresChromeDebug:false,requiresComputerControl:false,requiresLocalModel:false,

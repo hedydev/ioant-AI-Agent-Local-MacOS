@@ -10,6 +10,7 @@ import {projectExecution,executionTools} from './project-execution.mjs';
 import {reportToolResult} from './project-report-contract.mjs';
 import {workspaceTool} from './workspace-tools.mjs';
 import {observeMcpCall,closeMcpAudit} from './observability.mjs';
+import {attestArchiveReader} from './archive-reader.mjs';
 
 export const tools=[{
  name:'openclaw_agent_status',
@@ -56,8 +57,10 @@ export async function callTool(name,args,{status=inspectDirectAgent,message=mess
 }
 
 export async function serve(binding=projectBinding(),route={shared:false,bindings:[binding]}){
+ try{await attestArchiveReader();}
+ catch{process.stderr.write('Archive maintenance disabled: loaded reader identity unavailable.\n');}
  const {Server,StdioServerTransport,ListToolsRequestSchema,CallToolRequestSchema}=await loadSdk();
- const server=new Server({name:'ioant-openclaw-direct',version:'0.11.0'},
+ const server=new Server({name:'ioant-openclaw-direct',version:'0.12.0'},
   {capabilities:{tools:{}},instructions:routeInstructions(route)});
  server.setRequestHandler(ListToolsRequestSchema,async()=>({tools:routedCatalog(tools,route,[...handoffTools,...executionTools])}));
  server.setRequestHandler(CallToolRequestSchema,async request=>{

@@ -1,0 +1,31 @@
+{
+  "schema_version": 2,
+  "task_id": "e4e98963-9a97-4f5d-9ea9-7f0fe6d16419",
+  "created_at": "2026-11-02T00:34:19.626559Z",
+  "created_by": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "objective": "Archive settled MCP execution history from the local console without losing operation claims or report access",
+  "scope": [
+    "console",
+    "integrations/chatgpt-openclaw",
+    "scripts/project-history.mjs",
+    "test",
+    "docs"
+  ],
+  "target_ids": [],
+  "acceptance_criteria": [
+    "Capacity and hot/archived history are visible per project",
+    "Old operation IDs never execute again after archival",
+    "Logs/artifacts remain hash-verified and queryable",
+    "Busy or old-reader installations refuse maintenance",
+    "Real runtime/UI archival verified before technical acceptance"
+  ],
+  "deduplication_key": "mcp-execution-history-safe-archive",
+  "parent_task_id": "886a7e13-60af-4858-a264-63b691706c17",
+  "relations": []
+}

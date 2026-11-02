@@ -1,0 +1,30 @@
+{
+  "schema_version": 2,
+  "event_id": "5002130b-c217-4227-a5e7-81a339da2515",
+  "task_id": "e4e98963-9a97-4f5d-9ea9-7f0fe6d16419",
+  "event_type": "blocker_recorded",
+  "occurred_at": "2026-11-02T00:42:00.694929Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": null,
+  "message": "Operator explicitly deferred Web/Tunnel upgrade to preserve live MCP availability. No production restart or real archival. Runtime validation remains pending private Runtime Key entry at the later coordinated upgrade; the quota follow-up is paused to avoid repeated polling.",
+  "changes": {
+    "remaining_work": [
+      "Coordinated user-ready runtime upgrade",
+      "First actual archive and cross-process same-ID/report readback",
+      "Human acceptance"
+    ]
+  },
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/MCP_EXECUTION_HISTORY_20261102.md"
+    }
+  ],
+  "supersedes_event_id": null
+}
