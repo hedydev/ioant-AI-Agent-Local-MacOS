@@ -76,5 +76,34 @@ node scripts/approve-alice-client-restart.mjs --approve
 
 源码阶段：MCP 相关 44 项回归通过；Alice 生命周期专项 9 项及完整 Python
 320 项（跳过 3 项）通过。Mint 上原维护模块三份 SHA256 与批准版本逐一匹配。
-完整 MCP 回归 1,375 项全部通过；最终生命周期专项 8 项再次通过。正式批准、
-运行服务加载及真实维护回执在部署后补记。
+最终完整 MCP 回归 **1,376/1,376**、生命周期专项 **9/9** 通过。
+
+## 正式加载与实机验收（北京时间 2026-11-03 00:39）
+
+- Alice 任务代码 `a7c1a5ef08859b406ff52b654cb785fdc6dd79be` 已推送；
+  MCP 代码 `650363b`（基于 `001a870`）已推送。两仓库均在原目录开发。
+- 本机维护命令完成正式批准，approvalSha256=
+  `0b0b2ee78a0738b155c0334a00e9fe8292d5b3f60e5254030d0bac813385b99f`。
+  首次批准因已有仓库标签带 `github.com/` 前缀而安全阻止，未写许可；修正为明确
+  接受两种规范标签并仍严格核对原 origin，新增回归后成功，不放松目标仓库限制。
+- 无在途项目执行锁时，通过现有控制台内存密钥重载 Tunnel；遇到旧控制台已知的
+  `tunnel_starting` 退出事件竞争，先独立确认原进程已退出且不存在配置的 Tunnel，
+  再用支持的 start API 启动。没有重启 Web、恢复/导出密钥或关闭身份检查。
+  Tunnel PID60308 ready；此旧控制台竞争问题本轮未修复。
+- 实际云端 `openclaw_project_actions(alice-ai)` 返回
+  `approvedLifecycleTasks[name=alice_client_restart].enabled=true` 和上述批准哈希，
+  同时 fetch/sync/generic task 保持启用。工具参数未改变，不需要刷新工具目录。
+- 唯一真实维护操作：`alice_client_restart_approved_20261103_k4n8v2cs_01`。
+  `project_execute` accepted；同编号 `project_result` **passed / cached=true**，
+  `lifecycle.state=completed`、`failureReason=none`、旧PID3521245→新PID3633395。
+  processAlive/heartbeatFresh/connected/sessionEstablished/ownerVerified/
+  worldVerified/portVerified 全true，existingTask=false，replacementCount=1，
+  bdsRestarted=false、worldChanged=false、modelInferenceInvoked=false。
+- `project_report(artifact_id=alice_restart)` 实际读到完整非空 JSON，SHA256
+  `5a807aa7410caab7630afe79a179e37f3ccb4932a7a7ffa75297eb7cfcac2ae7`。
+  随后原维护入口独立 status 确认同PID、current_process、心跳0.3秒、连接/会话true、
+  HP20/IDLE/no job。这是实际新会话证明，不只是进程启动或脚本退出0。
+
+无需额外管理员操作或用户手动执行终端命令，本次平台调用获准正常完成。
+旧 h01 的具体平台拒绝规则仍不可从现存记录确认；本次成功不能倒推旧拒绝原因，
+也不是对未来平台拒绝的豁免。新会话独立 BDS 样本初始0，不代表移动验收。

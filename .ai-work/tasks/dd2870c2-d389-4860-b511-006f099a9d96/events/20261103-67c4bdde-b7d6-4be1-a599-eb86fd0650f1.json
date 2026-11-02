@@ -1,0 +1,27 @@
+{
+  "schema_version": 2,
+  "event_id": "67c4bdde-b7d6-4be1-a599-eb86fd0650f1",
+  "task_id": "dd2870c2-d389-4860-b511-006f099a9d96",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-11-02T16:42:48.996379Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "650363be5e42ec9642bcb53836c52f8f5ef09064",
+  "message": "Approved dedicated original Alice restart task deployed through MCP0.12.1. Actual cloud actions lists enabled + approval0b0b2ee7; unique operation alice_client_restart_approved_20261103_k4n8v2cs_01 passed/cached:3521245\u21923633395, single replacement live heartbeat/game session. Artifact5a807aa7...c2ae7 read and canonical status independently corroborated. Full1376/focused9 and Python320(skip3)/focused9 pass. Old h01 exact platform rationale unavailable; no external review override. No BDS/world mutations or paid model. Technical acceptance complete; human acceptance pending.",
+  "changes": {
+    "technical_status": "accepted",
+    "human_status": "pending"
+  },
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/ALICE_CLIENT_LIFECYCLE_APPROVAL_20261103.md"
+    }
+  ],
+  "supersedes_event_id": null
+}
