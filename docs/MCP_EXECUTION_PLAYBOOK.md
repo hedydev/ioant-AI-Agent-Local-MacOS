@@ -74,6 +74,13 @@
 [项目执行契约](PROJECT_EXECUTION_MCP_20261030.md) 和
 [资源与异步执行](MCP_RESOURCE_OPTIMIZATION_20261031.md)。
 
+## Alice 明确批准的客户端重启
+
+普通代码/测试任务不自动获得生命周期权限。用户明确授权后的专用
+`alice_client_restart` 使用现有 `repository_task`、固定任务文件和单独本机批准，
+入口、回执、审核边界见 [Alice 生命周期批准](ALICE_CLIENT_LIFECYCLE_APPROVAL_20261103.md)。
+平台再次拒绝时停止，不通过模型终端、改脚本或换 ID 绕过。无需用户手动运行 restart。
+
 ## 历史容量已满
 
 `execution_history_full` 是项目近期回执达到500条的入场限制，不是权限、内存或Chat上限。先读现有回执，不换ID或改走模型重放。管理员在本机控制台归档较早的已结束任务，保留操作编号、完整回执和报告后恢复空位；运行中/不明记录与锁不清除。须先确认新版读取器真正加载，旧运行进程不能识别归档。归档不会减少总磁盘占用，也不撤销之前的安全拒绝。详见[MCP历史归档](MCP_EXECUTION_HISTORY_20261102.md)。

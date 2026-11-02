@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "event_id": "6c439d5d-4914-476f-bdd2-d98c709d67fa",
+  "task_id": "dd2870c2-d389-4860-b511-006f099a9d96",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-11-02T16:34:37.111365Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "a6f8372cfd2213a664049b8a23bb75a42b05fd8f",
+  "message": "User explicitly authorizes formal Alice-only lifecycle enrollment and real MCP acceptance. Source: MCP full1375 pass plus final focused8, Alice Python320(skip3)/focused9 pass; operator hashes match Mint. Prior refusal original review rationale unavailable; no replay or platform override permitted. Actual grant/deployment/restart pending.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/ALICE_CLIENT_LIFECYCLE_APPROVAL_20261103.md"
+    }
+  ],
+  "supersedes_event_id": null
+}

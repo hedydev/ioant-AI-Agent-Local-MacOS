@@ -10,6 +10,7 @@ import {executionPolicy,executionCatalog,SHA,CONVERSATION} from './project-execu
 import {executionEnvironment} from './project-execution-command.mjs';
 import {reportOutputSchema} from './project-report-contract.mjs';
 import {taskFilePath} from './repository-task.mjs';
+import {ALICE_RESTART_TASK,PRIOR_DENIED_RESTART,aliceLifecycleApproval} from './alice-lifecycle-policy.mjs';
 
 const props={operation_id:{type:'string',pattern:'^[A-Za-z0-9][A-Za-z0-9_-]{7,79}$'}};
 export const executionTools=[{
@@ -58,7 +59,7 @@ async function launchExecution(binding,id){
  });
 }
 export async function projectExecution(name,args,{binding,store=new ProjectExecutionStore(binding),
- policy=executionPolicy,launch=launchExecution}={}){
+ policy=executionPolicy,launch=launchExecution,lifecycleApproval=aliceLifecycleApproval}={}){
  try{
   if(!args||typeof args!=='object'||Array.isArray(args))throw Error('invalid_project_execution_input');
   if(name==='openclaw_project_inspect')return inspectProjectRepository(args,{binding,policy});
@@ -74,6 +75,12 @@ export async function projectExecution(name,args,{binding,store=new ProjectExecu
     toolSchemaRequirement:'project_execute must expose workspace_mode; refresh the plugin tool catalog if absent. Do not use model-driven clone as a workaround.',scope:'Pinned tracked repository scripts as the current user; not an OS sandbox. No model inference.'});
    if(await policy(binding,{action:'repository_fetch'}))result.actions.push({action:'repository_fetch',enabled:true,requiresCleanWorktree:false,taskFileRequired:false,expectedCommitRequired:false,modelInferenceInvoked:false,scope:'Fetch enrolled origin/branch into FETCH_HEAD and its remote-tracking ref only. HEAD, index and local files are preserved; no merge, checkout, clone or tests.'});
    if(await policy(binding,{action:'repository_sync'}))result.actions.push({action:'repository_sync',enabled:true,requiresCleanWorktree:false,taskFileRequired:false,expectedCommitRequired:true,modelInferenceInvoked:false,scope:'Fast-forward current checkout to an exact enrolled-remote commit without switching or attaching its branch; preserve non-overlapping local edits and untracked files, block conflicts. No stash/reset/cleanup/clone/tests.'});
+   if(binding.projectKey==='alice-ai'){
+    let approval;try{approval=await lifecycleApproval(binding);}catch{}
+    result.approvedLifecycleTasks=[{name:'alice_client_restart',action:'repository_task',taskFile:ALICE_RESTART_TASK,
+     enabled:Boolean(generic&&approval),approvalSha256:approval?.approvalSha256,workspaceMode:'current',expectedCommitRequired:true,
+     platformReviewRequired:true,scope:'Only current verified Alice client on 17879 / Bedrock level; original configuration, one replacement. No BDS/world operations; no retry of prior refused or uncertain work.'}];
+   }
    return result;
   }
   if(name==='openclaw_project_report'){
@@ -98,9 +105,16 @@ export async function projectExecution(name,args,{binding,store=new ProjectExecu
   if(await projectRetired(binding.projectKey))return {state:'blocked',reason:'project_retired'};
   const p=await policy(binding,{action:args.action});
   if(!p||p.action!==args.action)return {state:'blocked',reason:'project_action_not_enabled'};
+  let lifecycle;
+  if(args.action==='repository_task'&&args.task_file===ALICE_RESTART_TASK){
+   if(args.operation_id===PRIOR_DENIED_RESTART)return {state:'blocked',reason:'prior_platform_refusal_not_replayable'};
+   if(mode!=='current')return {state:'blocked',reason:'alice_lifecycle_current_workspace_required'};
+   lifecycle=await lifecycleApproval(binding);
+  }
   const input=args.action==='repository_task'?{...args,workspace_mode:mode}:args;
   const claim=await store.begin(input,digest);
   if(!claim.created)return claim.record.digest===digest?publicReceipt(claim.record):{state:'blocked',reason:'operation_id_conflict'};
+  if(lifecycle){claim.record.lifecycleApproval={approvalSha256:lifecycle.approvalSha256,reference:lifecycle.authorization.reference,platformReviewRequired:true};await store.save(claim.record);}
   try{await launch(binding,args.operation_id);}
   catch{
    await store.save({...claim.record,state:'blocked',reason:'project_runner_not_started',finishedAt:new Date().toISOString()});

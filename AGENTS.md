@@ -337,3 +337,14 @@ Real Mac acceptance still pending: restore one exact authorized ChatGPT tab thro
 - The OpenClaw native macOS Node is already connected and declares `screen.snapshot` and `computer.act`. Merely declaring tools does not mean computer-act is authorized for a task. Visual snapshot must be an explicit operator-approved action; no automatic screenshots or computer interaction in the status command. Do not use macOS vision/CDP as a way to bypass a rejected Browser Relay/host browser permission.
 - AliceAI code analysis, development and acceptance always belong to the **ChatGPT AliceAI Project conversation**, never to the local `alice-ai` model or this project's Chat. Browser message writers remain single-conversation and unchanged.
 - Repository helper: `scripts/openclaw-mac-visual.mjs inspect|capture`; it uses the existing Gateway-paired macOS node only, never changes browser state, and stores bounded owner-private results on Desktop. It is a candidate until full regression, deployment and actual Mac acceptance.
+## Explicit Alice client lifecycle approval (2026-11-03)
+
+Read docs/ALICE_CLIENT_LIFECYCLE_APPROVAL_20261103.md. The user explicitly authorized
+implementing and validating an Alice-only restart through the existing approved
+repository_task. A separate owner-private grant pins the original task and script
+hashes; it cannot override ChatGPT execution-platform review. The prior refused
+h01 ID stays forbidden. Never reroute a new refusal through another tool or rename.
+Only current workspace, verified original world/port/owner, healthy idle/no-job,
+original config and one replacement are permitted. Poll original receipts; uncertain
+outcomes retain the lock. Follow the deployment record, not source presence, to
+know whether this permission and receipt interpretation are actually loaded.

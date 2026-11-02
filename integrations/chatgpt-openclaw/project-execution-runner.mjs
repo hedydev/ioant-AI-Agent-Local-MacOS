@@ -1,6 +1,6 @@
 // One registered Git fast-forward + Python test run. No arbitrary shell and no AI.
 import {assertNonoverlappingUpdate,verifyPreservation,preservationSnapshot} from './repository-preservation.mjs';
-import {lstat,realpath} from 'node:fs/promises';
+import {lstat,realpath,readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {executionCommand,executionEnvironment,GIT_ARGS,redactExecutionOutput} from './project-execution-command.mjs';
 import {SHA,executionPolicy} from './project-execution-policy.mjs';
@@ -8,6 +8,7 @@ import {validateTreeListing} from '../../stage2/project-self-update.mjs';
 import {loadRepositoryTask,executeRepositoryTask,verifyTaskScript} from './repository-task.mjs';
 import {collectRepositoryArtifacts} from './repository-artifacts.mjs';
 import {inspectExecutionRepository,createIsolatedRepository} from './execution-repository.mjs';
+import {ALICE_RESTART_TASK,PRIOR_DENIED_RESTART,aliceLifecycleApproval,verifyAliceLifecyclePlan,verifyAliceLifecycleScript,validateAliceLifecycleReceipt} from './alice-lifecycle-policy.mjs';
 export {inspectExecutionRepository} from './execution-repository.mjs';
 
 export function pythonTestEvidence(text,exitCode){
@@ -18,7 +19,7 @@ export function pythonTestEvidence(text,exitCode){
  return {passed:ok,tests:count,skipped,exitCode};
 }
 export async function runRegisteredExecution(binding,operationId,{store,policyLoad=executionPolicy,
- command=executionCommand,inspect=inspectExecutionRepository}={}){
+ command=executionCommand,inspect=inspectExecutionRepository,lifecycleApproval=aliceLifecycleApproval}={}){
  let record=await store.get(operationId),log='',retainLock=false;
  if(!record||record.state!=='accepted'||!await store.owns(operationId,record.digest))return;
  const save=async()=>store.save(record);
@@ -56,6 +57,8 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
   const readOptions={command:(file,args,options)=>command(file,args,{...options,env:{...executionEnvironment(),GIT_OPTIONAL_LOCKS:'0'}}),allowDirty:true,requireRegisteredBranch:false,requireIdle:!fetchOnly};
   const isolated=record.input.action==='repository_task'&&record.input.workspace_mode==='isolated';
   const current=record.input.action==='repository_task'&&record.input.workspace_mode==='current';
+  const lifecycle=record.input.action==='repository_task'&&record.input.task_file===ALICE_RESTART_TASK;
+  if(lifecycle&&(!current||operationId===PRIOR_DENIED_RESTART))throw Error('alice_lifecycle_request_not_approved');
   const before=await inspect(policy,fetchOnly||syncOnly||current||isolated?readOptions:{command,requireIdle:true});record.beforeCommit=before.head;
   record.beforeBranch=before.branch??null;record.headState=before.headState;
   record.workspaceMode=current?'current':isolated?'isolated':'in_place';
@@ -64,10 +67,18 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
    if(before.head!==record.input.expected_commit)throw Error('current_commit_mismatch');
    record.actualCommit=before.head;await save();
    const plan=await loadRepositoryTask(policy,before.head,record.input.task_file,{command:readOptions.command});
+   let approval;
+   if(lifecycle){
+    approval=await lifecycleApproval(binding);
+    if(record.lifecycleApproval&&record.lifecycleApproval.approvalSha256!==approval.approvalSha256)throw Error('alice_lifecycle_approval_changed');
+    verifyAliceLifecyclePlan(plan,approval);await verifyAliceLifecycleScript(policy,approval);
+    record.lifecycleApproval={approvalSha256:approval.approvalSha256,reference:approval.authorization.reference,platformReviewRequired:true};await save();
+   }
    const verify=async(p,task,item)=>{
     const fresh=await inspect(p,readOptions);
     if(fresh.head!==before.head||fresh.branch!==before.branch)throw Error('repository_changed_before_task');
     await verifyTaskScript(p,task,item,{command:readOptions.command});
+    if(lifecycle){const active=await lifecycleApproval(binding);if(active.approvalSha256!==approval.approvalSha256)throw Error('alice_lifecycle_approval_changed');await verifyAliceLifecycleScript(p,active);if(item.args[0]==='--restart')retainLock=true;}
    };
    const outputDir=await store.outputDirectory(operationId);
    record.task=await executeRepositoryTask(plan,policy,{operationId,outputDir,step,verify});
@@ -75,7 +86,15 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
    const end=await inspect(policy,readOptions);
    if(end.head!==before.head||end.branch!==before.branch)throw Error('repository_changed_during_tests');
    record.afterBranch=end.branch??null;record.worktreeClean=!end.dirty;record.state='passed';
-   record.resultScope='Current workspace task with pinned committed entry scripts; other files may contain local edits. No fetch, update, branch switch, HEAD attachment or clone; no independent deployment acceptance.';return;
+   if(lifecycle){
+    const file=join(outputDir,'alice_17879_client_restart.json'),s=await lstat(file);
+    if(!s.isFile()||s.isSymbolicLink()||s.size>8192||s.uid!==process.getuid()||(s.mode&0o077)!==0)throw Error('alice_lifecycle_receipt_unverified');
+    record.lifecycle=validateAliceLifecycleReceipt(JSON.parse(await readFile(file,'utf8')),operationId);
+    record.state=record.lifecycle.state==='completed'?'passed':record.lifecycle.state;
+    if(record.state!=='passed')record.reason=record.lifecycle.failureReason;
+    retainLock=record.state==='inconclusive';
+   }
+   record.resultScope=lifecycle?'Approved Alice client lifecycle with verified replacement heartbeat/game session when passed; not movement/gameplay acceptance. No BDS/world control.':'Current workspace task with pinned committed entry scripts; other files may contain local edits. No fetch, update, branch switch, HEAD attachment or clone; no independent deployment acceptance.';return;
   }
   if(isolated){record.sourceWorktreeDirty=before.dirty===true;policy=await createIsolatedRepository(policy,before.origin??policy.origins[0],{store,operationId,step});record.checkoutPath=policy.repo;}
   await save();
