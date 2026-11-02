@@ -1,3 +1,7 @@
+## MCP history runtime acceptance (2026-11-02)
+
+New Web and archive-aware MCP are running after explicit operator restart/key entry. The first real local-console archive preserved all500 Alice receipts/reports while moving400 to archive and freeing400 hot slots. Actual cloud result/log readback matched before/after; no task was re-executed. Phase-1 and business/game scopes remain unchanged. See MCP_EXECUTION_HISTORY_20261102.md for complete evidence and legacy Worker test-timing limitations.
+
 ## Separate MCP execution history archive (2026-11-02)
 
 Operator-approved local maintenance addresses the proven500-receipt admission limit. See MCP_EXECUTION_HISTORY_20261102.md. Initial full1367 run and archive-focused28 pass; subsequent legacy Worker timing variance/reconciliation is recorded in the linked document. Actual read-only UI preview passed. The operator deferred runtime upgrade. Original Phase-1 audit boundaries and business/game authority remain unchanged.

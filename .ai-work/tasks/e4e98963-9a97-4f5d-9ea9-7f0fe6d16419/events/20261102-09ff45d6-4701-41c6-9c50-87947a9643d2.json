@@ -1,0 +1,32 @@
+{
+  "schema_version": 2,
+  "event_id": "09ff45d6-4701-41c6-9c50-87947a9643d2",
+  "task_id": "e4e98963-9a97-4f5d-9ea9-7f0fe6d16419",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-11-02T01:07:31.187503Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "5ab5a2a8387467f2f6d51c506feb54657b87fc31",
+  "message": "New Web and archive-aware cloud MCP running after operator private key entry. First real Web archive moved400 settled Alice tasks, retained100, freed400 slots; actual MCP old receipt/log exactly match before/after, cached true and original hashes retained. Zero repository task/model/game execution. Technical validation complete; user acceptance pending.",
+  "changes": {
+    "status": {
+      "from": "awaiting_device_validation",
+      "to": "awaiting_human_acceptance"
+    },
+    "remaining_work": [
+      "Human acceptance"
+    ]
+  },
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/MCP_EXECUTION_HISTORY_20261102.md"
+    }
+  ],
+  "supersedes_event_id": null
+}

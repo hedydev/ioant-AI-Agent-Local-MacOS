@@ -1,3 +1,7 @@
+## 2026-11-02 — MCP archive deployed and real500-record blockage released
+
+The operator authorized Web/MCP restart and privately supplied the key in the new page. Current cloud capabilities confirm archiveLookupVersion1 and retained operation claims; all reader markers are verified. One local-console archive archived400 settled Alice receipts and retained100, freeing400 admission slots with no execution. Cloud readback of the known old regression result and paginated log is identical before/after, cached:true, with original SHA hashes preserved. Web history returns archived rows. Managed Tunnel is ready; no game/business job/reload was run. Technical verification passed; human acceptance remains pending. See MCP_EXECUTION_HISTORY_20261102.md.
+
 ## 2026-11-02 — Safe execution history archive (source)
 
 Actual Alice history reached500 receipts, causing execution_history_full. New0.12.0 archive reader + console capacity/confirmation/history pagination preserve original claims and reports, retain100 recent settled tasks, block active leases/old readers and never replay jobs. Initial full1367 run passed; archive-focused28 passed; three legacy Worker timing failures from later parallel runs passed separately unchanged (details recorded). Actual read-only preview works. The operator deferred runtime upgrade; existing Web/Tunnel and all500 real receipts remain untouched. See MCP_EXECUTION_HISTORY_20261102.md for source/runtime distinction and private-key rollout requirement.

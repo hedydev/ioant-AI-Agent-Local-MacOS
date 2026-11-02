@@ -1,0 +1,30 @@
+{
+  "schema_version": 2,
+  "event_id": "f04fbe9d-649d-46b5-94c1-609af27e423e",
+  "task_id": "e4e98963-9a97-4f5d-9ea9-7f0fe6d16419",
+  "event_type": "progress_recorded",
+  "occurred_at": "2026-11-02T01:04:19.876724Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "5ab5a2a8387467f2f6d51c506feb54657b87fc31",
+  "message": "Operator authorized restart. Verified empty project/native lanes and leases; maintained Web stop/start completed once. New console is ready with archive capacity UI; managed Tunnel is stopped pending operator private Runtime Key entry. No key recovery, real archival or business task replay. Combined rollout requires no preliminary Tunnel restart.",
+  "changes": {
+    "remaining_work": [
+      "Operator private key entry and Start Tunnel",
+      "Loaded MCP archive-reader verification",
+      "First actual archive/readback acceptance"
+    ]
+  },
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/MCP_EXECUTION_HISTORY_20261102.md"
+    }
+  ],
+  "supersedes_event_id": null
+}
