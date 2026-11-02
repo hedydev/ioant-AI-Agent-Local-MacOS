@@ -3,7 +3,7 @@
 import {readFile,writeFile,rename,lstat,realpath} from 'node:fs/promises';
 import {createHash,randomUUID} from 'node:crypto';
 import {dirname,join} from 'node:path';
-import {ALICE_LIFECYCLE_GRANT,ALICE_RESTART_TASK,ALICE_RESTART_SCRIPT,PRIOR_DENIED_RESTART,validateAliceLifecycleGrant,verifyAliceLifecyclePlan} from '../integrations/chatgpt-openclaw/alice-lifecycle-policy.mjs';
+import {ALICE_LIFECYCLE_GRANT,ALICE_RESTART_TASK,ALICE_RESTART_SCRIPT,PRIOR_DENIED_RESTART,validateAliceLifecycleGrant,verifyAliceLifecyclePlan,aliceRepositoryEnrolled} from '../integrations/chatgpt-openclaw/alice-lifecycle-policy.mjs';
 import {readRepositoryTaskGrants} from '../integrations/chatgpt-openclaw/repository-task-policy.mjs';
 import {loadRepositoryTask,verifyTaskScript} from '../integrations/chatgpt-openclaw/repository-task.mjs';
 import {executionCommand,GIT_ARGS} from '../integrations/chatgpt-openclaw/project-execution-command.mjs';
@@ -16,12 +16,12 @@ if(process.argv[2]==='--revoke'){
  console.log(JSON.stringify({state:'revoked',taskFile:ALICE_RESTART_TASK}));
 }else{
  const policy=readRepositoryTaskGrants().projects['alice-ai'];
- if(policy?.agent!=='alice-ai'||policy.repository!=='hedydev/ioant-AI-Minecraft-Alice')throw Error('alice_repository_enrollment_required');
+ if(!aliceRepositoryEnrolled(policy))throw Error('alice_repository_enrollment_required');
  const result=await executionCommand('/usr/bin/git',[...GIT_ARGS,'rev-parse','HEAD'],{cwd:policy.repo});
  if(!result.ok)throw Error('repository_head_unavailable');
  const plan=await loadRepositoryTask(policy,result.stdout.trim(),ALICE_RESTART_TASK);
  for(const step of plan.steps)await verifyTaskScript(policy,plan,step);
- const grant=validateAliceLifecycleGrant({schemaVersion:1,project:'alice-ai',agent:'alice-ai',repository:policy.repository,
+ const grant=validateAliceLifecycleGrant({schemaVersion:1,project:'alice-ai',agent:'alice-ai',repository:'hedydev/ioant-AI-Minecraft-Alice',
   taskFile:ALICE_RESTART_TASK,taskSha256:plan.definitionSha256,scriptSha256:hash(await readFile(join(policy.repo,ALICE_RESTART_SCRIPT))),
   authorization:{approvedBy:'local_operator',scope:'alice_client_restart_only',reference:'user_request_20261103',priorDeniedOperation:PRIOR_DENIED_RESTART,platformReview:'required'}});
  verifyAliceLifecyclePlan(plan,grant);

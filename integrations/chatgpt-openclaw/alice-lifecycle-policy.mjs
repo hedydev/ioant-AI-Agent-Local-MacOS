@@ -12,6 +12,10 @@ export const ALICE_LIFECYCLE_GRANT=join(homedir(),'Library/Application Support/i
 export const PRIOR_DENIED_RESTART='alice_idle_late_drift_safe_reload_after_audit_20261102_h01';
 const hash=x=>createHash('sha256').update(x).digest('hex');
 const keys=(o,k)=>o&&typeof o==='object'&&!Array.isArray(o)&&Object.keys(o).sort().join(',')===[...k].sort().join(',');
+export function aliceRepositoryEnrolled(p){
+ const origins=new Set(['git@github.com:hedydev/ioant-AI-Minecraft-Alice.git','https://github.com/hedydev/ioant-AI-Minecraft-Alice.git','https://github.com/hedydev/ioant-AI-Minecraft-Alice']);
+ return p?.agent==='alice-ai'&&['hedydev/ioant-AI-Minecraft-Alice','github.com/hedydev/ioant-AI-Minecraft-Alice'].includes(p.repository)&&Array.isArray(p.origins)&&p.origins.length>0&&p.origins.every(o=>origins.has(o));
+}
 export function validateAliceLifecycleGrant(g){
  if(!keys(g,['schemaVersion','project','agent','repository','taskFile','taskSha256','scriptSha256','authorization'])||g.schemaVersion!==1||
   g.project!=='alice-ai'||g.agent!=='alice-ai'||g.repository!=='hedydev/ioant-AI-Minecraft-Alice'||g.taskFile!==ALICE_RESTART_TASK||

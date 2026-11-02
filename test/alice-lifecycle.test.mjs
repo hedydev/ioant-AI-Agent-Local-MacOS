@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {join,dirname} from 'node:path';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
-import {ALICE_RESTART_TASK,ALICE_RESTART_SCRIPT,PRIOR_DENIED_RESTART,validateAliceLifecycleGrant,aliceLifecycleApproval,verifyAliceLifecyclePlan,validateAliceLifecycleReceipt} from '../integrations/chatgpt-openclaw/alice-lifecycle-policy.mjs';
+import {ALICE_RESTART_TASK,ALICE_RESTART_SCRIPT,PRIOR_DENIED_RESTART,validateAliceLifecycleGrant,aliceLifecycleApproval,verifyAliceLifecyclePlan,validateAliceLifecycleReceipt,aliceRepositoryEnrolled} from '../integrations/chatgpt-openclaw/alice-lifecycle-policy.mjs';
 import {projectExecution} from '../integrations/chatgpt-openclaw/project-execution.mjs';
 import {runRegisteredExecution} from '../integrations/chatgpt-openclaw/project-execution-runner.mjs';
 import {ProjectExecutionStore} from '../integrations/chatgpt-openclaw/project-execution-store.mjs';
@@ -34,6 +34,13 @@ test('local grant cannot authorize other projects, arbitrary tasks or removal of
  await assert.rejects(aliceLifecycleApproval(projectBinding('openclaw-workflow'),{load:async()=>grant()}),/wrong_project/);
  await assert.rejects(aliceLifecycleApproval(projectBinding('alice-ai'),{load:async()=>null}),/approval_required/);
  assert.ok((await aliceLifecycleApproval(projectBinding('alice-ai'),{load:async()=>grant()})).approvalSha256);
+});
+test('enrollment accepts canonical GitHub labels but always requires the exact enrolled origin',()=>{
+ const p={agent:'alice-ai',repository:'github.com/hedydev/ioant-AI-Minecraft-Alice',origins:['git@github.com:hedydev/ioant-AI-Minecraft-Alice.git']};
+ assert.equal(aliceRepositoryEnrolled(p),true);
+ assert.equal(aliceRepositoryEnrolled({...p,repository:'hedydev/ioant-AI-Minecraft-Alice'}),true);
+ assert.equal(aliceRepositoryEnrolled({...p,origins:['git@github.com:attacker/other.git']}),false);
+ assert.equal(aliceRepositoryEnrolled({...p,agent:'other'}),false);
 });
 test('missing approval, old refusal ID and isolated checkout never launch',async t=>{
  for(const [edit,reason] of [[{},'alice_lifecycle_approval_required'],[{operation_id:PRIOR_DENIED_RESTART},'prior_platform_refusal_not_replayable'],[{workspace_mode:'isolated'},'alice_lifecycle_current_workspace_required']]){
