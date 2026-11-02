@@ -110,3 +110,12 @@ Alice提交90b241e执行passed/cached，声明产物client_audit实际读取，S
 MCP全量1387/1387、最终恢复/生命周期/归档专项27/27、Alice321(skip3)/生命周期10通过。
 SDK验收辅助最初用不支持的单项目shared模式，连接在任何工具调用前关闭；修正为
 正式registered模式后通过，不涉及游戏操作。
+
+
+最终服务加载验证：MCP0.13.1正常加载，新Tunnel PID46603 ready，Web未重启、
+密钥仅沿用内存。实际云端actions返回lifecycleRecovery.tool=openclaw_project_reconcile、
+independentOfProjectExecutionLock=true；原restart批准4a92be...733f启用。
+云端原result实际读到新子目录审计并附resolved/lockReleased=true，旧inconclusive不变。
+控制台history observed、activeCount0、locked=false、剩余229/500、旧uncertain1保留；
+此1条是历史回执，不代表仍有保留的执行锁。未额外归档、删除claims或重放任何重启。
+最终独立status仍为PID3923865/current_process、在线/心跳/会话true、HP20/IDLE。
