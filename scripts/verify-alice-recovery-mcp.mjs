@@ -7,7 +7,7 @@ const id=process.argv[2];
 if(process.argv.length!==3||!/^[A-Za-z0-9][A-Za-z0-9_-]{7,79}$/.test(id??''))throw Error('operation_id_required');
 const {Client,StdioClientTransport}=await loadClientSdk();
 const client=new Client({name:'alice-recovery-readonly-acceptance',version:'1.0.0'});
-const transport=new StdioClientTransport({command:process.execPath,args:[fileURLToPath(new URL('../integrations/chatgpt-openclaw/server.mjs',import.meta.url)),'--shared-projects','alice-ai'],env:executionEnvironment(),stderr:'ignore'});
+const transport=new StdioClientTransport({command:process.execPath,args:[fileURLToPath(new URL('../integrations/chatgpt-openclaw/server.mjs',import.meta.url)),'--shared-projects','registered'],env:executionEnvironment(),stderr:'ignore'});
 try{
  await client.connect(transport);
  const catalog=await client.listTools();

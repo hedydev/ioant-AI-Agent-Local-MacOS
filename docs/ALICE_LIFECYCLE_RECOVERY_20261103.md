@@ -94,4 +94,19 @@ operationId、原digest和receipt SHA后保留同一文件内容移至新目录�
 
 新增恢复工具需要ChatGPT插件目录刷新才会出现在旧会话工具列表；当前用户正在
 操作Chrome，维护端没有争抢前台或覆盖其他Chat草稿。原result/report/execute
-不受此缓存影响，已有恢复及MCP同步已实际完成。目录与SDK验收另补记。
+不受此缓存影响，已有恢复及MCP同步已实际完成。SDK协议验收已通过：真实registered动态路由的0.13.1服务列出17工具，并实际调用
+新reconcile的inspect读到resolved/cached=true、clientActionInvoked=false。它读取历史
+审计，不是再次解锁或当前离线探测。网页缓存尚未刷新不冒充网页新工具验收。
+
+
+最终现有云端MCP只读任务 alice_recovery_runtime_verify_20261103_k4n8v2cs_01 在
+Alice提交90b241e执行passed/cached，声明产物client_audit实际读取，SHA256
+9c8976d66820e0adfaa5ec558c0d1526f54613e3c9a19d375c2f9174b78b250e。
+报告alive/heartbeatFresh/connected/sessionEstablished/statusSourceCurrent/worldVerified
+全true，当前会话样本8；任务无BDS命令/客户端重启。这证明恢复后正常脚本与回读
+链路也通过，不只Git入场。一次错误的短SHA参数被connector schema在入场前拒绝，
+随后使用实际完整HEAD、同一未入场编号提交；没有执行或重做错误版本。
+
+MCP全量1387/1387、最终恢复/生命周期/归档专项27/27、Alice321(skip3)/生命周期10通过。
+SDK验收辅助最初用不支持的单项目shared模式，连接在任何工具调用前关闭；修正为
+正式registered模式后通过，不涉及游戏操作。

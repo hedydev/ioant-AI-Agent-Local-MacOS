@@ -1,0 +1,27 @@
+{
+  "schema_version": 2,
+  "event_id": "1eb8c323-72e7-400b-b6e1-003689a244b9",
+  "task_id": "dd2870c2-d389-4860-b511-006f099a9d96",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-11-02T21:01:12.604967Z",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "dc57b362b0f21aac623b896a7b92756cd1693840",
+  "message": "User requested recovery of uncertain Alice restart. Independent fixed Mint audit: old/new PIDs absent, no candidates, settled claim/flock, log fetch_failed+ECONNRESET. Reviewed original receiptSHA78f6e4...de28 and matching id/digest; separate audit written, store.release only matching lease; original inconclusive preserved. One distinct normal offline start restoredPID3923865/current heartbeat/game session. Real MCP doc-sync passed preserving2 edits, runtime read-only task passed/artifact9c8976...250e. Schema3 proven exits fail without retry/retained lease; unknowns remain reviewed. Recovery metadata isolated from hot capacity, migration preserves original bytes. MCP1387/focused27 and Alice321(skip3)/focused10 pass. SDK0.13.1 lists17 and cached reconciliation inspect succeeds. Browser tool cache not refreshed because user actively operatingChrome; no foreground contention. Technical recovery accepted, webpage new-tool cache boundary retained.",
+  "changes": {
+    "technical_status": "accepted",
+    "human_status": "pending"
+  },
+  "evidence": [
+    {
+      "kind": "document",
+      "path": "docs/ALICE_LIFECYCLE_RECOVERY_20261103.md"
+    }
+  ],
+  "supersedes_event_id": null
+}
