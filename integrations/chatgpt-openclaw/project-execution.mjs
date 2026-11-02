@@ -78,6 +78,7 @@ export async function projectExecution(name,args,{binding,store=new ProjectExecu
    if(await policy(binding,{action:'repository_fetch'}))result.actions.push({action:'repository_fetch',enabled:true,requiresCleanWorktree:false,taskFileRequired:false,expectedCommitRequired:false,modelInferenceInvoked:false,scope:'Fetch enrolled origin/branch into FETCH_HEAD and its remote-tracking ref only. HEAD, index and local files are preserved; no merge, checkout, clone or tests.'});
    if(await policy(binding,{action:'repository_sync'}))result.actions.push({action:'repository_sync',enabled:true,requiresCleanWorktree:false,taskFileRequired:false,expectedCommitRequired:true,modelInferenceInvoked:false,scope:'Fast-forward current checkout to an exact enrolled-remote commit without switching or attaching its branch; preserve non-overlapping local edits and untracked files, block conflicts. No stash/reset/cleanup/clone/tests.'});
    if(binding.projectKey==='alice-ai'){
+    result.lifecycleRecovery={tool:'openclaw_project_reconcile',modes:['inspect','resolve'],independentOfProjectExecutionLock:true,startsClient:false,catalogRefreshRequiredIfToolMissing:true};
     let approval;try{approval=await lifecycleApproval(binding);}catch{}
     result.approvedLifecycleTasks=[{name:'alice_client_restart',action:'repository_task',taskFile:ALICE_RESTART_TASK,
      enabled:Boolean(generic&&approval),approvalSha256:approval?.approvalSha256,workspaceMode:'current',expectedCommitRequired:true,

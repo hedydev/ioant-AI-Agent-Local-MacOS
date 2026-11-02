@@ -60,7 +60,7 @@ export async function serve(binding=projectBinding(),route={shared:false,binding
  try{await attestArchiveReader();}
  catch{process.stderr.write('Archive maintenance disabled: loaded reader identity unavailable.\n');}
  const {Server,StdioServerTransport,ListToolsRequestSchema,CallToolRequestSchema}=await loadSdk();
- const server=new Server({name:'ioant-openclaw-direct',version:'0.13.0'},
+ const server=new Server({name:'ioant-openclaw-direct',version:'0.13.1'},
   {capabilities:{tools:{}},instructions:routeInstructions(route)});
  server.setRequestHandler(ListToolsRequestSchema,async()=>({tools:routedCatalog(tools,route,[...handoffTools,...executionTools])}));
  server.setRequestHandler(CallToolRequestSchema,async request=>{

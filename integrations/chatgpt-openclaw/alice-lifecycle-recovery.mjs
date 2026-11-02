@@ -1,6 +1,6 @@
 // Read-only remote evidence and reviewed compare-and-release. Never starts a client.
 import {createHash,randomUUID} from 'node:crypto';
-import {readFile,writeFile,rename,unlink} from 'node:fs/promises';
+import {readFile,writeFile,rename,unlink,mkdir,link} from 'node:fs/promises';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {operationId} from './computer-task-store.mjs';
@@ -44,6 +44,22 @@ async function runnerExited(pid){
 }
 async function readPrivate(path){await privateExecutionPath(path);const text=await readFile(path,'utf8');if(text.length>16384)throw Error('recovery_record_too_large');return JSON.parse(text);}
 async function publish(path,data){const temp=path+'.'+randomUUID()+'.tmp';await writeFile(temp,JSON.stringify(data)+'\n',{mode:0o600,flag:'wx'});await rename(temp,path);}
+async function recoveryDirectory(store){
+ const dir=join(store.dir,'reconciliation');await mkdir(dir,{mode:0o700}).catch(e=>{if(e.code!=='EEXIST')throw e;});
+ await privateExecutionPath(dir,true);return dir;
+}
+export async function migrateLegacyRecoveryAudit(store,id){
+ if(!operationId.test(id))throw Error('invalid_operation_id');
+ const dir=await recoveryDirectory(store),r=await store.get(id);
+ for(const [oldName,newName] of [[id+'.recovery.json',id+'.json'],[id+'.recovery-review.json',id+'.review.json']]){
+  const old=join(store.dir,oldName),dest=join(dir,newName);let data;
+  try{data=await readPrivate(old);}catch(e){if(e.code==='ENOENT')continue;throw e;}
+  if(data.operationId!==id||data.originalDigest!==r?.digest||data.originalReceiptSha256!==hash(await store.readStored(id,id+'.json',65536)))throw Error('legacy_recovery_audit_unverified');
+  try{await link(old,dest);}catch(e){if(e.code!=='EEXIST')throw e;await privateExecutionPath(dest);if(hash(await readFile(old))!==hash(await readFile(dest)))throw e;}
+  await unlink(old); // only this verified metadata link; never a receipt or active.lock
+ }
+ return dir;
+}
 export async function reconcileAliceLifecycle(args,{binding,store,probe=inspectAliceLifecycle,exited=runnerExited,
  approval=aliceLifecycleApproval,now=Date.now}={}){
  try{
@@ -55,7 +71,8 @@ export async function reconcileAliceLifecycle(args,{binding,store,probe=inspectA
   validateAliceLifecycleReceipt(r.lifecycle,r.operationId);
   if(!Number.isSafeInteger(r.lifecycle.oldPid)||!Number.isSafeInteger(r.lifecycle.newPid))throw Error('lifecycle_pids_unverified');
   const raw=await store.readStored(r.operationId,r.operationId+'.json',65536),receiptSha=hash(raw);
-  const auditFile=join(store.dir,r.operationId+'.recovery.json'),reviewFile=join(store.dir,r.operationId+'.recovery-review.json');
+  const dir=await migrateLegacyRecoveryAudit(store,r.operationId);
+  const auditFile=join(dir,r.operationId+'.json'),reviewFile=join(dir,r.operationId+'.review.json');
   let audit;try{audit=await readPrivate(auditFile);}catch(e){if(e.code!=='ENOENT')throw e;}
   if(audit){
    if(audit.operationId!==r.operationId||audit.originalReceiptSha256!==receiptSha||audit.originalDigest!==r.digest||!['confirmed_offline','confirmed_late_online'].includes(audit.decision))throw Error('recovery_audit_mismatch');
@@ -79,7 +96,7 @@ export async function reconcileAliceLifecycle(args,{binding,store,probe=inspectA
   const review=await readPrivate(reviewFile);
   if(review.reviewDigest!==args.review_digest||review.originalReceiptSha256!==receiptSha||review.originalDigest!==r.digest||
    review.decision!==decision||review.evidenceFingerprint!==evidenceFingerprint||now()-review.createdAt<0||now()-review.createdAt>60000)throw Error('lifecycle_review_changed_or_expired');
-  const guard=join(store.dir,'lifecycle-reconcile.lock'),nonce=randomUUID();
+  const guard=join(dir,'lifecycle-reconcile.lock'),nonce=randomUUID();
   await writeFile(guard,JSON.stringify({pid:process.pid,nonce,operationId:r.operationId}),{mode:0o600,flag:'wx'});
   try{
    if(hash(await store.readStored(r.operationId,r.operationId+'.json',65536))!==receiptSha||!await store.owns(r.operationId,r.digest)||!await exited(r.runnerPid))throw Error('lifecycle_recovery_state_changed');
@@ -95,7 +112,8 @@ export async function reconcileAliceLifecycle(args,{binding,store,probe=inspectA
 }
 export async function lifecycleRecoveryReceipt(store,id){
  try{
-  const r=await readPrivate(join(store.dir,id+'.recovery.json')),original=await store.get(id);
+  await privateExecutionPath(join(store.dir,'reconciliation'),true);
+  const r=await readPrivate(join(store.dir,'reconciliation',id+'.json')),original=await store.get(id);
   if(r.operationId!==id||r.originalDigest!==original?.digest||r.originalReceiptSha256!==hash(await store.readStored(id,id+'.json',65536))||
    !['resolved','reviewed_pending_release'].includes(r.state)||!['confirmed_offline','confirmed_late_online'].includes(r.decision)||r.originalReceiptPreserved!==true||r.clientActionInvoked!==false)throw Error('recovery_audit_unverified');
   return {state:r.state,decision:r.decision,lockReleased:r.state==='resolved'&&r.lockReleased===true,reconciledAt:r.reconciledAt,originalReceiptPreserved:true};

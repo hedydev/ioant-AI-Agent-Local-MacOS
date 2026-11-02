@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,realpath,chmod,rm,readFile,writeFile} from 'node:fs/promises';
+import {mkdtemp,realpath,chmod,rm,readFile,writeFile,mkdir,readdir,rename} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {ProjectExecutionStore} from '../integrations/chatgpt-openclaw/project-execution-store.mjs';
 import {projectBinding} from '../integrations/chatgpt-openclaw/project-binding.mjs';
 import {ALICE_RESTART_TASK} from '../integrations/chatgpt-openclaw/alice-lifecycle-policy.mjs';
-import {reconcileAliceLifecycle,classifyLifecycleEvidence,lifecycleRecoveryReceipt} from '../integrations/chatgpt-openclaw/alice-lifecycle-recovery.mjs';
+import {reconcileAliceLifecycle,classifyLifecycleEvidence,lifecycleRecoveryReceipt,migrateLegacyRecoveryAudit} from '../integrations/chatgpt-openclaw/alice-lifecycle-recovery.mjs';
 const id='alice_uncertain_restart_test01';
 async function fixture(t){
  const parent=await realpath(await mkdtemp(join(tmpdir(),'alice-reconcile-')));await chmod(parent,0o700);t.after(()=>rm(parent,{recursive:true,force:true}));
@@ -81,6 +81,18 @@ test('sanitized startup parser exposes fixed fetch/reset categories, never priva
  assert.equal(r.signals.includes('spawn_confirmed'),false);assert.equal(text.includes('SECRET-CREDENTIAL'),false);
 });
 test('invalid reconciliation sidecar does not prevent reading the original receipt',async t=>{
- const c=await fixture(t);await writeFile(join(c.store.dir,id+'.recovery.json'),'{}',{mode:0o600});
+ const c=await fixture(t);await mkdir(join(c.store.dir,'reconciliation'),{mode:0o700});await writeFile(join(c.store.dir,'reconciliation',id+'.json'),'{}',{mode:0o600});
  assert.equal((await lifecycleRecoveryReceipt(c.store,id)).state,'unverified');assert.equal((await c.store.get(id)).state,'inconclusive');
+});
+test('review/audit metadata never counts as hot receipts and legacy metadata migration preserves original bytes',async t=>{
+ const c=await fixture(t),before=await readFile(c.store.path(id),'utf8');
+ const review=await reconcileAliceLifecycle({operation_id:id,mode:'inspect'},c.options);
+ await reconcileAliceLifecycle({operation_id:id,mode:'resolve',review_digest:review.review_digest},c.options);
+ assert.deepEqual((await readdir(c.store.dir)).filter(x=>x.endsWith('.json')),[id+'.json']);
+ await rename(join(c.store.dir,'reconciliation',id+'.json'),join(c.store.dir,id+'.recovery.json'));
+ await rename(join(c.store.dir,'reconciliation',id+'.review.json'),join(c.store.dir,id+'.recovery-review.json'));
+ await migrateLegacyRecoveryAudit(c.store,id);
+ assert.deepEqual((await readdir(c.store.dir)).filter(x=>x.endsWith('.json')),[id+'.json']);
+ assert.equal(await readFile(c.store.path(id),'utf8'),before);
+ assert.equal((await lifecycleRecoveryReceipt(c.store,id)).state,'resolved');
 });

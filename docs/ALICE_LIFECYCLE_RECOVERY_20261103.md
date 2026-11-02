@@ -65,5 +65,33 @@ inconclusive/保留锁。schema2历史仍兼容，不能根据其默认false推�
 ## 验证与实机结果
 
 恢复、旧回执不变、其他锁保护、过期/改变的审阅、活动runner/远端操作、迟到
-上线、脱敏和已退出替代进程分支已加入测试。完整MCP1386/1386、Alice Python321
+上线、脱敏和已退出替代进程分支已加入测试。完整MCP1387/1387、Alice Python321
 （跳过3）通过。实机审阅/恢复结果在维护完成后补记。没有BDS重启、世界/玩家/认证清理或不明操作重放。
+
+
+## 实际受控恢复与兼容性
+
+北京时间04:44，维护端以原批准0b0b2ee7完成 inspect→resolve：两次固定取证一致、
+旧runner不存在、原claim已结束，无旧/新PID或任何Alice候选，原receipt/digest一致。
+独立审计decision=confirmed_offline，原receipt SHA
+78f6e4db6ea7bd13f520d0e7394192b2be97a4f406e63d841f733d57ecd1de28不变，
+原state仍inconclusive。只释放匹配锁，未重做原restart。
+
+当前用户授权的后续单次正常 start 从原私有配置恢复PID3923865；独立status显示
+current_process、心跳1.7秒、连接/会话建立、HP20/IDLE。未改BDS/世界/玩家/认证。
+实际MCP alice_recovery_doc_sync_20261103_k4n8v2cs_01 passed/cached，e046ae1→f90c666，
+两份维护文件修改校验完整保留，证明任务入场恢复。Alice脚本schema3已提交90b241e，
+重新审阅批准hash=4a92be323ec2490de70dade1addd470243cfe05748bac66030f4198df54f733f。
+
+原不明回执在云端MCP仍cached/inconclusive，并附reconciliation=resolved、
+confirmed_offline、lockReleased=true；历史决策不代表当前Alice仍离线。新owner
+必须独立读取，不能把旧PID/旧样本归到新会话。
+
+恢复审计和review存入项目私有reconciliation子目录，不混入hot receipt的.json计数，
+也不影响500条限制/归档读取器。0.13.0短期产生的旧根目录审计由有界迁移校验
+operationId、原digest和receipt SHA后保留同一文件内容移至新目录，原回执/日志/
+产物/claim不变。此存储兼容修正为0.13.1，新增回归覆盖。
+
+新增恢复工具需要ChatGPT插件目录刷新才会出现在旧会话工具列表；当前用户正在
+操作Chrome，维护端没有争抢前台或覆盖其他Chat草稿。原result/report/execute
+不受此缓存影响，已有恢复及MCP同步已实际完成。目录与SDK验收另补记。

@@ -54,6 +54,7 @@ test('catalog advertises only separately approved Alice lifecycle and preserves 
  const policy=async(_b,{action}={})=>({...ctx.registered,action:action??'repository_task'});
  const r=await projectExecution('openclaw_project_actions',{}, {...ctx,policy,lifecycleApproval:async()=>ctx.approval});
  assert.equal(r.approvedLifecycleTasks[0].enabled,true);assert.equal(r.approvedLifecycleTasks[0].platformReviewRequired,true);
+ assert.equal(r.lifecycleRecovery.tool,'openclaw_project_reconcile');assert.equal(r.lifecycleRecovery.independentOfProjectExecutionLock,true);
  for(const action of ['repository_task','repository_fetch','repository_sync'])assert.ok(r.actions.some(a=>a.action===action));
 });
 test('approved task digest cannot hide changed script, args, artifacts or time budget',()=>{
