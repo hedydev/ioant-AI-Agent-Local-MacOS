@@ -1,3 +1,13 @@
+## GitHub SSH transport (2026-11-04)
+
+Read docs/GITHUB_SSH_TRANSPORT_20261104.md for publickey failures. Actual Mac/MCP
+default-port22 authentication failed while the same enrolled key worked through
+GitHub's official SSH443 endpoint. A GitHub-only local SSH config now uses443 with
+the existing key and strict known-host validation. Three repositories passed
+read-only remote-reference checks in the real executor environment. No Tunnel
+restart, key recovery or business-task replay is needed. Diagnose actual stderr
+and execution location; do not infer all AI environments inherit Mac credentials.
+
 ## Execution history archival (2026-11-02)
 
 Read docs/MCP_EXECUTION_HISTORY_20261102.md. MCP0.12.0 adds local-console project capacity and explicit archival of settled receipts while preserving full claims/reports and same-ID replay protection. New reader processes must be loaded before archiving; private PID/start markers reject old/mixed runtimes. Retain running/uncertain records, never clear locks or delete claims to recover capacity. Source/tests pass; deployment/actual archival evidence is recorded in that document. No business task may be replayed because storage capacity is restored.
