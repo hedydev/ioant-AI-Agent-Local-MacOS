@@ -1,12 +1,12 @@
 ## GitHub SSH transport (2026-11-04)
 
-Read docs/GITHUB_SSH_TRANSPORT_20261104.md for publickey failures. Actual Mac/MCP
-default-port22 authentication failed while the same enrolled key worked through
-GitHub's official SSH443 endpoint. A GitHub-only local SSH config now uses443 with
-the existing key and strict known-host validation. Three repositories passed
-read-only remote-reference checks in the real executor environment. No Tunnel
-restart, key recovery or business-task replay is needed. Diagnose actual stderr
-and execution location; do not infer all AI environments inherit Mac credentials.
+Read docs/GITHUB_SSH_TRANSPORT_20261104.md for the final diagnosis: both22 and
+443 authenticated successfully then intermittently rejected the same enrolled
+key; GitHub also returned remote commit_refs failure and reports an active Git
+Operations incident. The temporary GitHub443 local config was reverted. Do not
+claim a permanent port/key fix, restart Tunnel, change credentials or replay
+business tasks. After service recovery verify remote refs and uncertain pushes
+before continuing. The diagnostic docs may be local-only until push is verified.
 
 ## Execution history archival (2026-11-02)
 

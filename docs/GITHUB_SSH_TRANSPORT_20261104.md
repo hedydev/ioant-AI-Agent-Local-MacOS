@@ -1,63 +1,40 @@
-# GitHub SSH 传输修复 — 2026-11-04
+# GitHub SSH / Git服务异常排查 — 2026-11-04
 
-## 实际问题和边界
+## 最终结论与实际证据
 
-多个已登记项目出现 `Permission denied (publickey)`。维护端实际复现了默认
-`github.com:22` 的认证失败，不能把它归因于 AI 没有 MCP 权限或仓库脏状态。
-同一默认公钥仍在 GitHub 账号登记，通过官方 `ssh.github.com:443` 使用同一
-密钥和既有可信主机密钥认证成功。22入口曾成功、随后失败；本次没有确定具体
-是网络路径还是 GitHub 边缘服务造成，不能仅凭报错认定密钥丢失或已被撤销。
+多个MCP项目的publickey报错已在本机真实执行器环境复现，并非只有AI口头报告。
+默认22端点曾成功、随后拒绝同一公钥；官方443端点也先成功、后出现同样拒绝。
+因此不能宣称切到443已经解决，也不能仅凭Agent为空认定密钥失效。
 
-`ssh-add -l` 当时显示没有 identities，但默认磁盘密钥仍可完成443认证，因此
-“Agent为空”不等同于“没有可用密钥”。未读取/导出私钥内容、恢复凭证、添加
-GitHub SSH key、购买服务、调用模型或重启 Tunnel/Web。
+本机默认公钥指纹仍与GitHub账号公开登记一致；SSH曾多次识别为正确账号。
+使用project-execution-command.mjs的executionEnvironment/GIT_ARGS，OpenClaw、
+Alice、NetScale三个仓库的只读ls-remote曾全部成功，之后再次出现认证失败。
+文档推送还遇到了远端`fatal error in commit_refs` / `remote rejected main (failure)`，
+说明同时存在GitHub端仓库引用更新故障，不能靠改本机Git分支/权限解决。
 
-## 本机修复
+官方状态API实际读回Git Operations degraded_performance，事件为：
+[Incident with Pull Requests, Git Operations and Issues](https://www.githubstatus.com/incidents/smtdswd1h2w4)，
+开始时间北京时间2026-11-04 17:49:55，记录时仍investigating。
+该事件与失败时段一致；官方尚未披露根因，不将所有SSH失败强行归为某个内部机制。
 
-此前本机不存在 `~/.ssh/config`，维护端以独占创建、0600写入 GitHub 专用规则：
+## 本地设置已恢复
 
-```sshconfig
-Host github.com
-  HostName ssh.github.com
-  Port 443
-  User git
-  IdentityFile ~/.ssh/id_ed25519
-  IdentitiesOnly yes
-  HostKeyAlias github.com
-  StrictHostKeyChecking yes
-```
+维护中曾临时为github.com创建SSH443专用配置，保留既有密钥及严格主机校验。
+复测443仍波动后，只在文件内容/owner与本次创建值完全一致时删除该临时文件，
+恢复原先没有~/.ssh/config的状态；原config.save、密钥、known_hosts未改动。
+没有读取或导出私钥内容、恢复凭证、添加GitHub key、停用主机校验、修改origin、
+重启Tunnel/Web或重放任何业务任务。443可以作为今后网络故障的受控诊断选项，
+不自动安装，也不作为这次服务故障的根治方案。
+官方说明：[SSH over HTTPS port](https://docs.github.com/en/authentication/troubleshooting-ssh/using-ssh-over-the-https-port)。
 
-HostKeyAlias继续使用已验证的GitHub主机信任；没有关闭主机校验或盲目接受新指纹。
-默认密钥文件只由SSH客户端正常使用。其他SSH主机和仓库origin URL均不变。
-如果其他机器已有配置，不覆盖整份文件；此记录不是向所有设备自动部署配置的授权。
+## 后续AI处理
 
-官方依据：[GitHub SSH over HTTPS port](https://docs.github.com/en/authentication/troubleshooting-ssh/using-ssh-over-the-https-port)。
-443仍然是SSH传输，不是改用HTTPS密码或PAT。
+1. 先查官方事件和原MCP回执/具体stderr；区分本Mac执行器与其他远程容器。
+2. 不反复生成/更换密钥、改权限、清目录/锁、换ID重跑构建，或绕过平台审核。
+3. 故障恢复后先做一次有界只读远端引用检查；成功不等于旧业务任务已执行。
+4. push失败或返回不明确时，先核对远端完整SHA，避免把已生效提交误判成未推送。
+5. 只在旧回执明确终结、且用户原授权仍有效时，由原业务Chat继续对应工作。
+   本次没有重放Alice `alice_r89_v10_acceptance_docs_sync_20261104_104` 或NetScale
+   `netscale_ssh_audit_fetch_20261104_75`。
 
-## 实际验收
-
-使用 `project-execution-command.mjs` 的真实 `executionEnvironment()` 与
-`GIT_ARGS`，对以下三个本地仓库执行有界、只读 `git ls-remote origin HEAD`：
-
-| 仓库 | 22入口复现 | 切换443后并发复测 |
-| --- | --- | --- |
-| ioant-AI-Agent-Local-MacOS | exit128/publickey | exit0、远端HEAD成功读取 |
-| ioant-AI-Minecraft-Alice | exit128/publickey | exit0、远端HEAD成功读取 |
-| ioant-netscale | exit128/publickey | exit0、远端HEAD成功读取 |
-
-没有fetch、merge、sync、构建或业务部署，不能将此认证验收冒充业务任务通过。
-新SSH连接即时读取本机配置，无须刷新插件、重启MCP/Tunnel或重新输入Runtime Key。
-只读失败记录例如Alice `alice_r89_v10_acceptance_docs_sync_20261104_104`、NetScale
-`netscale_ssh_audit_fetch_20261104_75`保持原样，维护端未重放。
-
-## 后续AI排查规则
-
-1. 确认失败发生在本机OpenClaw固定执行器还是其他远程环境。远程容器不会因为
-   Mac配置已修复就自动拥有Mac密钥，不能把本机成功外推到所有执行环境。
-2. 保留原操作ID，读取具体stderr/退出码。不要先换任务、清目录、生成新key或降级校验。
-3. `ssh -G git@github.com`应显示官方443入口；使用BatchMode的只读远端引用检查，
-   区分传输认证、仓库访问权限和普通Git预检。
-4. 后续仍报错时重新查实际证据，不自动恢复22、改密钥或反复执行构建。
-   原业务Chat先核对旧回执与在途状态，再继续用户已授权的工作。
-5. 撤销本次本地变更只涉及上述新增Host块；不删除密钥/known_hosts，不覆盖其他
-   后来添加的配置。本次没有改变MCP安全策略或项目授权。
+本诊断文档可能仅本地提交：远端故障期间不能声称已推送，需核实具体提交状态。
