@@ -5,7 +5,7 @@ import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {readScheduler,attachScheduler} from '../console/scheduler.mjs';
 import {activityRow,loadActivity} from '../console/activity.mjs';
-import {taskBucket,taskCounts,elapsedSeconds,projectName} from '../console/web/task-model.js';
+import {taskBucket,taskCounts,elapsedSeconds,projectName,reviewSummary} from '../console/web/task-model.js';
 const bindings={'alice-ai':{projectKey:'alice-ai',agentId:'alice-ai'},netscale:{projectKey:'netscale',agentId:'netscale'}};
 const residency=async()=>({state:'observed',models:[],modelInferenceInvoked:false});
 async function fixture(t){const parent=await realpath(await mkdtemp(join(tmpdir(),'console-queue-')));t.after(()=>rm(parent,{recursive:true,force:true}));return parent;}
@@ -42,6 +42,7 @@ test('receipt views expose task metadata and measured durations, not prompts, an
  assert.equal(row.taskFile,'.openclaw/tasks/build_linux.json');assert.equal(row.modelInferenceInvoked,false);assert.equal(elapsedSeconds(row),3);
  assert.equal(elapsedSeconds({startedAt:'invalid'}),null);assert.equal(taskBucket({state:'blocked',reason:'project_execution_busy'}),'history');
  assert.equal(projectName({name:'ioant-netscale'}),'netscale');
+ assert.deepEqual(reviewSummary([{state:'inconclusive',reason:'agent_run_timeout',activeReservation:true},{state:'failed'},{state:'inconclusive',reason:'agent_cli_failed'}]),{total:2,held:1,reasons:{timeout:1,channel:1}});
  assert.equal(taskBucket({kind:'computer',asynchronous:false,state:'started'}),'attention');
  const released=attachScheduler([{kind:'computer',project:'alice-ai',operationId:'old_held_0001',state:'inconclusive',reportedInferenceLaneHeld:true}],{native:{state:'observed',reservations:[],active:null},repositories:[]});
  assert.equal(released[0].inferenceLaneHeld,false);

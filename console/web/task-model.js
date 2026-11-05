@@ -8,6 +8,19 @@ export function taskBucket(row){
  return 'history';
 }
 export function taskCounts(rows){return Object.fromEntries(TASK_TABS.map(k=>[k,rows.filter(r=>taskBucket(r)===k).length]));}
+export function reviewCategory(row){
+ if(row.reason==='agent_run_timeout')return 'timeout';
+ if(/receipt|record_unavailable/.test(row.reason??''))return 'receipt';
+ if(row.reason==='agent_cli_failed')return 'channel';
+ if(row.reason==='login_not_yet_verified')return 'login';
+ if(row.kind==='computer'&&row.asynchronous===false&&['started','accepted','running'].includes(row.state))return 'legacy';
+ return 'unknown';
+}
+export function reviewSummary(rows){
+ const review=rows.filter(r=>taskBucket(r)==='attention');
+ return {total:review.length,held:review.filter(r=>r.activeReservation||r.projectLeaseHeld).length,
+  reasons:review.reduce((out,r)=>{const key=reviewCategory(r);out[key]=(out[key]??0)+1;return out;},{})};
+}
 export function projectName(project){
  const name=project?.name??project?.key??'—';
  return name.replace(/^ioant[-_]/i,'').replace(/[-_]MacOS$/i,' · macOS').replace(/[-_]/g,' ');

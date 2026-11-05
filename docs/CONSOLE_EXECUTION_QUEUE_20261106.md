@@ -100,3 +100,71 @@ Completed history displayed150 recent rows, with older repository history still
 accessible through each project's history browser. No business execution task,
 model inference, permission change, plugin Refresh or Gateway restart was used
 for acceptance. Runtime Key was not inspected, recovered, persisted or sent to Chat.
+
+## Compact navigation and settled native-run recovery
+
+The default landing view is now Task queue. Overview contains only transport
+status/control, three transport metrics and recent communications; it no longer
+repeats project task queues or history. Queue/overview explanatory paragraphs and
+banners moved into accessible ? dialogs. Dialogs close with Escape or Close and
+restore focus across live snapshot updates. Critical blocked state remains on the
+actual task/card instead of a wall of explanatory text.
+
+Replaced admission-slot terminology with computer-task count/limit and waiting
+count. Empty physical slots are no longer drawn; only actual current/queued tasks
+appear. The lane reads Idle/Busy/Blocked by old run, rather than implying a retained
+lock means an actively working ChatGPT conversation. Interrupted/abnormal records
+show concrete timeout, invocation-error, missing-receipt, login or legacy badges.
+They remain distinct from confirmed failed/blocked history. Help reports the real
+reason breakdown and the number of current resource holders.
+
+A new local maintenance script, scripts/reconcile-computer-lane.mjs, implements
+inspect then resolve with a five-minute review digest. It verifies the exact
+original immutable receipt and reservation, original runner ESRCH, and exact native
+sessions.describe terminal status with hasActiveRun=false and empty activeRunIds.
+The native call is pinned to loopback Gateway18789 and never invokes a model or
+reads a transcript. A private audit is written before compare-and-release; the
+original receipt, operation claims, task effects and other queue entries remain
+unchanged. Missing, changed, active or expired evidence blocks recovery. A lost
+resolve response must be reconciled by reading its audit, not resubmitting work.
+
+New detached computer-job runners also perform one bounded native settlement
+query if a CLI exited without reliable terminal answer metadata. Only exact-session
+terminal evidence releases their own lane; otherwise the original hold remains.
+This does not turn an unknown business effect into success and never replays it.
+Each new detached runner loads current source on launch, so this fix requires no
+Tunnel/Web/Gateway restart or tool-catalog change. Frontend changes need only a
+page refresh. Runtime Key and existing model configuration remain untouched.
+
+### Actual recovery and acceptance
+
+Full Node regression with test concurrency4: **1395 passed**, zero failures,
+skips or cancellations. The earlier default-concurrency attempt had one20-second
+legacy browser-loop fixture deadline failure under load; that fixture passed
+alone, and both subsequent bounded-concurrency full runs passed (1394 then1395
+with the new settlement test). Targeted recovery tests additionally verify no
+release with live/missing/changed evidence and preservation of another project's
+queued reservation.
+
+Maintenance inspected the one retained Alice operation. Its original local
+runner PID63130 was absent; exact native session07d01e0b-54ae-41b0-94fc-d1819faa4935
+reported status=timeout, hasActiveRun=false and activeRunIds=[]. Resolve rechecked
+that evidence and released only the matching active/reservation pair. The source
+receipt SHA256 remained096745a53e72d7111e23ad7bc654ef088d6fa563dccde2e420050140c931e454.
+The private audit records released/timeout/effectsVerified=false/doNotRepeat=true.
+No model, Agent/game task, client/BDS restart, world change or operation replay
+was invoked. The original unknown-effects receipt remains unchanged.
+
+Independent real cloud MCP capabilities then returned laneStatus=idle,
+admittedJobs=0, waitingReservations=0 and activeOrUnsettled=false. Production
+browser displayed Idle,0 waiting and0/4 total computer tasks; explanation blocks
+were absent. The default URL lands on Task queue; overview no longer duplicates
+queue/history. The39 abnormal records consist of18 Agent timeouts,11 missing
+receipts,8 CLI/channel failures,1 unverified client login and1 unfinished legacy
+record. They are historical evidence, not39 current jobs or permission failures.
+Read-only dialogs show the current holder count separately (now0).
+
+Frontend is live after page refresh. Existing Web/Tunnel and Runtime Key remain
+unchanged. Future detached workers load the new settlement logic on launch;
+actual native terminal/active-refusal decisions were covered by injected native
+RPC fixtures. No new real computer operation was submitted just to test it.

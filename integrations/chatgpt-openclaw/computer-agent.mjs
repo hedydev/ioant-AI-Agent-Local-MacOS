@@ -26,6 +26,9 @@ tool outcomes and verify the intended effect where possible; do not invent execu
 AUTHORIZED TASK:\n`;
 
 export {projectComputerPolicy as computerAgentPolicy};
+export function computerSessionKey(input,binding){
+ return 'agent:'+binding.agentId+':computer-'+createHash('sha256').update(JSON.stringify([binding.projectKey,input.conversation_key,input.operation_id])).digest('hex').slice(0,24);
+}
 function validInput(x){
  return x&&Object.keys(x).sort().join(',')==='conversation_key,message,operation_id'&&
   operationId.test(x.operation_id??'')&&KEY.test(x.conversation_key??'')&&
@@ -62,9 +65,9 @@ export async function runComputerTask(input,{binding=projectBinding(),store=comp
  }
 }
 export async function performComputerTask(input,{binding,call=invoke}={}){
- const id=input.operation_id,key=createHash('sha256').update(JSON.stringify([binding.projectKey,input.conversation_key,input.operation_id])).digest('hex').slice(0,24),started=performance.now();
+ const id=input.operation_id,key=computerSessionKey(input,binding),started=performance.now();
  try{
-  const reply=await call(['agent','--agent',binding.agentId,'--session-key','agent:'+binding.agentId+':computer-'+key,
+  const reply=await call(['agent','--agent',binding.agentId,'--session-key',key,
    '--model',MODEL,'--thinking','off','--message-file','/dev/stdin','--timeout','300','--json'],INSTRUCTION+input.message);
   const result=interpretAgentResult(reply,{operationId:id,binding,durationMs:performance.now()-started,agentTimeoutSeconds:300});
   if(typeof result.text==='string'&&result.text.length>6000){result.text=result.text.slice(0,6000);result.outputTruncated=true;}

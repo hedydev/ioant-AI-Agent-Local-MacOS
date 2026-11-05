@@ -467,3 +467,12 @@ Production Web reload subsequently completed after explicit operator approval;
 Runtime Key was entered privately, and actual MCP capabilities plus ready health
 and production SSE/tabs passed. Existing business tasks were not unlocked/replayed.
 The separate retained Alice native owner remains visible and unresolved.
+
+## 2026-11-06 — Compact UI and reviewed stale computer lane recovery
+
+Task queue is default; overview is transport-only, with explanations behind ?.
+Full1395 tests at concurrency4 passed. Exact native timeout plus exited local
+runner evidence allowed reviewed compare-and-release of the single old Alice
+inference lane, preserving receipts/claims/effects. Actual MCP reports idle0/0;
+production UI confirms empty queue. No business operation was repeated. See
+[queue/recovery acceptance](CONSOLE_EXECUTION_QUEUE_20261106.md).

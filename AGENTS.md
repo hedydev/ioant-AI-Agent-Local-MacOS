@@ -1,3 +1,17 @@
+## Compact console and native lane recovery (2026-11-06)
+
+Task queue is now the default page; overview is transport-only. Explanations use
+? dialogs, and interrupted/abnormal history shows specific causes. The stale
+Alice native lane was independently verified: original runner exited, exact
+Gateway session timeout/hasActiveRun=false/empty activeRunIds. Reviewed recovery
+released only its reservation, preserved original receipt hash and wrote a
+private audit. Real cloud capabilities now show idle/0 admitted/0 waiting.
+See the final section of docs/CONSOLE_EXECUTION_QUEUE_20261106.md. Do not replay
+that old operation or rewrite its effects as successful. New detached workers
+recheck native terminal evidence after a lost CLI answer before releasing their
+own lane; unavailable evidence still retains it. No service restart is required
+for this UI refresh/new child-runner source. Full1395 tests passed at concurrency4.
+
 ## Console execution queue (2026-11-06)
 
 Read docs/CONSOLE_EXECUTION_QUEUE_20261106.md. The console now distinguishes
@@ -8,8 +22,8 @@ Do not call retained leases live inference or release/replay them from this UI.
 PID84619/port18489 now loads the queue UI; operator privately re-entered Runtime
 Key and real cloud MCP capabilities/local ready health passed. SSE/tabs verified.
 Keep the now-running Web/Tunnel; no more reload or plugin Refresh is needed.
-The retained Alice native operation is still a separate unresolved blocker, not
-a live model request. No MCP tool schema or business operation changes.
+That initial rollout retained an Alice native operation; the later reviewed
+recovery above resolved its lane hold without claiming its effects succeeded. No MCP tool schema or business operation changes.
 
 ## GitHub SSH transport (2026-11-04)
 

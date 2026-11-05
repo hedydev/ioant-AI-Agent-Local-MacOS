@@ -3,7 +3,7 @@ import {renderQueueSummary,renderTaskTabs} from './queue-render.js';
 import {taskBucket,projectName} from './task-model.js';
 import {api,subscribe} from './api-client.js';
 import {t,errorText,time,setLocale,localePreference} from './i18n.js';
-import {node,renderStatus,renderPermissions,renderHistory,renderActivities,renderCommunications,renderLogs} from './render.js';
+import {node,renderStatus,renderPermissions,renderHistory,renderActivities,renderCommunications,renderLogs,helpButton} from './render.js';
 
 const $=id=>document.getElementById(id);
 const state={snapshot:null,view:decodeRoute(location.hash).view,selectedProject:decodeRoute(location.hash).project,pending:null,taskTab:'running',projectTaskTab:'running',project:'all',status:'all',search:'',logLevel:'all',logSearch:'',paused:false,logRows:[],stream:false};
@@ -20,13 +20,14 @@ function changeView(view,project=state.selectedProject){
  $('view-title').textContent=view==='project'?(p?projectName(p):project):t('nav.'+view);
  $('page-title').textContent=view==='project'?(p?projectName(p):project):t(view==='overview'?'page.title':'nav.'+view);
  $('footer-scope').textContent=t(view==='project'?'project.footer':'footer.scope');
+ $('page-subtitle').hidden=['overview','activity'].includes(view);
  $('page-subtitle').textContent=t(view==='project'?'project.subtitle':view==='overview'?'page.subtitle':view==='activity'?'activity.subtitle':'logs.subtitle');
  for(const b of $('navigation').children){b.classList.toggle('active',b.dataset.view===view);if(b.dataset.view===view)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');}
  for(const b of $('project-nav').children){const active=projectSelection(state,b.dataset.project);b.classList.toggle('active',active);if(active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');}
 }
 function applyLocale(){
  setLocale(localePreference());document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));document.querySelectorAll('[data-placeholder]').forEach(e=>e.placeholder=t(e.dataset.placeholder));
- const buttons=[['overview','◫'],['activity','≡'],['logs','⇄']];
+ const buttons=[['activity','≡'],['overview','◫'],['logs','⇄']];
  $('navigation').replaceChildren(...buttons.map(([view,icon])=>node('button',{class:'nav-button','data-view':view,onclick:()=>changeView(view)},node('span',{class:'nav-symbol','aria-hidden':'true'},icon),t('nav.'+view))));
  const theme=localStorage.getItem('openclaw-console.theme')??'system';options($('theme'),['system','light','dark'].map(x=>[x,t('theme.'+x)]),theme);
  options($('locale'),[['system',t('locale.system')],['zh-CN','简体中文'],['en-US','English']],localePreference());
@@ -41,7 +42,9 @@ function render(){
  const snapshot=state.snapshot;if(!snapshot)return;
  const names=new Map(snapshot.projects.map(p=>[p.key,projectName(p)]));
  for(const row of snapshot.activities)row.projectName=names.get(row.project)??row.project;
- renderQueueSummary($('overview-queue'),snapshot);renderQueueSummary($('activity-queue'),snapshot);
+ renderQueueSummary($('activity-queue'),snapshot);
+ $('flow-help').replaceChildren(helpButton(t('flow.title'),[t('flow.subtitle')],'flow'));
+ $('history-scope-help').replaceChildren(helpButton(t('activity.title'),[t('activity.subtitle'),t('queue.historyScope')],'history-scope'));
  const focus=document.activeElement?.dataset?.focus;
 
  renderStatus(snapshot,{logs:()=>changeView('logs'),control:openControl},state.pending);
@@ -62,9 +65,7 @@ function render(){
  }
  const activities=snapshot.activities.filter(r=>(state.project==='all'||r.project===state.project)&&(state.status==='all'||r.state===state.status)&&JSON.stringify([r.operationId,r.project,r.projectName,r.taskFile,r.action,r.reason]).toLowerCase().includes(state.search.toLowerCase()));
  renderTaskTabs($('task-tabs'),activities,state.taskTab,tab=>{state.taskTab=tab;render();});
- const current=snapshot.activities.filter(r=>['running','queued'].includes(taskBucket(r))||r.activeReservation||r.projectLeaseHeld||r.orphanedLease);
- renderActivities($('current-activity'),current.slice(0,8),openReport);
- renderActivities($('recent-activity'),snapshot.activities.filter(r=>taskBucket(r)==='history').slice(0,5),openReport);renderActivities($('all-activity'),activities.filter(r=>taskBucket(r)===state.taskTab),openReport);renderCommunications(snapshot.mcpEvents);
+ renderActivities($('all-activity'),activities.filter(r=>taskBucket(r)===state.taskTab),openReport);renderCommunications(snapshot.mcpEvents);
  if(!state.paused)state.logRows=[...snapshot.events,...snapshot.mcpEvents].sort((a,b)=>Date.parse(b.ts)-Date.parse(a.ts));
  renderLogs(state.logRows.filter(r=>(state.logLevel==='all'||r.level===state.logLevel)&&JSON.stringify(r).toLowerCase().includes(state.logSearch.toLowerCase())).slice(0,250));
  $('log-location').textContent=t('logs.path',{path:snapshot.diagnostics.path});

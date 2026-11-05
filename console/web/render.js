@@ -1,22 +1,30 @@
 import {t,time,number} from './i18n.js';
-import {taskBucket,taskTitle,elapsedSeconds} from './task-model.js';
+import {taskBucket,taskTitle,elapsedSeconds,reviewCategory} from './task-model.js';
 export function node(tag,attrs={},...children){const e=document.createElement(tag);for(const [k,v] of Object.entries(attrs)){if(v===undefined||v===null)continue;if(k==='class')e.className=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else if(k==='disabled'||k==='hidden')e[k]=v;else e.setAttribute(k,String(v));}for(const c of children.flat()){if(c===null||c===undefined)continue;e.append(c instanceof Node?c:document.createTextNode(String(c)));}return e;}
+export function helpButton(title,paragraphs,key){
+ return node('button',{class:'help-button',type:'button','aria-label':t('help.about',{title}),'data-focus':'help:'+key,onclick:e=>{
+  const dialog=document.getElementById('help-dialog'),source=e.currentTarget,focus=source.dataset.focus;
+  document.getElementById('help-title').textContent=title;
+  document.getElementById('help-content').replaceChildren(...paragraphs.map(p=>node('p',{},p)));
+  const restore=()=>{([...document.querySelectorAll('[data-focus]')].find(n=>n.dataset.focus===focus)??source).focus?.({preventScroll:true});};
+  dialog.onclose=restore;document.getElementById('help-close').onclick=()=>dialog.close();dialog.showModal();document.getElementById('help-close').focus();
+ }},'?');
+}
 const empty=(key,hint)=>node('div',{class:'empty'},t(key),hint?node('small',{},t(hint)):null);
 const tone=s=>['failed','blocked','error'].includes(s)?'danger':['inconclusive','degraded','stale','running','accepted','started','starting'].includes(s)?'warn':['passed','ready','returned','connected','finished'].includes(s)?'':'neutral';
 export function badge(state){return node('span',{class:'badge '+tone(state)},t('state.'+state)===('state.'+state)?state:t('state.'+state));}
 export function renderStatus(snapshot,handlers,pending){
  const h=snapshot.tunnel,state=h.state??'stopped',running=Boolean(h.url);
  const label=state==='ready'?'ready':['stale','starting','stopped'].includes(state)?state:'degraded';
- const title=node('div',{class:'status-title'},node('h2',{},t('status.'+label)),node('span',{class:'badge '+tone(state)},t(h.managed?'status.managed':'status.external')));
+ const title=node('div',{class:'status-title'},node('h2',{},t('status.'+label)),helpButton(t('help.tunnel'),[t(running?'status.description':'status.stoppedDescription'),t('status.keyMemory')],'tunnel'),node('span',{class:'badge '+tone(state)},t(h.managed?'status.managed':'status.external')));
  const meta=node('div',{class:'status-meta'},node('span',{},h.pid?t('status.pid',{pid:h.pid}):t('common.unknown')),node('span',{},h.version??'Tunnel client'),node('span',{},h.url??'127.0.0.1'));
- const left=node('div',{class:'status-main'},node('div',{class:'status-orb '+(state==='ready'?'':running?'warn':'off')},state==='ready'?'✓':running?'↻':'○'),node('div',{},title,node('p',{class:'status-description'},t(running?'status.description':'status.stoppedDescription')),meta));
+ const left=node('div',{class:'status-main'},node('div',{class:'status-orb '+(state==='ready'?'':running?'warn':'off')},state==='ready'?'✓':running?'↻':'○'),node('div',{},title,meta));
  const actions=node('div',{class:'button-row'},node('button',{class:'button secondary',onclick:handlers.logs},t('action.openLogs')),
   running?node('button',{class:'button secondary',disabled:Boolean(pending)||h.busy||!h.canStop,onclick:()=>handlers.control('restart')},t('action.restart')):null,
   node('button',{class:'button '+(running?'danger':'primary'),disabled:Boolean(pending)||h.busy||running&&!h.canStop,'data-focus':'lifecycle',onclick:()=>handlers.control(running?'stop':'start')},pending?t(pending==='start'?'control.starting':pending==='restart'?'control.restarting':'control.stopping'):t(running?'action.stop':'action.start')));
  document.getElementById('tunnel-status').replaceChildren(left,actions);
- const active=snapshot.activities.filter(x=>taskBucket(x)==='running').length;
- const metrics=[['poll',h.lastPollAgeSeconds,t('common.seconds')],['commands',h.metrics?.polled,''],['queue',h.metrics?.queue,'/ '+number(h.metrics?.queueCapacity)],['jobs',active,'']];
- document.getElementById('metrics').replaceChildren(...metrics.map(([key,value,unit])=>node('div',{class:'metric'},node('div',{class:'metric-label'},t('metric.'+key)),node('div',{class:'metric-value'},number(value),node('span',{class:'metric-unit'},unit)),node('div',{class:'metric-hint'},t('metric.'+key+'Hint')))));
+ const metrics=[['poll',h.lastPollAgeSeconds,t('common.seconds')],['commands',h.metrics?.polled,''],['queue',h.metrics?.queue,'/ '+number(h.metrics?.queueCapacity)]];
+ document.getElementById('metrics').replaceChildren(...metrics.map(([key,value,unit])=>node('div',{class:'metric'},node('div',{class:'metric-label with-help'},t('metric.'+key),helpButton(t('metric.'+key),[t('metric.'+key+'Hint')],'metric:'+key)),node('div',{class:'metric-value'},number(value),node('span',{class:'metric-unit'},unit)))));
  const names=[['chat','✳'],['openai','↗'],['tunnel','⇄'],['mcp','⌘'],['executor','>_']],flow=[];
  for(const [i,[key,symbol]] of names.entries()){if(i)flow.push(node('div',{class:'flow-line '+(state==='ready'?'live':'')}));flow.push(node('div',{class:'flow-node'},node('div',{class:'flow-icon'},symbol),node('strong',{},t('flow.'+key)),node('small',{},t('flow.'+key+'Hint'))));}
  document.getElementById('connection-flow').replaceChildren(...flow);
@@ -26,7 +34,7 @@ export function renderActivities(target,rows,onReport){
  target.replaceChildren(...(rows.length?rows.map(r=>{
   const bucket=taskBucket(r),label=taskTitle(r);
   const titleText=label?(!r.taskFile&&['repository_task','repository_fetch','repository_sync'].includes(label)?t('queue.action.'+label):label):t('activity.'+r.kind);
-  const title=node('div',{class:'activity-top'},node('span',{class:'activity-name'},titleText),r.archived?node('span',{class:'badge neutral'},t('history.archived')):null,badge(bucket==='queued'?'queued':r.state));
+  const title=node('div',{class:'activity-top'},node('span',{class:'activity-name'},titleText),r.archived?node('span',{class:'badge neutral'},t('history.archived')):null,badge(bucket==='queued'?'queued':bucket==='attention'?'issue_'+reviewCategory(r):r.state),bucket==='attention'?helpButton(t('queue.tab.attention'),[t('review.meaning'),t('review.reason.'+reviewCategory(r)),r.reason??t('review.reason.legacy'),t('review.next')],r.id):null);
   const actions=node('div',{class:'activity-footer'},node('code',{title:r.operationId},r.operationId),r.kind==='execution'&&r.artifacts?.length?node('button',{class:'text-button','data-focus':r.id,onclick:()=>onReport(r)},t('activity.report')):node('span',{},time(r.finishedAt??r.startedAt)));
   const used=node('div',{class:'capability-list'},node('span',{},t('capabilities.used')),
   ...(r.toolsUsed?.successful?.length?r.toolsUsed.successful.map(x=>node('code',{},x)):[node('span',{},t(r.toolsUsed?.evidence==='unavailable'?'capabilities.unknown':'capabilities.none'))]));

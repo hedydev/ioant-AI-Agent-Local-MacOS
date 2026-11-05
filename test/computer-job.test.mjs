@@ -36,6 +36,14 @@ test('uncertain native completion persists the outcome and holds lane; no replay
  const r=await computerTaskResult({operation_id:input.operation_id},{store:f.store});assert.equal(r.inferenceLaneHeld,true);assert.equal(calls,1);
  assert.equal((await runComputerTask(input,{...f,launch:async()=>{throw Error('must not relaunch');}})).cached,true);
 });
+test('lost CLI answer releases only with exact native terminal evidence, never from inactivity',async t=>{
+ for(const settled of [true,false]){
+  const f=await fixture(t);await runComputerTask(input,{...f,launch:async()=>{}});let checks=0;
+  await runComputerJob(binding,input.operation_id,{...f,policy:async()=>true,residency:async()=>({state:'observed',models:[]}),perform:async()=>({terminal:false,result:{state:'inconclusive',reason:'agent_cli_failed',cli:{exitCode:1}}}),settlement:async key=>{checks++;return {key,sessionId:'exact-session',status:settled?'timeout':'running',hasActiveRun:!settled,activeRunIds:settled?[]:['active'],updatedAt:Date.now()};}});
+  const r=await computerTaskResult({operation_id:input.operation_id},{store:f.store});assert.equal(checks,1);assert.equal(r.state,'inconclusive');assert.equal(r.inferenceLaneHeld,!settled);assert.equal((await f.lane.snapshot()).activeOrUnsettled,!settled);
+  if(settled){assert.equal(r.nativeSettlement.status,'timeout');assert.equal(r.effectsVerified,false);}
+ }
+});
 test('queue expiry and launch failure perform no model/tool work and release their own reservations',async t=>{
  const f=await fixture(t),blocking=await f.lane.reserve('other','blocking_job');await f.lane.acquire(blocking);
  await runComputerTask(input,{...f,launch:async()=>{}});let calls=0;

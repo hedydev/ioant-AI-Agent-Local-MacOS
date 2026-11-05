@@ -38,5 +38,5 @@ test('partial native mutation retains retirement and locks; protected built-ins 
 test('project route and selection survive refresh; global views never falsely select a project',()=>{
  const route=decodeRoute('#project=repo-example-123');assert.deepEqual(route,{view:'project',project:'repo-example-123'});
  const state={view:route.view,selectedProject:route.project};assert.equal(routeHash(state),'#project=repo-example-123');assert.equal(projectSelection(state,'repo-example-123'),true);assert.equal(projectSelection({...state,view:'activity'},'repo-example-123'),false);
- assert.equal(decodeRoute('#project=%00bad').view,'overview');assert.equal(decodeRoute('#logs').view,'logs');
+ assert.equal(decodeRoute('#project=%00bad').view,'overview');assert.equal(decodeRoute('#logs').view,'logs');assert.equal(decodeRoute('').view,'activity');assert.equal(decodeRoute('#overview').view,'overview');assert.equal(routeHash({view:'overview'}),'#overview');
 });
