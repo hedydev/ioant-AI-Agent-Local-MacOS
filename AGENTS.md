@@ -1,3 +1,15 @@
+## Direct remote branch deletion (2026-11-06)
+
+User requested generic explicitly authorized remote branch deletion without a local
+model. project_execute action repository_delete_branch takes an exact branch and
+optional expected_branch_commit; no task file/local commit pin required. Executor
+reads the remote tip, protects it with an exact ref lease and verifies absence,
+preserving dirty local checkout. Default/current branches are blocked. Existing
+unknown operations must be reconciled, never replayed.1400 tests pass, including
+real bare-remote deletion and same-ID cache. Read docs/DELETE_BRANCH_CHECKPOINT_20261106.md
+and docs/MCP_EXECUTION_PLAYBOOK.md for live catalog rollout status. Source alone
+is not deployment. No WinCat branch deletion was performed by infrastructure work.
+
 ## Compact console and native lane recovery (2026-11-06)
 
 Task queue is now the default page; overview is transport-only. Explanations use

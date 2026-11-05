@@ -7,6 +7,7 @@ import {SHA,executionPolicy} from './project-execution-policy.mjs';
 import {validateTreeListing} from '../../stage2/project-self-update.mjs';
 import {loadRepositoryTask,executeRepositoryTask,verifyTaskScript} from './repository-task.mjs';
 import {collectRepositoryArtifacts} from './repository-artifacts.mjs';
+import {deleteRemoteBranch} from './repository-delete-branch.mjs';
 import {inspectExecutionRepository,createIsolatedRepository} from './execution-repository.mjs';
 import {ALICE_RESTART_TASK,PRIOR_DENIED_RESTART,aliceLifecycleApproval,verifyAliceLifecyclePlan,verifyAliceLifecycleScript,validateAliceLifecycleReceipt} from './alice-lifecycle-policy.mjs';
 export {inspectExecutionRepository} from './execution-repository.mjs';
@@ -43,7 +44,7 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
   else if(!streamed)await append(r.stdout+'\n'+r.stderr+'\n');
   await save();
   if(!r.ok){
-   if(r.timedOut||r.outputFailed||name==='fast_forward'){retainLock=true;throw Error('command_outcome_requires_review');}
+   if(r.timedOut||r.outputFailed||name==='fast_forward'||name==='delete_remote_branch'){retainLock=true;throw Error('command_outcome_requires_review');}
    throw Error('execution_step_failed');
   }
   return r;
@@ -53,15 +54,20 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
   policy=await policyLoad(binding,{action:record.input.action});
   if(!policy||record.input.action!==policy.action)throw Error('project_action_not_enabled');
   record.state='running';record.runnerPid=process.pid;record.startedAt=new Date().toISOString();await save();
-  const fetchOnly=record.input.action==='repository_fetch',syncOnly=record.input.action==='repository_sync';
+  const fetchOnly=record.input.action==='repository_fetch',syncOnly=record.input.action==='repository_sync',deleteOnly=record.input.action==='repository_delete_branch';
   const readOptions={command:(file,args,options)=>command(file,args,{...options,env:{...executionEnvironment(),GIT_OPTIONAL_LOCKS:'0'}}),allowDirty:true,requireRegisteredBranch:false,requireIdle:!fetchOnly};
   const isolated=record.input.action==='repository_task'&&record.input.workspace_mode==='isolated';
   const current=record.input.action==='repository_task'&&record.input.workspace_mode==='current';
   const lifecycle=record.input.action==='repository_task'&&record.input.task_file===ALICE_RESTART_TASK;
   if(lifecycle&&(!current||operationId===PRIOR_DENIED_RESTART))throw Error('alice_lifecycle_request_not_approved');
-  const before=await inspect(policy,fetchOnly||syncOnly||current||isolated?readOptions:{command,requireIdle:true});record.beforeCommit=before.head;
+  const before=await inspect(policy,fetchOnly||syncOnly||deleteOnly||current||isolated?readOptions:{command,requireIdle:true});record.beforeCommit=before.head;
   record.beforeBranch=before.branch??null;record.headState=before.headState;
   record.workspaceMode=current?'current':isolated?'isolated':'in_place';
+  if(deleteOnly){
+   record.branchDeletion=await deleteRemoteBranch(record.input,policy,before,{git:(name,args,options={})=>step(name,'/usr/bin/git',[...GIT_ARGS,...args],{timeout:30000,...options})});
+   const after=await inspect(policy,readOptions);if(after.head!==before.head||after.branch!==before.branch){retainLock=true;throw Error('repository_changed_during_remote_delete');}
+   record.actualCommit=after.head;record.worktreeClean=!after.dirty;record.sourceCheckoutUpdated=false;record.state='passed';return;
+  }
   if(current){
    record.sourceWorktreeDirty=before.dirty;record.sourceCheckoutUpdated=false;
    if(before.head!==record.input.expected_commit)throw Error('current_commit_mismatch');
