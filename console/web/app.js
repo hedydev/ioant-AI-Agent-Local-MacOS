@@ -1,10 +1,12 @@
 import {decodeRoute,routeHash,projectSelection} from './navigation.js';
+import {renderQueueSummary,renderTaskTabs} from './queue-render.js';
+import {taskBucket,projectName} from './task-model.js';
 import {api,subscribe} from './api-client.js';
 import {t,errorText,time,setLocale,localePreference} from './i18n.js';
 import {node,renderStatus,renderPermissions,renderHistory,renderActivities,renderCommunications,renderLogs} from './render.js';
 
 const $=id=>document.getElementById(id);
-const state={snapshot:null,view:decodeRoute(location.hash).view,selectedProject:decodeRoute(location.hash).project,pending:null,project:'all',status:'all',search:'',logLevel:'all',logSearch:'',paused:false,logRows:[],stream:false};
+const state={snapshot:null,view:decodeRoute(location.hash).view,selectedProject:decodeRoute(location.hash).project,pending:null,taskTab:'running',projectTaskTab:'running',project:'all',status:'all',search:'',logLevel:'all',logSearch:'',paused:false,logRows:[],stream:false};
 let historyProject,historyOffset=0,historyNext=null,archiveProject,archiving=false,removingProject,toastTimer,controlAction,focusBeforeDialog,reportRow,reportOffset=0,reportNext=null,lastProjectKeys='';
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5000);}
 function fail(code){$('persistent-error').textContent=errorText(code);$('persistent-error').hidden=false;}
@@ -15,8 +17,8 @@ function changeView(view,project=state.selectedProject){
  for(const name of ['overview','activity','logs','project'])$('view-'+name).hidden=name!==view;
  $('tunnel-status').hidden=view!=='overview';$('metrics').hidden=view!=='overview';$('export').hidden=view==='project';$('stream-status').hidden=view==='project';
  const p=state.snapshot?.projects.find(p=>p.key===state.selectedProject);
- $('view-title').textContent=view==='project'?(p?.name??project):t('nav.'+view);
- $('page-title').textContent=view==='project'?(p?.name??project):t(view==='overview'?'page.title':'nav.'+view);
+ $('view-title').textContent=view==='project'?(p?projectName(p):project):t('nav.'+view);
+ $('page-title').textContent=view==='project'?(p?projectName(p):project):t(view==='overview'?'page.title':'nav.'+view);
  $('footer-scope').textContent=t(view==='project'?'project.footer':'footer.scope');
  $('page-subtitle').textContent=t(view==='project'?'project.subtitle':view==='overview'?'page.subtitle':view==='activity'?'activity.subtitle':'logs.subtitle');
  for(const b of $('navigation').children){b.classList.toggle('active',b.dataset.view===view);if(b.dataset.view===view)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');}
@@ -37,26 +39,32 @@ function applyLocale(){
 function theme(value){if(value==='system')document.documentElement.removeAttribute('data-theme');else document.documentElement.dataset.theme=value;localStorage.setItem('openclaw-console.theme',value);}
 function render(){
  const snapshot=state.snapshot;if(!snapshot)return;
+ const names=new Map(snapshot.projects.map(p=>[p.key,projectName(p)]));
+ for(const row of snapshot.activities)row.projectName=names.get(row.project)??row.project;
+ renderQueueSummary($('overview-queue'),snapshot);renderQueueSummary($('activity-queue'),snapshot);
  const focus=document.activeElement?.dataset?.focus;
 
  renderStatus(snapshot,{logs:()=>changeView('logs'),control:openControl},state.pending);
  const projectKeys=JSON.stringify(snapshot.projects.map(p=>[p.key,p.name]));
  if(projectKeys!==lastProjectKeys){
-  const label=p=>(p.kind==='test'?t('project.test')+' · ':'')+(p.name??p.key);
+  const label=p=>(p.kind==='test'?t('project.test')+' · ':'')+projectName(p);
   options($('project-filter'),[['all',t('common.allProjects')],...snapshot.projects.map(p=>[p.key,label(p)])],state.project);
-  $('project-nav').replaceChildren(...snapshot.projects.map(p=>node('button',{class:'project-button','data-project':p.key,title:label(p)+'\n'+p.key,onclick:()=>{changeView('project',p.key);render();}},node('span',{class:'project-bullet'}),node('span',{},label(p)))));lastProjectKeys=projectKeys;
+  $('project-nav').replaceChildren(...snapshot.projects.map(p=>node('button',{class:'project-button','data-project':p.key,title:label(p)+'\n'+p.key,onclick:()=>{changeView('project',p.key);render();}},node('span',{class:'project-bullet'}),node('span',{class:'project-label'},node('strong',{},label(p)),node('small',{},p.repository??p.key)))));lastProjectKeys=projectKeys;
  }
  if(state.view==='project'&&!snapshot.projects.some(p=>p.key===state.selectedProject))changeView('overview');
  changeView(state.view);
  if(state.view==='project'){
   const p=snapshot.projects.find(p=>p.key===state.selectedProject),jobs=snapshot.activities.filter(r=>r.project===p.key);
-  $('project-name').textContent=p.name??p.key;$('project-identity').textContent=[...new Set([p.key,p.agent,p.repository,p.branch].filter(Boolean))].join(' · ');
-  renderPermissions([p]);renderHistory(p,openArchive,openHistory,archiving);renderActivities($('project-activity'),jobs,openReport);
+  $('project-name').textContent=projectName(p);$('project-identity').textContent=[...new Set([p.key,p.agent,p.repository,p.branch].filter(Boolean))].join(' · ');
+  renderPermissions([p]);renderHistory(p,openArchive,openHistory,archiving);renderTaskTabs($('project-task-tabs'),jobs,state.projectTaskTab,tab=>{state.projectTaskTab=tab;render();});renderActivities($('project-activity'),jobs.filter(r=>taskBucket(r)===state.projectTaskTab),openReport);
   $('remove-project').hidden=!p.removable;$('remove-project').disabled=jobs.some(r=>['running','accepted','started'].includes(r.state));
   $('project-summary').replaceChildren(...[['total',jobs.length],['running',jobs.filter(r=>['running','accepted','started'].includes(r.state)).length],['passed',jobs.filter(r=>['passed','returned'].includes(r.state)).length],['blocked',jobs.filter(r=>['failed','blocked','inconclusive'].includes(r.state)).length]].map(([k,v])=>node('div',{class:'metric'},node('div',{class:'metric-label'},t('project.'+k)),node('div',{class:'metric-value'},v))));
  }
- const activities=snapshot.activities.filter(r=>(state.project==='all'||r.project===state.project)&&(state.status==='all'||r.state===state.status)&&JSON.stringify([r.operationId,r.project,r.action,r.reason]).toLowerCase().includes(state.search.toLowerCase()));
- renderActivities($('recent-activity'),snapshot.activities.slice(0,5),openReport);renderActivities($('all-activity'),activities,openReport);renderCommunications(snapshot.mcpEvents);
+ const activities=snapshot.activities.filter(r=>(state.project==='all'||r.project===state.project)&&(state.status==='all'||r.state===state.status)&&JSON.stringify([r.operationId,r.project,r.projectName,r.taskFile,r.action,r.reason]).toLowerCase().includes(state.search.toLowerCase()));
+ renderTaskTabs($('task-tabs'),activities,state.taskTab,tab=>{state.taskTab=tab;render();});
+ const current=snapshot.activities.filter(r=>['running','queued'].includes(taskBucket(r))||r.activeReservation||r.projectLeaseHeld||r.orphanedLease);
+ renderActivities($('current-activity'),current.slice(0,8),openReport);
+ renderActivities($('recent-activity'),snapshot.activities.filter(r=>taskBucket(r)==='history').slice(0,5),openReport);renderActivities($('all-activity'),activities.filter(r=>taskBucket(r)===state.taskTab),openReport);renderCommunications(snapshot.mcpEvents);
  if(!state.paused)state.logRows=[...snapshot.events,...snapshot.mcpEvents].sort((a,b)=>Date.parse(b.ts)-Date.parse(a.ts));
  renderLogs(state.logRows.filter(r=>(state.logLevel==='all'||r.level===state.logLevel)&&JSON.stringify(r).toLowerCase().includes(state.logSearch.toLowerCase())).slice(0,250));
  $('log-location').textContent=t('logs.path',{path:snapshot.diagnostics.path});
@@ -112,7 +120,7 @@ async function loadHistory(){
  $('history-prev').disabled=true;$('history-next').disabled=true;$('history-rows').textContent=t('common.loading');
  try{
   const r=await api('/api/project/history?'+new URLSearchParams({project:historyProject,offset:historyOffset}));
-  renderActivities($('history-rows'),r.rows,openReport);historyNext=r.nextOffset;
+  renderActivities($('history-rows'),r.rows.map(row=>({...row,projectName:projectName(state.snapshot.projects.find(p=>p.key===row.project))})),openReport);historyNext=r.nextOffset;
   $('history-prev').disabled=historyOffset===0;$('history-next').disabled=!Number.isInteger(historyNext);
  }catch(e){$('history-rows').textContent=errorText(e.code);}
 }

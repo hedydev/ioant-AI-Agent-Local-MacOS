@@ -9,7 +9,7 @@ import {archiveHistory} from './execution-history.mjs';
 
 const ASSETS={
  '/':'index.html','/app.js':'app.js','/api-client.js':'api-client.js','/i18n.js':'i18n.js',
- '/navigation.js':'navigation.js','/render.js':'render.js','/styles.css':'styles.css','/tokens.css':'tokens.css'
+ '/navigation.js':'navigation.js','/render.js':'render.js','/task-model.js':'task-model.js','/queue-render.js':'queue-render.js','/styles.css':'styles.css','/tokens.css':'tokens.css'
 };
 const TYPES={html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8'};
 async function jsonBody(req){let text='';for await(const chunk of req){text+=chunk;if(Buffer.byteLength(text)>4096)throw Error('request_too_large');}try{const data=text?JSON.parse(text):{};if(!data||typeof data!=='object'||Array.isArray(data))throw Error();return data;}catch{throw Error('invalid_json');}}

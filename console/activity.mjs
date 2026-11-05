@@ -11,6 +11,8 @@ import {privateDirectory,privateRead,privateJsonFiles} from './private-files.mjs
 import {PRIVATE_ROOT,AUDIT_ROOT} from './config.mjs';
 import {cleanText} from './diagnostics.mjs';
 import {historyStatus,recentExecutionFiles} from './execution-history.mjs';
+import {readScheduler,attachScheduler} from './scheduler.mjs';
+import {taskBucket} from './web/task-model.js';
 
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:-]{1,100}$/.test(x)?x:undefined;
 export function usedCapabilities(r,kind){
@@ -27,17 +29,20 @@ export function activityRow(r,kind,project){
   project:project??result.project_key??result.project,state,
   startedAt:r.startedAt??r.createdAt??r.started_at??null,finishedAt:r.finishedAt??r.finished_at??null,
   action:id(r.input?.action),reason:id(result.reason),agent:id(result.agent??r.agent),
+  taskFile:typeof r.input?.task_file==='string'&&/^\.openclaw\/tasks\/[a-z][a-z0-9_-]{0,63}\.json$/.test(r.input.task_file)?r.input.task_file:undefined,
+  reportedInferenceLaneHeld:result.inferenceLaneHeld===true,
+  agentDurationMs:Number.isFinite(result.durationMs)&&result.durationMs>=0?result.durationMs:null,
   cached:['passed','failed','blocked','inconclusive','returned','connected'].includes(state),
   toolsUsed:usedCapabilities(r,kind),
   phase:id(r.phase),asynchronous:kind==='computer'?Boolean(r.job):undefined,
-  modelInferenceInvoked:kind==='execution'?r.modelInferenceInvoked===true:kind==='computer'?r.modelInferenceInvoked===true:undefined};
+  modelInferenceInvoked:kind==='execution'?false:kind==='computer'?(typeof r.modelInferenceInvoked==='boolean'?r.modelInferenceInvoked:typeof result.modelInferenceInvoked==='boolean'?result.modelInferenceInvoked:null):undefined};
  if(kind==='execution')Object.assign(row,{
   commit:/^[a-f0-9]{40}$/.test(r.actualCommit)?r.actualCommit:null,worktreeClean:r.worktreeClean===true,
   steps:Array.isArray(r.steps)?r.steps.map(s=>({name:id(s.name),state:id(s.state),capability:id(s.capability),runtime:id(s.runtime),script:typeof s.script==='string'?cleanText(s.script):undefined,exitCode:s.exitCode,startedAt:s.startedAt,finishedAt:s.finishedAt})):[],
   artifacts:[{id:'execution_log'},...(r.artifacts??[]).map(a=>({id:id(a.artifact),bytes:a.bytes,format:id(a.format)}))]});
  return row;
 }
-export async function loadActivity({parent=PRIVATE_ROOT,bindings=registeredProjectBindings(),grants=readRepositoryTaskGrants(),configLoad=()=>readPrivateJson(join(homedir(),'.openclaw/openclaw.json')),inspect=inspectDirectAgent,policy=executionPolicy}={}){
+export async function loadActivity({parent=PRIVATE_ROOT,bindings=registeredProjectBindings(),grants=readRepositoryTaskGrants(),configLoad=()=>readPrivateJson(join(homedir(),'.openclaw/openclaw.json')),inspect=inspectDirectAgent,policy=executionPolicy,schedule=readScheduler}={}){
  const activities=[],projects=[];let config;try{config=await configLoad();}catch{}
  for(const b of Object.values(bindings)){
   const g=grants.projects[b.projectKey];
@@ -50,7 +55,7 @@ export async function loadActivity({parent=PRIVATE_ROOT,bindings=registeredProje
   projects.push({history,permissions:{state:status?.state??'unverified',toolAccess:status?.toolAccess??'unverified',computer:status?status.computerControlEnabled===true:null,repositoryTask},key:b.projectKey,agent:b.agentId,repository:g?.repository??null,branch:g?.branch??null,
    removable:b.projectKey.startsWith('repo-'),name:checkoutName,kind:isTest?'test':'project'});
   for(const [kind,prefix] of [['execution','direct-project-execution-'],['computer','direct-computer-']]){
-   let files=[];try{files=kind==='execution'?await recentExecutionFiles(executionStore):await privateJsonFiles(join(parent,prefix+b.projectKey),100);}catch{}
+   let files=[];try{files=kind==='execution'?await recentExecutionFiles(executionStore,600):await privateJsonFiles(join(parent,prefix+b.projectKey),500);}catch{}
    for(const {path,archived=false} of files){
     try{const row=activityRow(JSON.parse(await privateRead(path)),kind,b.projectKey);if(row)activities.push({...row,archived});}catch{}}
   }
@@ -58,7 +63,11 @@ export async function loadActivity({parent=PRIVATE_ROOT,bindings=registeredProje
  for(const {path} of await privateJsonFiles(join(parent,'direct-workspace-connect'),100)){
   try{const row=activityRow(JSON.parse(await privateRead(path)),'connect');if(row)activities.push(row);}catch{}}
  activities.sort((a,b)=>Date.parse(b.finishedAt??b.startedAt??0)-Date.parse(a.finishedAt??a.startedAt??0));
- return {projects,activities:activities.slice(0,150)};
+ const scheduler=await schedule(parent,bindings),all=attachScheduler(activities,scheduler);
+ // Recent history is bounded, but live/queued/uncertain leases must never be
+ // pushed out of view by a busy project's newer completed operations.
+ const current=all.filter(r=>taskBucket(r)!=='history'),history=all.filter(r=>taskBucket(r)==='history');
+ return {projects,scheduler,activities:[...current,...history.slice(0,150)],activityScope:{historyShown:Math.min(150,history.length),historyLimit:150,moreHistoryAvailable:history.length>150}};
 }
 export async function activityReport({project,operationId,artifact='execution_log',offset=0},{bindings=registeredProjectBindings(),parent=PRIVATE_ROOT}={}){
  if(!id(project)||!id(operationId)||!/^[a-z][a-z0-9_-]{0,47}$/.test(artifact)||!Number.isSafeInteger(offset)||offset<0||offset>262144)throw Error('invalid_report_request');

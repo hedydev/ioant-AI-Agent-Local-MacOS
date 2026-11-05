@@ -1,3 +1,13 @@
+## Console execution queue (2026-11-06)
+
+Read docs/CONSOLE_EXECUTION_QUEUE_20261106.md. The console now distinguishes
+native admission slots/lane retention, per-project fixed execution leases and
+receipt storage, with queue/history/review tabs and metadata-only resource usage.
+Do not call retained leases live inference or release/replay them from this UI.
+1391 Node tests and actual read-only browser preview passed. Production Web reload
+is pending operator-private Runtime Key entry; keep current Web/Tunnel running
+until coordinated. No MCP tool schema or business operation changes.
+
 ## GitHub SSH transport (2026-11-04)
 
 Read docs/GITHUB_SSH_TRANSPORT_20261104.md for the final diagnosis: both22 and

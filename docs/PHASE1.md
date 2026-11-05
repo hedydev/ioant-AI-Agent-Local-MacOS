@@ -456,3 +456,12 @@ and checkout state by default, with no implicit branch/HEAD attachment or isolat
 Source candidate0.11.0 adds current-mode tasks, detached-aware read-only inspection
 and branch-preserving sync. Runtime/validation evidence is recorded in that document.
 Old uncertain operations and business repositories are not replayed or repaired.
+
+## 2026-11-06 — Console queue and resource visibility
+
+See [execution queue delivery](CONSOLE_EXECUTION_QUEUE_20261106.md). Four task tabs,
+read-only native slot/lease evidence, per-project fixed executor scope and honest
+resource/unknown consumption reporting are implemented. Full1391 Node tests pass;
+actual Chinese/English read-only browser preview verified queue/history behavior.
+Production Web reload remains pending private Runtime Key re-entry. Existing
+Tunnel and business tasks were not restarted, unlocked or replayed.
