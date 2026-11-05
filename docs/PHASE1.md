@@ -463,5 +463,7 @@ See [execution queue delivery](CONSOLE_EXECUTION_QUEUE_20261106.md). Four task t
 read-only native slot/lease evidence, per-project fixed executor scope and honest
 resource/unknown consumption reporting are implemented. Full1391 Node tests pass;
 actual Chinese/English read-only browser preview verified queue/history behavior.
-Production Web reload remains pending private Runtime Key re-entry. Existing
-Tunnel and business tasks were not restarted, unlocked or replayed.
+Production Web reload subsequently completed after explicit operator approval;
+Runtime Key was entered privately, and actual MCP capabilities plus ready health
+and production SSE/tabs passed. Existing business tasks were not unlocked/replayed.
+The separate retained Alice native owner remains visible and unresolved.

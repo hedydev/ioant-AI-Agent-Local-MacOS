@@ -71,3 +71,32 @@ working. Coordinate a brief interruption and let the operator enter the existing
 key privately in the local page afterward. This change does not require a new MCP
 tool catalog, plugin Refresh, Gateway/Ollama restart or replay of business tasks.
 At source commit time, production Web reload is still pending.
+
+## Production rollout verified — 2026-11-06 (Asia/Shanghai)
+
+The operator explicitly requested immediate upgrade and then privately entered
+Runtime Key and started the Tunnel in the local page. The Web service now runs
+PID84619 at the original loopback port18489, loading source9c48472. Both new UI
+modules returned HTTP200, the actual production browser showed all four tabs,
+SSE stayed connected with advancing timestamps, and no persistent UI error was
+visible. Real cloud MCP capabilities returned successfully with readOnly=true and
+modelInferenceInvoked=false. Local health independently reported ready=true.
+
+The old Web PID64450 had already written its closed receipt and released18489,
+but remained alive, so start initially returned loaded=true/ready=false for that
+old process. After checking its exact saved PID/start identity, matching closed
+session and absent listener, maintenance terminated only that closed Web process
+with SIGHUP, then used the standard service start. No Agent/job PID or execution
+lease was terminated, removed or replayed. The new entrypoint explicitly exits
+after graceful shutdown; no service-manager code was changed in this rollout.
+
+The production snapshot matched actual MCP metadata: one retained uncertain Alice
+native owner, zero waiting reservations, three available admission slots, zero
+fixed tasks recorded in progress and an observed empty model residency. The UI
+keeps this lane blocker visible; successful UI/transport upgrade does not resolve
+that separate native operation. The39 Needs review rows include historical
+unknown/legacy receipts; they are not39 running tasks or39 occupied slots.
+Completed history displayed150 recent rows, with older repository history still
+accessible through each project's history browser. No business execution task,
+model inference, permission change, plugin Refresh or Gateway restart was used
+for acceptance. Runtime Key was not inspected, recovered, persisted or sent to Chat.
