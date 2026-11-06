@@ -7,6 +7,10 @@ the existing LunaDrive Rust/Cargo homes and per-checkout target cache to fixed
 repository_task steps only, with RUSTUP_AUTO_INSTALL=0. Do not change global
 defaults/install toolchains or pretend arbitrary Gemma commands share this profile.
 Git/health/transport/native environments remain unchanged. No business repo edits.
+Full1414 tests passed before and after profile enrollment. Actual fixed MCP status
+operation workflow_rust_env_accept_20261106_k4n8v2cs_01 passed/cached, log readback
+confirms cargo/rustc1.99.0 and LunaDrive homes/cache. Read-only Drama Cargo metadata
+also passed offline/locked; no business compile was run. No restart/Refresh needed.
 
 ## Git fetch timeout settlement (2026-11-06)
 

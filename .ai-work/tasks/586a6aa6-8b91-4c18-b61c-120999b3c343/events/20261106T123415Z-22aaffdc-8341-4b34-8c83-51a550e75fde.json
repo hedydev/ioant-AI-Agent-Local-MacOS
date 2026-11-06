@@ -1,0 +1,32 @@
+{
+  "schema_version": 2,
+  "event_id": "22aaffdc-8341-4b34-8c83-51a550e75fde",
+  "task_id": "586a6aa6-8b91-4c18-b61c-120999b3c343",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-11-06T12:34:15.160021+00:00",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "ff1d9e8bb4c0d6b7390019d3b8727019610a4c18",
+  "message": "Actual MCP fixed Rust status task passed/cached exit0 with no model; report reads cargo/rustc1.99.0 and correct LunaDrive homes/per-project target.1414 tests passed with and without profile. Additional read-only Drama cargo metadata --locked --offline succeeded at independently advanced9a3fbe0, correct cache routing, local files retained. No install/default change/business compilation/service restart. Technical routing accepted; business build and human acceptance remain separate.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "execution_receipt",
+      "summary": "workflow_rust_env_accept_20261106_k4n8v2cs_01 passed/cached/modelInferenceInvoked=false"
+    },
+    {
+      "kind": "artifact",
+      "summary": "execution_log467characters SHA2568fdafeb5c46a43b722b4e50a190f7f9003e2084c9d020d49e828f7848defb69d"
+    },
+    {
+      "kind": "automated_tests",
+      "summary": "1414/1414 before profile and1414/1414 configured, no failures/skips"
+    }
+  ],
+  "supersedes_event_id": null
+}

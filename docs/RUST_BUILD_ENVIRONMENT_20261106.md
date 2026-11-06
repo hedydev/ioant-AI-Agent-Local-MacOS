@@ -77,3 +77,27 @@ existing external stable toolchain: cargo1.99.0/rustc1.99.0. Both internal and
 external rustup settings hashes stayed identical. No toolchain was installed,
 no global default changed, no model/service was started. Actual MCP acceptance
 follows after the source commit is pinned.
+
+## Actual MCP acceptance
+
+Source ff1d9e8bb4c0d6b7390019d3b8727019610a4c18 was pushed and remote main
+verified. Without restarting Tunnel/Web/Gateway, actual MCP project_execute ran
+the pinned current-workspace status task once under openclaw-workflow, operation
+`workflow_rust_env_accept_20261106_k4n8v2cs_01`. It returned passed/cached=true,
+exitCode0, no timeout, modelInferenceInvoked=false and worktreeClean=true. Reading
+its467-character log through project_report confirmed cargo/rustc1.99.0,
+external Cargo/Rustup homes and the infrastructure project's separate target dir.
+Log SHA2568fdafeb5c46a43b722b4e50a190f7f9003e2084c9d020d49e828f7848defb69d.
+
+An additional bounded read-only local command under the identical profile ran
+`cargo metadata --locked --offline --no-deps` against Drama Studio's Tauri manifest.
+It returned0, packageCount1, targetDirectory ending cargo-target/ioant-ai-drama-studio.
+At this observation the business checkout had independently advanced to9a3fbe0;
+the maintainer did not sync/edit it. Its original untracked package/Cargo locks
+and generated directory remained present. This check did not compile/download
+dependencies, change a lockfile, start an application/service or run business tests.
+
+This proves fixed-task toolchain routing and Cargo project discovery, not a passing
+Tauri build or arbitrary model-driven terminal execution. No Refresh or service
+restart is required. Project Chat should author its own committed Rust check task
+under its own project key, preserving its existing files and task receipts.
