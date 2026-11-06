@@ -1,3 +1,13 @@
+## Rust environment for fixed repository tasks (2026-11-06)
+
+Read docs/RUST_BUILD_ENVIRONMENT_20261106.md for actual enrollment/acceptance.
+Reproduced missing default with the relocated Cargo proxy and sanitized env:
+RUSTUP_HOME was lost. The optional owner-private build profile explicitly supplies
+the existing LunaDrive Rust/Cargo homes and per-checkout target cache to fixed
+repository_task steps only, with RUSTUP_AUTO_INSTALL=0. Do not change global
+defaults/install toolchains or pretend arbitrary Gemma commands share this profile.
+Git/health/transport/native environments remain unchanged. No business repo edits.
+
 ## Git fetch timeout settlement (2026-11-06)
 
 Read docs/GIT_FETCH_SETTLEMENT_20261106.md for rollout status. Drama sync01 stopped

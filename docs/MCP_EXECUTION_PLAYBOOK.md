@@ -58,6 +58,12 @@
 
 ## 目录、前置检查与超时分别处理
 
+Rust/Cargo 报“没有默认工具链”时先区分代理所在目录与 RUSTUP_HOME，不能据此重装
+或运行 rustup default。固定任务可使用维护端登记的现有
+[Rust 构建环境](RUST_BUILD_ENVIRONMENT_20261106.md)：明确 Cargo/Rustup homes、
+LunaDrive 项目缓存、禁自动安装；项目自己的已安装工具链约束仍生效。编译/测试走
+repository_task 的版本化脚本，不用 Gemma 临时终端转述代替执行器验收。
+
 - **GitHub SSH认证失败：** `Permission denied (publickey)`先按
   [实际传输排查记录](GITHUB_SSH_TRANSPORT_20261104.md)区分执行环境、所用密钥和
   22/官方443入口。本次22与443都出现间歇认证失败，官方Git服务事件已确认；临时443配置已撤回。

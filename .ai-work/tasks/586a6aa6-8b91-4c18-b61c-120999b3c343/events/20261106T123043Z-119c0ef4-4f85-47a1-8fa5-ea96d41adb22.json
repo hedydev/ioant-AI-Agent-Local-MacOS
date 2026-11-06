@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "event_id": "119c0ef4-4f85-47a1-8fa5-ea96d41adb22",
+  "task_id": "586a6aa6-8b91-4c18-b61c-120999b3c343",
+  "event_type": "progress_recorded",
+  "occurred_at": "2026-11-06T12:30:43.929574+00:00",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "e52d5c90abcfe93fee8bd9f1aeadf738563a814f",
+  "message": "Reproduced relocated Cargo no-default failure with sanitized environment: missing RUSTUP_HOME selects empty-default internal settings. Add private validated existing Rust/Cargo build profile for fixed task steps, per-project LunaDrive target and RUSTUP_AUTO_INSTALL=0; Git/transport/native env unchanged.1414 tests pass before enrollment; local enrollment reuses existing1.99.0 and settings hashes unchanged. Actual fixed-MCP version probe pending. No install/default change/business source edits.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "1414 full regressions and4 focused profile tests pass"
+    },
+    {
+      "kind": "device_validation",
+      "summary": "same external cargo proxy fails without RUSTUP_HOME and reports1.99.0 with correct external home; old default settings hashes unchanged after enrollment"
+    }
+  ],
+  "supersedes_event_id": null
+}

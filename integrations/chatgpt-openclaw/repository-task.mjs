@@ -3,7 +3,8 @@
 import {createHash} from 'node:crypto';
 import {lstat,realpath} from 'node:fs/promises';
 import {join,resolve,sep} from 'node:path';
-import {executionCommand,executionEnvironment,GIT_ARGS} from './project-execution-command.mjs';
+import {executionCommand,GIT_ARGS} from './project-execution-command.mjs';
+import {repositoryBuildEnvironment} from './repository-build-environment.mjs';
 const SHA=/^[0-9a-f]{40}$/;
 const ID=/^[a-z][a-z0-9_-]{0,47}$/;
 export const MAX_TASK_STEP_SECONDS=3600;
@@ -80,8 +81,8 @@ export async function verifyTaskScript(policy,plan,step,{command=executionComman
  }
 }
 export async function executeRepositoryTask(plan,policy,{operationId,outputDir,step,
- verify=verifyTaskScript}={}){
- const env={...executionEnvironment(),OPENCLAW_OPERATION_ID:operationId,OPENCLAW_OUTPUT_DIR:outputDir};
+ verify=verifyTaskScript,buildEnvironment=repositoryBuildEnvironment}={}){
+ const env={...await buildEnvironment(policy),OPENCLAW_OPERATION_ID:operationId,OPENCLAW_OUTPUT_DIR:outputDir};
  for(const item of plan.steps){
   await verify(policy,plan,item);
   const args=item.args.map(a=>a==='@output_dir'?outputDir:a==='@operation_id'?operationId:a);

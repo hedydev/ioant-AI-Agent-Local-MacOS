@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "title": "Read existing Rust toolchain versions and LunaDrive cache routing",
+  "steps": [
+    {
+      "name": "rust_toolchain_status",
+      "runtime": "node",
+      "script": "scripts/rust-toolchain-status.mjs",
+      "timeoutSeconds": 45
+    }
+  ]
+}
