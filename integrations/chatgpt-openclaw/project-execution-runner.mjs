@@ -8,6 +8,7 @@ import {validateTreeListing} from '../../stage2/project-self-update.mjs';
 import {loadRepositoryTask,executeRepositoryTask,verifyTaskScript} from './repository-task.mjs';
 import {collectRepositoryArtifacts} from './repository-artifacts.mjs';
 import {deleteRemoteBranch} from './repository-delete-branch.mjs';
+import {GIT_FETCH_TIMEOUT_MS,inspectFetchInterruption} from './git-fetch-recovery.mjs';
 import {inspectExecutionRepository,createIsolatedRepository} from './execution-repository.mjs';
 import {ALICE_RESTART_TASK,PRIOR_DENIED_RESTART,aliceLifecycleApproval,verifyAliceLifecyclePlan,verifyAliceLifecycleScript,validateAliceLifecycleReceipt} from './alice-lifecycle-policy.mjs';
 export {inspectExecutionRepository} from './execution-repository.mjs';
@@ -46,6 +47,14 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
   else if(!streamed)await append(r.stdout+'\n'+r.stderr+'\n');
   await save();
   if(!r.ok){
+   if(name==='fetch'&&r.timedOut&&!r.outputFailed){
+    try{
+     record.fetchInterruption=await inspectFetchInterruption(record,policy,{inspect,command});
+     record.actualCommit=record.beforeCommit;record.sourceCheckoutUpdated=false;row.state='failed';
+     record.resultScope='Git fetch timed out and its process ended before any checkout update. Remote refs may have changed; fetch/sync did not pass. No retry or scripts.';
+    }catch(e){record.fetchInterruption={state:'unverified',reason:/^[a-z_]+$/.test(e.message)?e.message:'fetch_settlement_unavailable'};retainLock=true;throw Error('command_outcome_requires_review');}
+    throw Error('git_fetch_timeout');
+   }
    if(r.timedOut||r.outputFailed||name==='fast_forward'||name==='delete_remote_branch'){retainLock=true;throw Error('command_outcome_requires_review');}
    throw Error('execution_step_failed');
   }
@@ -109,7 +118,7 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
   const git=(name,args)=>step(name,'/usr/bin/git',[...GIT_ARGS,...args]);
   if(fetchOnly){
    record.sourceWorktreeDirty=before.dirty===true;record.sourceCheckoutUpdated=false;await save();
-   await step('fetch','/usr/bin/git',[...GIT_ARGS,'fetch','--no-tags','origin','refs/heads/'+policy.branch+':refs/remotes/origin/'+policy.branch],{timeout:300000});
+   await step('fetch','/usr/bin/git',[...GIT_ARGS,'fetch','--no-tags','origin','refs/heads/'+policy.branch+':refs/remotes/origin/'+policy.branch],{timeout:GIT_FETCH_TIMEOUT_MS});
    record.fetchedCommit=(await git('fetched_commit',['rev-parse','--verify','FETCH_HEAD'])).stdout.trim();
    record.remoteTrackingCommit=(await git('remote_tracking_commit',['rev-parse','--verify','refs/remotes/origin/'+policy.branch])).stdout.trim();
    if(!SHA.test(record.fetchedCommit)||record.remoteTrackingCommit!==record.fetchedCommit)throw Error('fetched_refs_unverified');
@@ -118,7 +127,7 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
    if(record.input.expected_commit&&record.fetchedCommit!==record.input.expected_commit)throw Error('remote_commit_mismatch');
    record.state='passed';record.resultScope='Enrolled branch fetched; remote refs verified. Local HEAD/worktree not updated; no tests, clone, merge or deployment.';return;
   }
-  await git('fetch',['fetch',...(isolated?['--depth=1']:[]),'--no-tags','origin','refs/heads/'+policy.branch]);
+  await step('fetch','/usr/bin/git',[...GIT_ARGS,'fetch',...(isolated?['--depth=1']:[]),'--no-tags','origin','refs/heads/'+policy.branch],{timeout:GIT_FETCH_TIMEOUT_MS});
   const fetched=(await git('fetched_commit',['rev-parse','--verify','FETCH_HEAD'])).stdout.trim();
   if(fetched!==record.input.expected_commit)throw Error('remote_commit_mismatch');
   const tree=await git('validate_tree',['ls-tree','-rlz','--full-tree',fetched]);

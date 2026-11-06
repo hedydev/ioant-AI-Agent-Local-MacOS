@@ -77,6 +77,11 @@
   再匹配释放并保留原回执；不要让Chat直接删锁。当前源码支持显式单步最长3600秒，
   默认60秒不变；先确认actions.maxStepTimeoutSeconds或实际运行器版本再提交长任务。
   首次Rust Release应给足显式预算，异步读取同ID，不转交Gemma，不重复不明构建。
+- **仅fetch超时：** 新运行器在确认唯一fetch进程组已退出、HEAD/分支未变、没有Git锁或
+  后续合并时，返回failed/git_fetch_timeout并释放执行锁；不自动重试、不宣称远端引用
+  未变或同步成功。历史不明回执仍由维护端按
+  [Git fetch受控恢复](GIT_FETCH_SETTLEMENT_20261106.md) 审阅，原回执不改写。
+  actions中的fetchTimeoutSeconds确认已加载预算；fetch/sync均为300秒。
 
 上述规则是使用约定，不是新增工具、强制运行时路由或问题已修复的证明。
 详见 [路由与回执](MCP_EXECUTION_ROUTING_AND_RECEIPTS_20261030.md)、

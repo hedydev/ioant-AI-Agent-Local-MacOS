@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "event_id": "574fbfb1-be27-4b7a-8094-e00353431728",
+  "task_id": "586a6aa6-8b91-4c18-b61c-120999b3c343",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-11-06T11:46:40.092989+00:00",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "24ef74404a238e2a01e1ccfd1dcb287ed3f94a35",
+  "message": "Drama sync01 stopped at its only fetch after45s with SIGTERM/group absent; old script recovery did not cover Git. Add evidence-based fetch failure settlement and reviewed historical recovery, shared audit mechanics, matching300s fetch budgets.1410 regressions pass; original receipt unchanged, exact old lease reviewed/released without fetch/merge/build or business-file changes. Runtime rollout pending.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "1410/1410 full regression; real killed subprocesses verify failed/no replay, local preservation and unsafe-state lock retention"
+    },
+    {
+      "kind": "execution_receipt",
+      "summary": "drama_milestone_e_sync_20261106_01 original SHA256980a494373c14df2cadabdb58dfa4e465801b910a5d05f0b26234ff33efa82ed unchanged; reviewed recovery19:45:37 local, HEAD3ad32bf unchanged"
+    }
+  ],
+  "supersedes_event_id": null
+}

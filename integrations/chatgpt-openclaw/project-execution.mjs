@@ -12,6 +12,7 @@ import {reportOutputSchema} from './project-report-contract.mjs';
 import {taskFilePath,MAX_TASK_STEP_SECONDS} from './repository-task.mjs';
 import {branchName} from './repository-delete-branch.mjs';
 import {repositoryTaskRecoveryReceipt} from './repository-task-recovery.mjs';
+import {gitFetchRecoveryReceipt,GIT_FETCH_TIMEOUT_MS} from './git-fetch-recovery.mjs';
 import {ALICE_RESTART_TASK,PRIOR_DENIED_RESTART,aliceLifecycleApproval} from './alice-lifecycle-policy.mjs';
 import {reconciliationTool,reconcileAliceLifecycle,lifecycleRecoveryReceipt} from './alice-lifecycle-recovery.mjs';
 
@@ -80,8 +81,8 @@ export async function projectExecution(name,args,{binding,store=new ProjectExecu
     taskDefinitionPattern:'.openclaw/tasks/<name>.json',maxStepTimeoutSeconds:MAX_TASK_STEP_SECONDS,scriptRoots:generic.scriptRoots,
     runtimes:Object.keys(generic.runtimes),workspaceModes:['current','in_place','isolated'],defaultWorkspaceMode:'current',currentHeadRequired:true,
     toolSchemaRequirement:'project_execute must expose workspace_mode; refresh the plugin tool catalog if absent. Do not use model-driven clone as a workaround.',scope:'Pinned tracked repository scripts as the current user; not an OS sandbox. No model inference.'});
-   if(await policy(binding,{action:'repository_fetch'}))result.actions.push({action:'repository_fetch',enabled:true,requiresCleanWorktree:false,taskFileRequired:false,expectedCommitRequired:false,modelInferenceInvoked:false,scope:'Fetch enrolled origin/branch into FETCH_HEAD and its remote-tracking ref only. HEAD, index and local files are preserved; no merge, checkout, clone or tests.'});
-   if(await policy(binding,{action:'repository_sync'}))result.actions.push({action:'repository_sync',enabled:true,requiresCleanWorktree:false,taskFileRequired:false,expectedCommitRequired:true,modelInferenceInvoked:false,scope:'Fast-forward current checkout to an exact enrolled-remote commit without switching or attaching its branch; preserve non-overlapping local edits and untracked files, block conflicts. No stash/reset/cleanup/clone/tests.'});
+   if(await policy(binding,{action:'repository_fetch'}))result.actions.push({action:'repository_fetch',enabled:true,fetchTimeoutSeconds:GIT_FETCH_TIMEOUT_MS/1000,requiresCleanWorktree:false,taskFileRequired:false,expectedCommitRequired:false,modelInferenceInvoked:false,scope:'Fetch enrolled origin/branch into FETCH_HEAD and its remote-tracking ref only. HEAD, index and local files are preserved; no merge, checkout, clone or tests.'});
+   if(await policy(binding,{action:'repository_sync'}))result.actions.push({action:'repository_sync',enabled:true,fetchTimeoutSeconds:GIT_FETCH_TIMEOUT_MS/1000,requiresCleanWorktree:false,taskFileRequired:false,expectedCommitRequired:true,modelInferenceInvoked:false,scope:'Fast-forward current checkout to an exact enrolled-remote commit without switching or attaching its branch; preserve non-overlapping tracked/untracked local edits and the current branch. No stash/reset/cleanup/clone/tests.'});
    if(await policy(binding,{action:'repository_delete_branch'}))result.actions.push({action:'repository_delete_branch',enabled:true,requiresCleanWorktree:false,taskFileRequired:false,expectedCommitRequired:false,expectedBranchCommitRequired:false,modelInferenceInvoked:false,scope:'Delete one exact explicitly user-authorized remote branch with a commit lease, verify absence; preserve local checkout. Default/current branch deletion blocked. Never replay uncertain deletions.'});
    if(binding.projectKey==='alice-ai'){
     result.lifecycleRecovery={tool:'openclaw_project_reconcile',modes:['inspect','resolve'],independentOfProjectExecutionLock:true,startsClient:false,catalogRefreshRequiredIfToolMissing:true};
@@ -101,7 +102,7 @@ export async function projectExecution(name,args,{binding,store=new ProjectExecu
    if(Object.keys(args).join(',')!=='operation_id'||typeof args.operation_id!=='string'||!operationId.test(args.operation_id))throw Error('invalid_operation_id');
    const r=await store.get(args.operation_id);
    if(!r)return {state:'not_found',operationId:args.operation_id};
-   const recovery=await repositoryTaskRecoveryReceipt(store,args.operation_id)??await lifecycleRecoveryReceipt(store,args.operation_id);
+   const recovery=await gitFetchRecoveryReceipt(store,args.operation_id)??await repositoryTaskRecoveryReceipt(store,args.operation_id)??await lifecycleRecoveryReceipt(store,args.operation_id);
    return {...publicReceipt(r),...(recovery?{reconciliation:recovery}:{})};
   }
   if(name!=='openclaw_project_execute'||!validExecutionInput(args))throw Error('invalid_project_execution_input');

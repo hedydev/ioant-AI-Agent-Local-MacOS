@@ -1,3 +1,14 @@
+## Git fetch timeout settlement (2026-11-06)
+
+Read docs/GIT_FETCH_SETTLEMENT_20261106.md for rollout status. Drama sync01 stopped
+in its only fetch at45s; modern receipt proves group exit, HEAD unchanged, no
+Git locks. This differs from script recovery. Fetch/sync now share300s, and only
+independently proven ended pre-merge fetches settle failed and release their lease,
+without retry or success claims. Old receipts use reviewed reconcile-git-fetch,
+remain inconclusive/doNotRepeat and receive a separate audit. All other uncertain
+Git/script/lifecycle operations retain protection. Never replay that old sync or
+assume its pinned target is still remote latest. No business source is changed.
+
 ## Fixed task timeout recovery (2026-11-06)
 
 Read docs/REPOSITORY_TASK_TIMEOUT_RECOVERY_20261106.md for actual rollout state.
