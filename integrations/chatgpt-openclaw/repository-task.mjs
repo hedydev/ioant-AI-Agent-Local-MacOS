@@ -6,6 +6,7 @@ import {join,resolve,sep} from 'node:path';
 import {executionCommand,executionEnvironment,GIT_ARGS} from './project-execution-command.mjs';
 const SHA=/^[0-9a-f]{40}$/;
 const ID=/^[a-z][a-z0-9_-]{0,47}$/;
+export const MAX_TASK_STEP_SECONDS=3600;
 const own=(x,required,optional=[])=>x&&typeof x==='object'&&!Array.isArray(x)&&
  required.every(k=>Object.hasOwn(x,k))&&Object.keys(x).every(k=>required.includes(k)||optional.includes(k));
 const text=(x,max)=>typeof x==='string'&&x.length<=max&&!/[\x00-\x1f\x7f]/.test(x);
@@ -28,7 +29,7 @@ export function parseRepositoryTask(raw){
    !['node','python','bash'].includes(s.runtime)||!repositoryPath(s.script)||
    !({node:/\.(?:mjs|cjs|js)$/,python:/\.py$/,bash:/\.sh$/}[s.runtime].test(s.script))||
    s.args!==undefined&&(!Array.isArray(s.args)||s.args.length>24||s.args.some(a=>!text(a,1024)))||
-   s.timeoutSeconds!==undefined&&(!Number.isInteger(s.timeoutSeconds)||s.timeoutSeconds<1||s.timeoutSeconds>600))
+   s.timeoutSeconds!==undefined&&(!Number.isInteger(s.timeoutSeconds)||s.timeoutSeconds<1||s.timeoutSeconds>MAX_TASK_STEP_SECONDS))
    throw Error('invalid_task_step');
   names.add(s.name);
  }

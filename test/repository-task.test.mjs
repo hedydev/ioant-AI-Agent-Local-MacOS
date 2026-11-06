@@ -20,7 +20,7 @@ test('task data rejects shell commands, environment overrides, traversal and inv
  for(const change of [d=>d.command='anything',d=>d.steps[0].command='anything',d=>d.steps[0].env={KEY:'value'},
   d=>d.steps[0].script='../escape.py',d=>d.steps[0].script='/bin/bash',d=>d.steps[0].script='scripts/link.sh',
   d=>d.steps[0].args=['\x00'],d=>d.steps[0].name=['fake'],d=>d.artifacts[0].file='../secret',
-  d=>d.artifacts[0].id='execution_log',d=>d.artifacts[0].format='zip_json',d=>d.steps[0].timeoutSeconds=601]){
+  d=>d.artifacts[0].id='execution_log',d=>d.artifacts[0].format='zip_json',d=>d.steps[0].timeoutSeconds=3601]){
   const d=definition();change(d);assert.throws(()=>parseRepositoryTask(JSON.stringify(d)));
  }
 });

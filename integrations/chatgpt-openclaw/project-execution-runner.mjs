@@ -39,6 +39,8 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
    ...(name==='validate_tree'?{}:{onOutput:async text=>{streamed=true;await append(text);}})});
   row.state=r.ok?'passed':r.timedOut?'inconclusive':'failed';row.exitCode=r.exitCode;
   row.timedOut=r.timedOut===true;row.finishedAt=new Date().toISOString();
+  if(Number.isSafeInteger(r.processId)&&r.processId>1){row.processId=r.processId;row.processGroupAbsent=r.processGroupAbsent===true;}
+  if(typeof r.signal==='string')row.signal=r.signal;
   if(name==='validate_tree')await append('Bounded Git tree metadata validated separately; file listing omitted.\n');
   else if(r.truncated){record.logTruncated=true;await append('Output omitted because capture limit was exceeded.\n');}
   else if(!streamed)await append(r.stdout+'\n'+r.stderr+'\n');

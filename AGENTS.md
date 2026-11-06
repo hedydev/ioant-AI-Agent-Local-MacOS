@@ -1,3 +1,14 @@
+## Fixed task timeout recovery (2026-11-06)
+
+Read docs/REPOSITORY_TASK_TIMEOUT_RECOVERY_20261106.md for actual rollout state.
+WinCat's fixed build019 timed out at420s during initial Rust dependencies, without
+a WinCat DMG, leaving an inconclusive lease after the runner exited. Local-only
+maintenance now supports reviewed inspect/resolve, original receipts preserved,
+with pinned source/process rechecks and an explicit effects-unverified audit.
+Never delete locks, automatically retry unknown work, or use this path for Alice
+lifecycle/Git mutations. Source permits explicit task steps up to3600s (default60
+unchanged); local model budgets remain separate. No WinCat source is modified.
+
 ## Direct remote branch deletion (2026-11-06)
 
 User requested generic explicitly authorized remote branch deletion without a local

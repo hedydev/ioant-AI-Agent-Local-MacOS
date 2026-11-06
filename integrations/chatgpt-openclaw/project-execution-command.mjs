@@ -61,7 +61,9 @@ export async function executionCommand(file,args,{cwd,timeout=45000,env=executio
     if(onOutput)streamText(name,tail,true);
    }
    await outputQueue;
-   done({ok:extra.exitCode===0&&!timedOut&&!outputFailed,stdout,stderr,truncated,timedOut,outputFailed,...extra});};
+   let processGroupAbsent=false;try{if(child.pid)process.kill(-child.pid,0);}catch(e){processGroupAbsent=e.code==='ESRCH';}
+   done({ok:extra.exitCode===0&&!timedOut&&!outputFailed,stdout,stderr,truncated,timedOut,outputFailed,
+    processId:child.pid??null,processGroupAbsent,...extra});};
   child.once('error',()=>finish({exitCode:null,spawnFailed:true}));
   child.once('close',(code,signal)=>finish({exitCode:code,signal}));
  });

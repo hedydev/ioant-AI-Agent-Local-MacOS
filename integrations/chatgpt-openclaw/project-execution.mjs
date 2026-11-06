@@ -9,8 +9,9 @@ import {ProjectExecutionStore,finalExecution} from './project-execution-store.mj
 import {executionPolicy,executionCatalog,SHA,CONVERSATION} from './project-execution-policy.mjs';
 import {executionEnvironment} from './project-execution-command.mjs';
 import {reportOutputSchema} from './project-report-contract.mjs';
-import {taskFilePath} from './repository-task.mjs';
+import {taskFilePath,MAX_TASK_STEP_SECONDS} from './repository-task.mjs';
 import {branchName} from './repository-delete-branch.mjs';
+import {repositoryTaskRecoveryReceipt} from './repository-task-recovery.mjs';
 import {ALICE_RESTART_TASK,PRIOR_DENIED_RESTART,aliceLifecycleApproval} from './alice-lifecycle-policy.mjs';
 import {reconciliationTool,reconcileAliceLifecycle,lifecycleRecoveryReceipt} from './alice-lifecycle-recovery.mjs';
 
@@ -76,7 +77,7 @@ export async function projectExecution(name,args,{binding,store=new ProjectExecu
    const generic=await policy(binding,{action:'repository_task'});
    if(generic?.action==='repository_task')result.actions.push({action:'repository_task',enabled:true,
     repository:generic.repository,branch:generic.branch,expectedCommitRequired:true,taskFileRequired:true,
-    taskDefinitionPattern:'.openclaw/tasks/<name>.json',scriptRoots:generic.scriptRoots,
+    taskDefinitionPattern:'.openclaw/tasks/<name>.json',maxStepTimeoutSeconds:MAX_TASK_STEP_SECONDS,scriptRoots:generic.scriptRoots,
     runtimes:Object.keys(generic.runtimes),workspaceModes:['current','in_place','isolated'],defaultWorkspaceMode:'current',currentHeadRequired:true,
     toolSchemaRequirement:'project_execute must expose workspace_mode; refresh the plugin tool catalog if absent. Do not use model-driven clone as a workaround.',scope:'Pinned tracked repository scripts as the current user; not an OS sandbox. No model inference.'});
    if(await policy(binding,{action:'repository_fetch'}))result.actions.push({action:'repository_fetch',enabled:true,requiresCleanWorktree:false,taskFileRequired:false,expectedCommitRequired:false,modelInferenceInvoked:false,scope:'Fetch enrolled origin/branch into FETCH_HEAD and its remote-tracking ref only. HEAD, index and local files are preserved; no merge, checkout, clone or tests.'});
@@ -100,7 +101,7 @@ export async function projectExecution(name,args,{binding,store=new ProjectExecu
    if(Object.keys(args).join(',')!=='operation_id'||typeof args.operation_id!=='string'||!operationId.test(args.operation_id))throw Error('invalid_operation_id');
    const r=await store.get(args.operation_id);
    if(!r)return {state:'not_found',operationId:args.operation_id};
-   const recovery=await lifecycleRecoveryReceipt(store,args.operation_id);
+   const recovery=await repositoryTaskRecoveryReceipt(store,args.operation_id)??await lifecycleRecoveryReceipt(store,args.operation_id);
    return {...publicReceipt(r),...(recovery?{reconciliation:recovery}:{})};
   }
   if(name!=='openclaw_project_execute'||!validExecutionInput(args))throw Error('invalid_project_execution_input');
