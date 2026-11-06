@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "event_id": "38cc0a4d-d3f7-4d2b-b691-5f7630d7945c",
+  "task_id": "586a6aa6-8b91-4c18-b61c-120999b3c343",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-11-06T11:50:11.813542+00:00",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "80176b990b676f47be66aaa6c764133000766ee0",
+  "message": "Loaded runtime acceptance: memory-key Tunnel-only reload to PID49198; cloud Drama sync01 result remains cached/inconclusive with reviewed reconciliation resolved/lockReleased=true/effectsVerified=false. Cloud actions advertises300s fetch budget for both actions and3600s task budget. Original business checkout unchanged; no sync/build replay. No Refresh required. Technical maintenance verified; business development and human acceptance remain separate.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "device_validation",
+      "summary": "actual cloud project_result and project_actions succeeded; one initial read-only connection timeout retried once without execution"
+    },
+    {
+      "kind": "documentation",
+      "summary": "docs/GIT_FETCH_SETTLEMENT_20261106.md records exact runtime and preservation evidence"
+    }
+  ],
+  "supersedes_event_id": null
+}
