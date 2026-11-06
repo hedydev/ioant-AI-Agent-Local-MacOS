@@ -8,7 +8,12 @@ preserving dirty local checkout. Default/current branches are blocked. Existing
 unknown operations must be reconciled, never replayed.1400 tests pass, including
 real bare-remote deletion and same-ID cache. Read docs/DELETE_BRANCH_CHECKPOINT_20261106.md
 and docs/MCP_EXECUTION_PLAYBOOK.md for live catalog rollout status. Source alone
-is not deployment. No WinCat branch deletion was performed by infrastructure work.
+is not deployment. The 2026-11-06 memory-key console reload completed; actual
+cloud actions for workflow and WinCat advertise repository_delete_branch enabled.
+Tunnel PID1232 is healthy; Web was not restarted. The current Chat caller schema
+still lacks the new action/branch fields, so plugin Refresh tools remains required
+before that caller can execute it. Never fall back to computer_task. No WinCat
+branch deletion was performed by infrastructure work.
 
 ## Compact console and native lane recovery (2026-11-06)
 

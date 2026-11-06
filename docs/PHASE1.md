@@ -476,3 +476,14 @@ runner evidence allowed reviewed compare-and-release of the single old Alice
 inference lane, preserving receipts/claims/effects. Actual MCP reports idle0/0;
 production UI confirms empty queue. No business operation was repeated. See
 [queue/recovery acceptance](CONSOLE_EXECUTION_QUEUE_20261106.md).
+
+## 2026-11-06 — Model-free authorized remote branch deletion
+
+repository_delete_branch directly uses fixed Git commands and an exact remote
+ref lease, then verifies absence while preserving the local checkout. Full1400
+tests pass, including a real bare Git remote and same-ID no-repeat. Source187335e
+is pushed; existing memory-key Tunnel reload completed without restarting Web.
+Actual workflow/WinCat actions advertise it enabled. Caller catalog Refresh is
+still required because this Chat's cached schema lacks the action/branch field.
+No WinCat branches were deleted. See
+[deletion deployment record](DELETE_BRANCH_CHECKPOINT_20261106.md).
