@@ -8,6 +8,10 @@ without retry or success claims. Old receipts use reviewed reconcile-git-fetch,
 remain inconclusive/doNotRepeat and receive a separate audit. All other uncertain
 Git/script/lifecycle operations retain protection. Never replay that old sync or
 assume its pinned target is still remote latest. No business source is changed.
+Full1410 regressions and final10 focused recovery checks pass. Historical Drama
+sync01 was reviewed/released with original SHA980a49...a82ed unchanged. Actual cloud
+result exposes resolved/lockReleased=true and actions shows300s for fetch/sync.
+Tunnel PID49198 is healthy; no further restart/Refresh or old task replay needed.
 
 ## Fixed task timeout recovery (2026-11-06)
 

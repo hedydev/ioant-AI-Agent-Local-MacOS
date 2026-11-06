@@ -79,3 +79,19 @@ unchanged. Audit decision=confirmed_fetch_ended_before_checkout_update,
 effectsVerified=false/taskRepeated=false. HEAD3ad32bf/main and six local changed
 file/index hashes remained identical through recovery. No business sync/build
 was executed. Runtime deployment/actual cloud acceptance are recorded below.
+
+## Loaded runtime acceptance
+
+Source80176b990b676f47be66aaa6c764133000766ee0 is pushed and remote main verified.
+With zero native/fixed running or queued jobs, the console reused its in-memory
+key to reload only Tunnel. Web was not restarted; no credentials were recovered.
+New managed Tunnel PID49198 is healthy at127.0.0.1:63468. Actual cloud result for
+the old Drama sync returns cached/inconclusive/doNotRepeat with reconciliation
+resolved/lockReleased=true/effectsVerified=false/originalReceiptPreserved=true.
+Actual cloud actions exposes fetchTimeoutSeconds=300 for both fetch and sync,
+while maxStepTimeoutSeconds=3600 remains available. One parallel read-only actions
+query encountered a gateway connection timeout during initial acceptance; its
+single sequential read-only retry succeeded. No execution was submitted/retried.
+This update adds no caller arguments or tool names, so no Refresh is required.
+Original project HEAD and local edits remain unchanged; product tests and a newly
+authorized sync remain with the project's Chat after reviewing current state.
