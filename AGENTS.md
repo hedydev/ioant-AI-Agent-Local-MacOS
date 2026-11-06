@@ -8,6 +8,11 @@ with pinned source/process rechecks and an explicit effects-unverified audit.
 Never delete locks, automatically retry unknown work, or use this path for Alice
 lifecycle/Git mutations. Source permits explicit task steps up to3600s (default60
 unchanged); local model budgets remain separate. No WinCat source is modified.
+Full1405 tests pass. Actual WinCat019 lease recovery is audited; original receipt
+SHA05e0ac...7176e8 is unchanged. Loaded Tunnel PID28630 and real cloud result expose
+resolved/lockReleased=true with effectsVerified=false, while actions advertises
+maxStepTimeoutSeconds=3600. No further restart/Refresh or build replay is needed
+for this infrastructure task. Product build/DMG validation remains with WinCat.
 
 ## Direct remote branch deletion (2026-11-06)
 

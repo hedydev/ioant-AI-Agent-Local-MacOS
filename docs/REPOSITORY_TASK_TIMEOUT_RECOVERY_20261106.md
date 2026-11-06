@@ -87,3 +87,16 @@ inconclusive, effectsVerified=false and taskRepeated=false. The review and audit
 are under the project's private task-reconciliation directory, outside hot
 receipt capacity. No WinCat build, install, launch, Git sync or source edit was
 performed by this maintenance task. Runtime reader rollout is recorded below.
+
+## Loaded runtime acceptance
+
+Source bf85b5e was pushed and remote main verified. With both native and fixed
+queues empty, the existing Web memory-key control reloaded only Tunnel; Web and
+credentials were not restarted/recovered. New managed PID28630 is healthy at
+127.0.0.1:58638. Actual cloud project_result for019 still returns cached=true,
+inconclusive/doNotRepeat=true and now reconciliation.state=resolved,
+lockReleased=true/effectsVerified=false/originalReceiptPreserved=true. Actual
+cloud project_actions for WinCat advertises maxStepTimeoutSeconds=3600. No new
+tool name or argument schema is required for this update; no plugin Refresh is
+needed for these two existing read calls or committed task-file timeout values.
+No release build or DMG acceptance is implied by infrastructure acceptance.
