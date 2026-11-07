@@ -27,7 +27,9 @@ export function activityRow(r,kind,project){
  if(!id(r.operationId)||!id(project??result.project_key??result.project)||!id(state))return null;
  const row={id:kind+':'+(project??result.project_key??result.project)+':'+r.operationId,operationId:r.operationId,kind,
   project:project??result.project_key??result.project,state,
-  startedAt:r.startedAt??r.createdAt??r.started_at??null,finishedAt:r.finishedAt??r.finished_at??null,
+  submittedAt:r.createdAt??(kind==='computer'&&r.job?r.startedAt:null),
+  startedAt:(kind==='computer'&&r.job?r.agentStartedAt:r.startedAt??r.started_at)??null,
+  finishedAt:r.finishedAt??r.finished_at??null,
   action:id(r.input?.action),reason:id(result.reason),agent:id(result.agent??r.agent),
   taskFile:typeof r.input?.task_file==='string'&&/^\.openclaw\/tasks\/[a-z][a-z0-9_-]{0,63}\.json$/.test(r.input.task_file)?r.input.task_file:undefined,
   reportedInferenceLaneHeld:result.inferenceLaneHeld===true,
@@ -38,7 +40,7 @@ export function activityRow(r,kind,project){
   modelInferenceInvoked:kind==='execution'?false:kind==='computer'?(typeof r.modelInferenceInvoked==='boolean'?r.modelInferenceInvoked:typeof result.modelInferenceInvoked==='boolean'?result.modelInferenceInvoked:null):undefined};
  if(kind==='execution')Object.assign(row,{
   commit:/^[a-f0-9]{40}$/.test(r.actualCommit)?r.actualCommit:null,worktreeClean:r.worktreeClean===true,
-  steps:Array.isArray(r.steps)?r.steps.map(s=>({name:id(s.name),state:id(s.state),capability:id(s.capability),runtime:id(s.runtime),script:typeof s.script==='string'?cleanText(s.script):undefined,exitCode:s.exitCode,startedAt:s.startedAt,finishedAt:s.finishedAt})):[],
+  steps:Array.isArray(r.steps)?r.steps.map(s=>({name:id(s.name),state:id(s.state),capability:id(s.capability),runtime:id(s.runtime),script:typeof s.script==='string'?cleanText(s.script):undefined,exitCode:s.exitCode,startedAt:s.startedAt,finishedAt:s.finishedAt,timedOut:s.timedOut===true})):[],
   artifacts:[{id:'execution_log'},...(r.artifacts??[]).map(a=>({id:id(a.artifact),bytes:a.bytes,format:id(a.format)}))]});
  return row;
 }
@@ -62,7 +64,7 @@ export async function loadActivity({parent=PRIVATE_ROOT,bindings=registeredProje
  }
  for(const {path} of await privateJsonFiles(join(parent,'direct-workspace-connect'),100)){
   try{const row=activityRow(JSON.parse(await privateRead(path)),'connect');if(row)activities.push(row);}catch{}}
- activities.sort((a,b)=>Date.parse(b.finishedAt??b.startedAt??0)-Date.parse(a.finishedAt??a.startedAt??0));
+ activities.sort((a,b)=>Date.parse(b.finishedAt??b.startedAt??b.submittedAt??0)-Date.parse(a.finishedAt??a.startedAt??a.submittedAt??0));
  const scheduler=await schedule(parent,bindings),all=attachScheduler(activities,scheduler);
  // Recent history is bounded, but live/queued/uncertain leases must never be
  // pushed out of view by a busy project's newer completed operations.

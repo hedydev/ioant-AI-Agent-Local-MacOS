@@ -36,7 +36,7 @@ export function attachScheduler(rows,scheduler){
  for(const slot of n.reservations){
   const active=n.active?.project===slot.project&&n.active?.operationId===slot.operationId;
   let row=result.find(r=>r.kind==='computer'&&r.project===slot.project&&r.operationId===slot.operationId);
-  if(!row){row={id:'computer:'+slot.project+':'+slot.operationId,kind:'computer',project:slot.project,operationId:slot.operationId,state:'inconclusive',reason:'queue_receipt_unavailable',startedAt:slot.at,orphanedLease:true};result.push(row);}
+  if(!row){row={id:'computer:'+slot.project+':'+slot.operationId,kind:'computer',project:slot.project,operationId:slot.operationId,state:'inconclusive',reason:'queue_receipt_unavailable',submittedAt:slot.at,orphanedLease:true};result.push(row);}
   row.reservationHeld=true;
   if(active){row.activeReservation=true;if(!['accepted','running','started'].includes(row.state))row.inferenceLaneHeld=true;}
   else if(['accepted','running','started'].includes(row.state)){row.phase='queued';row.queuePosition=++position;}

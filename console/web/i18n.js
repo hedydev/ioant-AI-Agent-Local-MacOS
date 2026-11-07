@@ -76,6 +76,8 @@ Object.assign(en,{'state.issue_timeout':'Agent timeout','state.issue_channel':'I
 Object.assign(zh,{'state.issue_timeout':'执行超时','state.issue_channel':'调用异常','state.issue_receipt':'最终回执缺失','state.issue_login':'登录未确认','state.issue_legacy':'旧记录未结束','state.issue_unknown':'执行证据不全'});
 Object.assign(en,{'queue.title':'MCP execution status','queue.readOnly':'Live status'});
 Object.assign(zh,{'queue.title':'MCP 执行状态','queue.readOnly':'实时状态'});
+Object.assign(en,{'timing.submitted':'Submitted','timing.started':'Started','timing.finished':'Ended','timing.total':'Total (incl. waiting)','timing.execution':'Execution time','timing.live':'Elapsed so far','timing.seconds':'{value} s','timing.minutes':'{minutes}m {seconds}s','timing.hours':'{hours}h {minutes}m {seconds}s','state.issue_stepTimeout':'Step timed out','review.reason.stepTimeout':'An executor step exceeded its time limit'});
+Object.assign(zh,{'timing.submitted':'提交','timing.started':'开始','timing.finished':'结束','timing.total':'总耗时（含等待）','timing.execution':'执行耗时','timing.live':'已耗时','timing.seconds':'{value} 秒','timing.minutes':'{minutes} 分 {seconds} 秒','timing.hours':'{hours} 小时 {minutes} 分 {seconds} 秒','state.issue_stepTimeout':'步骤超时','review.reason.stepTimeout':'执行步骤达到时间上限'});
 export const catalogs={'en-US':en,'zh-CN':zh};
 en['project.test']='Test';zh['project.test']='测试';
 let preference=localStorage.getItem('openclaw-console.locale')??'system';
@@ -85,4 +87,11 @@ export function localePreference(){return preference;}
 export function t(key,values={}){const template=catalogs[locale()][key]??en[key];if(template===undefined){console.warn('Missing locale key:',key);return key;}return template.replace(/\{([a-zA-Z]+)\}/g,(_,k)=>String(values[k]??''));}
 export function errorText(code){return en['error.'+code]?t('error.'+code):t('common.error',{code});}
 export function time(value){if(!value)return t('common.unknown');const d=new Date(value);return Number.isFinite(d.getTime())?new Intl.DateTimeFormat(locale(),{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d):t('common.unknown');}
+export function dateTime(value){const ms=Date.parse(value);return Number.isFinite(ms)?new Intl.DateTimeFormat(locale(),{dateStyle:'medium',timeStyle:'medium',hourCycle:'h23'}).format(ms):t('common.unknown');}
+export function duration(ms){
+ if(!Number.isFinite(ms)||ms<0)return t('common.unknown');
+ if(ms<60000)return t('timing.seconds',{value:new Intl.NumberFormat(locale(),{maximumFractionDigits:ms<1000?3:1}).format(ms/1000)});
+ const seconds=Math.floor(ms/1000),parts={hours:number(Math.floor(seconds/3600)),minutes:number(Math.floor(seconds/60)%60),seconds:number(seconds%60)};
+ return t(seconds>=3600?'timing.hours':'timing.minutes',parts);
+}
 export function number(value){return Number.isFinite(value)?new Intl.NumberFormat(locale()).format(value):t('common.unknown');}

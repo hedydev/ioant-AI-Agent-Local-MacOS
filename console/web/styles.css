@@ -24,3 +24,10 @@
 .with-help{display:flex;align-items:center;gap:9px}.help-button{display:inline-grid;place-items:center;flex-shrink:0;width:21px;height:21px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;line-height:1}.help-button:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}.task-tab-strip{display:flex;gap:6px;flex-wrap:wrap}.task-tabs{align-items:center}.task-tabs>.help-button{margin-left:4px}#help-dialog{width:min(580px,calc(100vw - 32px))}#help-dialog .dialog-heading{margin-bottom:16px}#help-dialog h2{font-size:18px}#help-content{max-height:65vh;overflow:auto}#help-content p{margin:0;padding:11px 0;font-size:13px;line-height:1.8}#help-content p+p{border-top:1px solid var(--border)}#metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.activity-top .activity-name{flex:1}.activity-top .help-button{width:19px;height:19px}.page-heading:has(#page-subtitle[hidden]){margin-bottom:22px}
 
 .queue-metrics strong{font-size:23px;overflow-wrap:anywhere}.queue-slots:empty{display:none}.queue-slot{max-width:420px}
+.task-timing{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;color:var(--muted);font-size:11px}
+.task-timing time{font-variant-numeric:tabular-nums}
+.execution-step .task-timing{flex:0 0 100%;margin-top:0}
+.execution-step code{overflow-wrap:anywhere}
+#report-timing{margin-bottom:var(--s3);max-height:30vh;overflow:auto}
+#report-timing .execution-step{margin-top:8px;font-size:11px}
+#report-timing .execution-step code{margin-inline:8px}

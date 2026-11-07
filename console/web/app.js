@@ -3,7 +3,7 @@ import {renderQueueSummary,renderTaskTabs} from './queue-render.js';
 import {taskBucket,projectName} from './task-model.js';
 import {api,subscribe} from './api-client.js';
 import {t,errorText,time,setLocale,localePreference} from './i18n.js';
-import {node,renderStatus,renderPermissions,renderHistory,renderActivities,renderCommunications,renderLogs,helpButton} from './render.js';
+import {node,renderStatus,renderPermissions,renderHistory,renderActivities,renderCommunications,renderLogs,renderReportTiming,helpButton} from './render.js';
 
 const $=id=>document.getElementById(id);
 const state={snapshot:null,view:decodeRoute(location.hash).view,selectedProject:decodeRoute(location.hash).project,pending:null,taskTab:'running',projectTaskTab:'running',project:'all',status:'all',search:'',logLevel:'all',logSearch:'',paused:false,logRows:[],stream:false};
@@ -40,6 +40,10 @@ function applyLocale(){
 function theme(value){if(value==='system')document.documentElement.removeAttribute('data-theme');else document.documentElement.dataset.theme=value;localStorage.setItem('openclaw-console.theme',value);}
 function render(){
  const snapshot=state.snapshot;if(!snapshot)return;
+ if($('report-dialog').open&&reportRow){
+  reportRow=snapshot.activities.find(row=>row.id===reportRow.id)??reportRow;
+  renderReportTiming($('report-timing'),reportRow);
+ }
  const names=new Map(snapshot.projects.map(p=>[p.key,projectName(p)]));
  for(const row of snapshot.activities)row.projectName=names.get(row.project)??row.project;
  renderQueueSummary($('activity-queue'),snapshot);
@@ -103,7 +107,7 @@ async function loadReport(){
   $('report-content').textContent=r.logText??t('report.unavailable');$('report-meta').textContent=t('report.meta',{count:r.totalCharacters??0,offset:r.offset??0,hash:r.sha256??'—'});reportNext=r.nextOffset;$('report-next').disabled=!Number.isInteger(reportNext);
  }catch(e){$('report-content').textContent=t('report.error',{code:e.code});}
 }
-function openReport(row){reportRow=row;reportOffset=0;$('report-title').textContent=row.operationId;options($('report-artifact'),row.artifacts.map(a=>[a.id,a.id]),'execution_log');$('report-dialog').showModal();loadReport();}
+function openReport(row){reportRow=row;reportOffset=0;$('report-title').textContent=row.operationId;options($('report-artifact'),row.artifacts.map(a=>[a.id,a.id]),'execution_log');renderReportTiming($('report-timing'),row);$('report-dialog').showModal();loadReport();}
 $('report-close').onclick=()=>$('report-dialog').close();$('report-artifact').onchange=()=>{reportOffset=0;loadReport();};$('report-next').onclick=()=>{if(Number.isInteger(reportNext)){reportOffset=reportNext;loadReport();}};
 $('remove-project').onclick=()=>{
  removingProject=state.snapshot.projects.find(p=>p.key===state.selectedProject);if(!removingProject)return;

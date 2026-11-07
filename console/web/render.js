@@ -1,5 +1,5 @@
-import {t,time,number} from './i18n.js';
-import {taskBucket,taskTitle,elapsedSeconds,reviewCategory} from './task-model.js';
+import {t,time,number,dateTime,duration} from './i18n.js';
+import {taskBucket,taskTitle,elapsedMs,reviewCategory} from './task-model.js';
 export function node(tag,attrs={},...children){const e=document.createElement(tag);for(const [k,v] of Object.entries(attrs)){if(v===undefined||v===null)continue;if(k==='class')e.className=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else if(k==='disabled'||k==='hidden')e[k]=v;else e.setAttribute(k,String(v));}for(const c of children.flat()){if(c===null||c===undefined)continue;e.append(c instanceof Node?c:document.createTextNode(String(c)));}return e;}
 export function helpButton(title,paragraphs,key){
  return node('button',{class:'help-button',type:'button','aria-label':t('help.about',{title}),'data-focus':'help:'+key,onclick:e=>{
@@ -29,27 +29,54 @@ export function renderStatus(snapshot,handlers,pending){
  for(const [i,[key,symbol]] of names.entries()){if(i)flow.push(node('div',{class:'flow-line '+(state==='ready'?'live':'')}));flow.push(node('div',{class:'flow-node'},node('div',{class:'flow-icon'},symbol),node('strong',{},t('flow.'+key)),node('small',{},t('flow.'+key+'Hint'))));}
  document.getElementById('connection-flow').replaceChildren(...flow);
 }
+function timing(row,live){
+ let {submittedAt,startedAt,finishedAt}=row;
+ // A running console can serve newer assets before its receipt reader reloads.
+ if(!Object.hasOwn(row,'submittedAt')&&row.kind==='computer'&&(row.asynchronous||row.orphanedLease)){
+  submittedAt=startedAt;startedAt=null;
+ }
+ if(!Object.hasOwn(row,'submittedAt')&&row.kind==='execution'&&
+  (row.state==='accepted'||['project_execution_busy','project_runner_not_started','project_action_not_enabled'].includes(row.reason))){
+  submittedAt=startedAt;startedAt=null;
+ }
+ const items=[
+  ...(submittedAt?[['submitted',submittedAt]]:[]),['started',startedAt],['finished',finishedAt]
+ ];
+ const total=elapsedMs(submittedAt??startedAt,finishedAt,live);
+ return node('div',{class:'task-timing'},...items.map(([label,value])=>node('span',{},t('timing.'+label),' ',
+  node('time',{datetime:Number.isFinite(Date.parse(value))?value:undefined},dateTime(value)))),
+  node('span',{},t(live&&!finishedAt?'timing.live':submittedAt?'timing.total':'timing.execution'),' ',duration(total)));
+}
+function executionStep(step,live){
+ return node('div',{class:'execution-step'},badge(step.state),
+  node('code',{},[step.name,step.runtime,step.script].filter(Boolean).join(' · ')),
+  Number.isInteger(step.exitCode)?node('small',{},'exit '+step.exitCode):null,
+  timing(step,live&&step.state==='running'));
+}
+export function renderReportTiming(target,row){
+ const live=taskBucket(row)==='running';
+ target.replaceChildren(timing(row,live),...(row.steps??[]).map(step=>executionStep(step,live)));
+}
 export function renderActivities(target,rows,onReport){
  const expanded=new Set([...target.querySelectorAll('details[open]')].map(e=>e.dataset.operation));
  target.replaceChildren(...(rows.length?rows.map(r=>{
   const bucket=taskBucket(r),label=taskTitle(r);
   const titleText=label?(!r.taskFile&&['repository_task','repository_fetch','repository_sync'].includes(label)?t('queue.action.'+label):label):t('activity.'+r.kind);
   const title=node('div',{class:'activity-top'},node('span',{class:'activity-name'},titleText),r.archived?node('span',{class:'badge neutral'},t('history.archived')):null,badge(bucket==='queued'?'queued':bucket==='attention'?'issue_'+reviewCategory(r):r.state),bucket==='attention'?helpButton(t('queue.tab.attention'),[t('review.meaning'),t('review.reason.'+reviewCategory(r)),r.reason??t('review.reason.legacy'),t('review.next')],r.id):null);
-  const actions=node('div',{class:'activity-footer'},node('code',{title:r.operationId},r.operationId),r.kind==='execution'&&r.artifacts?.length?node('button',{class:'text-button','data-focus':r.id,onclick:()=>onReport(r)},t('activity.report')):node('span',{},time(r.finishedAt??r.startedAt)));
+  const actions=node('div',{class:'activity-footer'},node('code',{title:r.operationId},r.operationId),r.kind==='execution'&&r.artifacts?.length?node('button',{class:'text-button','data-focus':r.id,onclick:()=>onReport(r)},t('activity.report')):null);
   const used=node('div',{class:'capability-list'},node('span',{},t('capabilities.used')),
   ...(r.toolsUsed?.successful?.length?r.toolsUsed.successful.map(x=>node('code',{},x)):[node('span',{},t(r.toolsUsed?.evidence==='unavailable'?'capabilities.unknown':'capabilities.none'))]));
-  const steps=r.steps?.length?node('details',{class:'execution-steps','data-operation':r.id,open:expanded.has(r.id)?true:undefined},node('summary',{'data-focus':r.id+':steps'},t('capabilities.steps')),...r.steps.map(s=>node('div',{},badge(s.state),node('code',{},[s.name,s.runtime,s.script].filter(Boolean).join(' · ')),node('small',{},s.exitCode!==undefined?'exit '+s.exitCode:'')))):null;
+  const steps=r.steps?.length?node('details',{class:'execution-steps','data-operation':r.id,open:expanded.has(r.id)?true:undefined},node('summary',{'data-focus':r.id+':steps'},t('capabilities.steps')),...r.steps.map(s=>executionStep(s,bucket==='running'))):null;
   const detail=r.steps?.length?t('activity.steps',{done:r.steps.filter(s=>s.state==='passed').length,total:r.steps.length}):r.reason??'';
-  const elapsed=elapsedSeconds(r),usage=node('div',{class:'task-usage'},
+  const usage=node('div',{class:'task-usage'},
    node('span',{},t(r.kind==='computer'?'queue.localLane':r.kind==='execution'?'queue.fixedLane':'queue.connectionLane')),
-   node('span',{},t('queue.elapsed',{seconds:elapsed??'—'})),
    Number.isFinite(r.agentDurationMs)?node('span',{},t('queue.agentDuration',{seconds:Math.round(r.agentDurationMs/1000)})):null,
    node('span',{},t(r.modelInferenceInvoked===true?'queue.modelUsed':r.modelInferenceInvoked===false?'queue.modelNotUsed':'queue.modelUnknown')),
    r.queuePosition?node('span',{class:'badge warn'},t('queue.position',{position:r.queuePosition})):null,
    r.inferenceLaneHeld||r.orphanedLease?node('span',{class:'badge warn'},t('queue.held')):null,
    r.schedulerObserved&&bucket==='attention'&&r.kind==='computer'&&!r.reservationHeld&&!r.activeReservation?node('span',{},t('queue.noCurrentSlot')):null,
    r.kind==='computer'?node('span',{},t('queue.tokensUnknown')):null);
-  return node('div',{class:'activity-row','data-operation-id':r.operationId},node('span',{class:'activity-icon'},r.kind==='execution'?'>_':r.kind==='connect'?'↗':r.kind==='remove'?'−':'⌖'),node('div',{class:'activity-content'},title,node('p',{class:'activity-project',title:r.project},r.projectName??r.project),node('small',{class:'task-project-key'},r.project),node('div',{class:'activity-footer'},node('span',{},detail),node('span',{},r.commit?r.commit.slice(0,8):time(r.finishedAt??r.startedAt))),usage,used,steps,actions));
+  return node('div',{class:'activity-row','data-operation-id':r.operationId},node('span',{class:'activity-icon'},r.kind==='execution'?'>_':r.kind==='connect'?'↗':r.kind==='remove'?'−':'⌖'),node('div',{class:'activity-content'},title,node('p',{class:'activity-project',title:r.project},r.projectName??r.project),node('small',{class:'task-project-key'},r.project),node('div',{class:'activity-footer'},node('span',{},detail),r.commit?node('span',{},r.commit.slice(0,8)):null),timing(r,bucket==='running'||bucket==='queued'),usage,used,steps,actions));
  }):[empty('activity.empty')]));
 }
 export function renderCommunications(rows){

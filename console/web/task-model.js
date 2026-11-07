@@ -9,6 +9,7 @@ export function taskBucket(row){
 }
 export function taskCounts(rows){return Object.fromEntries(TASK_TABS.map(k=>[k,rows.filter(r=>taskBucket(r)===k).length]));}
 export function reviewCategory(row){
+ if(row.kind==='execution'&&row.steps?.some(step=>step.timedOut))return 'stepTimeout';
  if(row.reason==='agent_run_timeout')return 'timeout';
  if(/receipt|record_unavailable/.test(row.reason??''))return 'receipt';
  if(row.reason==='agent_cli_failed')return 'channel';
@@ -29,7 +30,7 @@ export function taskTitle(row){
  if(row.taskFile)return row.taskFile.split('/').at(-1).replace(/\.json$/,'').replace(/[_-]/g,' ');
  return row.action??null;
 }
-export function elapsedSeconds(row,now=Date.now()){
- const start=Date.parse(row.startedAt),end=row.finishedAt?Date.parse(row.finishedAt):now;
- return Number.isFinite(start)&&Number.isFinite(end)&&end>=start?Math.floor((end-start)/1000):null;
+export function elapsedMs(startedAt,finishedAt,live=false,now=Date.now()){
+ const start=Date.parse(startedAt),end=finishedAt?Date.parse(finishedAt):live?now:NaN;
+ return Number.isFinite(start)&&Number.isFinite(end)&&end>=start?end-start:null;
 }

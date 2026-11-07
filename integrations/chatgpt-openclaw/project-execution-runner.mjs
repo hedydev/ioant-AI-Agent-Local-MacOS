@@ -34,7 +34,7 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
   const row={name,state:'running',startedAt:new Date().toISOString(),
    capability:file==='/usr/bin/git'?'git':'script',runtime:file.split('/').at(-1),
    ...(options.script?{script:options.script}:{} )};record.steps.push(row);await save();
-  await append('\n['+name+'] started\n');
+  await append(`\n[${row.startedAt}] [${name}] started\n`);
   let streamed=false;
   const r=await command(file,args,{cwd:policy.repo,...options,
    ...(name==='validate_tree'?{}:{onOutput:async text=>{streamed=true;await append(text);}})});
@@ -45,6 +45,8 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
   if(name==='validate_tree')await append('Bounded Git tree metadata validated separately; file listing omitted.\n');
   else if(r.truncated){record.logTruncated=true;await append('Output omitted because capture limit was exceeded.\n');}
   else if(!streamed)await append(r.stdout+'\n'+r.stderr+'\n');
+  const durationMs=Date.parse(row.finishedAt)-Date.parse(row.startedAt);
+  await append(`\n[${row.finishedAt}] [${name}] finished state=${row.state} duration_ms=${durationMs}\n`);
   await save();
   if(!r.ok){
    if(name==='fetch'&&r.timedOut&&!r.outputFailed){

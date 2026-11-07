@@ -23,7 +23,7 @@ export async function runComputerJob(binding,id,{store=computerProjectStore(bind
    if(!await policy())result={state:'blocked',reason:'project_computer_permission_changed',modelInferenceInvoked:false};
    else{
     const memory=await residency();
-    await store.progress(id,record.digest,'agent_running',{runnerPid:process.pid,modelInferenceInvoked:true,
+    await store.progress(id,record.digest,'agent_running',{runnerPid:process.pid,modelInferenceInvoked:true,agentStartedAt:new Date(now()).toISOString(),
      modelResidentAtStart:memory.state==='observed'?memory.models.some(m=>m.name==='gemma4:26b-a4b'):null,agentTimeoutSeconds:300});
     // Set uncertainty BEFORE invocation: a crash must never release this lane.
     terminal=false;const outcome=await perform(record.job.input,{binding});
