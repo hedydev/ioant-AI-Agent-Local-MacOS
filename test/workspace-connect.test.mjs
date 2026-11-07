@@ -3,11 +3,10 @@ import assert from 'node:assert/strict';
 import {mkdtemp,realpath,chmod,mkdir,writeFile,readFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {isDeepStrictEqual} from 'node:util';
 import {ComputerTaskStore} from '../integrations/chatgpt-openclaw/computer-task-store.mjs';
 import {connectWorkspaceProject,generatedProjectBinding} from '../integrations/chatgpt-openclaw/workspace-connect.mjs';
 import {readRepositoryTaskGrants} from '../integrations/chatgpt-openclaw/repository-task-policy.mjs';
-import {nativeProjectPatch,projectAgentDefinition,provisionProjectAgent} from '../integrations/chatgpt-openclaw/native-project-agent.mjs';
+import {nativeProjectPatch,projectAgentDefinition,provisionProjectAgent,verifyNativeProjectDiskConfig} from '../integrations/chatgpt-openclaw/native-project-agent.mjs';
 async function fixture(t){
  const parent=await realpath(await mkdtemp(join(tmpdir(),'ioant-connect-')));await chmod(parent,0o700);t.after(()=>rm(parent,{recursive:true,force:true}));
  const store=new ComputerTaskStore(join(parent,'claims'),parent),repo={repository_id:'a'.repeat(24),name:'Example',repo:join(parent,'repo'),repository:'github.com/fixture/repo',branch:'main',origin:'git@github.com:fixture/repo.git'};
@@ -55,16 +54,17 @@ test('native patch creates deny-all local Agent and cannot edit an existing or p
 });
 test('native provisioning dry-validates, backs up, adds one Agent and verifies disk/live without inference',async t=>{
  const f=await fixture(t),agentRoot=join(f.parent,'agents'),backups=join(f.parent,'backups'),configPath=join(f.parent,'config.json');
- await mkdir(agentRoot,{mode:0o700});await mkdir(backups,{mode:0o700});const before=config();await writeFile(configPath,JSON.stringify(before),{mode:0o600});
+ await mkdir(agentRoot,{mode:0o700});await mkdir(backups,{mode:0o700});const before={...config(),meta:{lastTouchedVersion:'2026.10.7'}};await writeFile(configPath,JSON.stringify(before),{mode:0o600});
  const binding=generatedProjectBinding(f.repo,{agentRoot}),calls=[];
  const command=async(args,patch)=>{
   calls.push(args.join(' '));
   if(args[0]==='gateway'){const c=JSON.parse(await readFile(configPath,'utf8'));return JSON.stringify({sourceConfig:c,config:c,parsed:c,resolved:c});}
-  if(!args.includes('--dry-run')){const c=JSON.parse(await readFile(configPath,'utf8'));Object.assign(c.agents.entries,patch.agents.entries);await writeFile(configPath,JSON.stringify(c),{mode:0o600});}
+  if(!args.includes('--dry-run')){const c=JSON.parse(await readFile(configPath,'utf8'));Object.assign(c.agents.entries,patch.agents.entries);c.meta.lastTouchedVersion='2026.10.8';await writeFile(configPath,JSON.stringify(c),{mode:0o600});}
   return '{}';
  };
  const r=await provisionProjectAgent(binding,{configPath,agentRoot,backups,command,fullAccess:false});assert.equal(r.nativeAgentCreated,true);assert.equal(r.modelInferenceInvoked,false);
  assert.deepEqual(calls,['config patch --stdin --dry-run --json','config patch --stdin','gateway call config.get --json']);
- const after=JSON.parse(await readFile(configPath,'utf8'));delete after.agents.entries[binding.agentId];assert.equal(isDeepStrictEqual(after,before),true);
+ const after=JSON.parse(await readFile(configPath,'utf8'));delete after.agents.entries[binding.agentId];verifyNativeProjectDiskConfig(after,before);
+ after.agents.entries.main.workspace='/unexpected';assert.throws(()=>verifyNativeProjectDiskConfig(after,before),/native_project_disk_readback_requires_review/);
  assert.match(await readFile(join(binding.workspace,'AGENTS.md'),'utf8'),/no-tools advisor/);
 });

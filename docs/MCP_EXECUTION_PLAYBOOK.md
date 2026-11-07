@@ -71,6 +71,11 @@ repository_task 的版本化脚本，不用 Gemma 临时终端转述代替执行
 - **工具目录不同步：** 能力/动作公布了功能，但当前调用 schema 缺参数或枚举时，
   先刷新并在实际调用 Chat 核对。不要传 schema 不接受的参数，也不要据此改用模型
   终端。只有安装了新版运行代码才需要对应部署；普通文档更新无需重启 Tunnel。
+- **新项目注册磁盘回读失败：** R_EduCore 的 Agent 已写入，OpenClaw CLI 同时
+  更新了 `meta.lastTouchedVersion`，旧注册器因此在发布仓库授权前停止。新版
+  回读只接受该 CLI 版本标记的合法变化，其他配置仍精确核对，并检查 Gateway
+  实际配置。原操作已按备份、原回执和既有 Agent 核查后补发项目授权，保留原回执，
+  未重复创建 Agent。MCP 项目列表、Agent 状态和固定任务权限均已实机核对。
 - **前置检查失败：** `git_preflight_failed` 本身无法区分路径、身份、Git 命令或
   输出边界问题。保留原回执并取得具体诊断；不能直接断定是脏工作区、损坏或没权限。
   只读 inspect 直接返回 branch（游离时 null）、headState、registeredBranch 和

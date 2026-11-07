@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "event_id": "abea12ab-1465-480a-b749-947604f0e76d",
+  "task_id": "586a6aa6-8b91-4c18-b61c-120999b3c343",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-11-07T16:45:57.017865+00:00",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "607341dc35eb6088a5b556247e7fed6dcc5bb012",
+  "message": "Fixed the workspace-connect readback to accept a valid OpenClaw lastTouchedVersion stamp while preserving exact checks for the rest of the configuration. Recovered R_EduCore by reviewing the original receipt and backup, confirming the existing Agent on disk and in the Gateway, and publishing the missing repository grant.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "execution_receipt",
+      "summary": "Original reducare_connect_20261108_001 preserved; live MCP lists repo-r-educore-51c8dfd99f, Agent ready, repository_task enabled."
+    },
+    {
+      "kind": "automated_tests",
+      "summary": "1417 tests passed; readback fixture accepts the CLI version update and rejects unrelated Agent changes."
+    }
+  ],
+  "supersedes_event_id": null
+}

@@ -48,6 +48,20 @@ export async function nativeConfigCommand(args,input){
   child.stdin.end(input===undefined?'':JSON.stringify(input));
  });
 }
+export function verifyNativeProjectDiskConfig(actual,expected){
+ // OpenClaw stamps its CLI version on a successful config write.
+ const version=actual?.meta?.lastTouchedVersion;
+ const comparison=typeof version==='string'&&/^\d{4}\.\d{1,2}\.\d{1,2}(?:[-+][0-9A-Za-z.-]+)?$/.test(version)
+  ?{...expected,meta:{...expected.meta,lastTouchedVersion:version}}:expected;
+ if(!isDeepStrictEqual(actual,comparison))throw Error('native_project_disk_readback_requires_review');
+}
+export function verifyNativeProjectLiveConfig(live,binding,expectedAgent){
+ const layers=['sourceConfig','config','parsed','resolved'].map(k=>live[k]).filter(Boolean);
+ if(!layers.length||layers.some(c=>!(directAgentPolicy(c,binding.agentId)||fullProjectToolPolicy(c.agents.entries[binding.agentId]))||
+  c.agents.entries[binding.agentId].workspace!==binding.workspace||
+  !isDeepStrictEqual(c.agents.entries[binding.agentId].tools,expectedAgent.tools)))
+  throw Error('native_project_live_readback_pending');
+}
 export async function provisionProjectAgent(binding,{configPath=CONFIG,agentRoot=AGENT_ROOT,
  backups=join(homedir(),'.openclaw/backups'),fullAccess=projectFullAccessEnabled(),command=nativeConfigCommand,onMutation=async()=>{}}={}){
  if(['OPENCLAW_PROFILE','OPENCLAW_CONFIG_PATH','OPENCLAW_STATE_DIR'].some(k=>process.env[k]))throw Error('custom_profile_not_supported');
@@ -65,12 +79,8 @@ export async function provisionProjectAgent(binding,{configPath=CONFIG,agentRoot
  await onMutation('native_config_write');
  await command(['config','patch','--stdin'],patch);
  const expected=structuredClone(before);expected.agents.entries[binding.agentId]=patch.agents.entries[binding.agentId];
- if(!isDeepStrictEqual(await readPrivateJson(configPath),expected))throw Error('native_project_disk_readback_requires_review');
+ verifyNativeProjectDiskConfig(await readPrivateJson(configPath),expected);
  const live=JSON.parse(await command(['gateway','call','config.get','--json']));
- const layers=['sourceConfig','config','parsed','resolved'].map(k=>live[k]).filter(Boolean);
- if(!layers.length||layers.some(c=>!(directAgentPolicy(c,binding.agentId)||fullProjectToolPolicy(c.agents.entries[binding.agentId]))||
-  c.agents.entries[binding.agentId].workspace!==binding.workspace||
-  !isDeepStrictEqual(c.agents.entries[binding.agentId].tools,expected.agents.entries[binding.agentId].tools)))
-  throw Error('native_project_live_readback_pending');
+ verifyNativeProjectLiveConfig(live,binding,expected.agents.entries[binding.agentId]);
  return {nativeAgentCreated:true,toolsEnabled:fullProjectToolPolicy(expected.agents.entries[binding.agentId]),computerControlEnabled:fullProjectToolPolicy(expected.agents.entries[binding.agentId]),modelInferenceInvoked:false};
 }
