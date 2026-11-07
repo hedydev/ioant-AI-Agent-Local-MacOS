@@ -13,6 +13,8 @@ import {inspectExecutionRepository,createIsolatedRepository} from './execution-r
 import {ALICE_RESTART_TASK,PRIOR_DENIED_RESTART,aliceLifecycleApproval,verifyAliceLifecyclePlan,verifyAliceLifecycleScript,validateAliceLifecycleReceipt} from './alice-lifecycle-policy.mjs';
 export {inspectExecutionRepository} from './execution-repository.mjs';
 
+const CANDIDATE_TREE_METADATA_LIMIT=1024*1024;
+
 export function pythonTestEvidence(text,exitCode){
  const m=[...String(text).matchAll(/Ran (\d+) tests? in [^\r\n]+/g)].at(-1);
  const count=m?Number(m[1]):0;
@@ -37,17 +39,31 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
   await append(`\n[${row.startedAt}] [${name}] started\n`);
   let streamed=false;
   const r=await command(file,args,{cwd:policy.repo,...options,
-   ...(name==='validate_tree'?{}:{onOutput:async text=>{streamed=true;await append(text);}})});
+   ...(name==='validate_tree'?{limit:CANDIDATE_TREE_METADATA_LIMIT}:{onOutput:async text=>{streamed=true;await append(text);}})});
   row.state=r.ok?'passed':r.timedOut?'inconclusive':'failed';row.exitCode=r.exitCode;
   row.timedOut=r.timedOut===true;row.finishedAt=new Date().toISOString();
   if(Number.isSafeInteger(r.processId)&&r.processId>1){row.processId=r.processId;row.processGroupAbsent=r.processGroupAbsent===true;}
   if(typeof r.signal==='string')row.signal=r.signal;
-  if(name==='validate_tree')await append('Bounded Git tree metadata validated separately; file listing omitted.\n');
+  let treeError;
+  if(name==='validate_tree'){
+   if(r.ok){
+    let inventory;
+    try{
+     if(r.truncated)throw Error('candidate_tree_too_large');
+     inventory=validateTreeListing(r.stdout,{maxMetadataBytes:CANDIDATE_TREE_METADATA_LIMIT});
+    }catch(e){
+     treeError=e;row.state='failed';
+    }
+    await append(treeError?'Git tree rejected: '+treeError.message+'\n':
+     `Git tree validated: ${inventory.files} files, ${inventory.bytes} content bytes, ${Buffer.byteLength(r.stdout)} metadata bytes.\n`);
+   }
+  }
   else if(r.truncated){record.logTruncated=true;await append('Output omitted because capture limit was exceeded.\n');}
   else if(!streamed)await append(r.stdout+'\n'+r.stderr+'\n');
   const durationMs=Date.parse(row.finishedAt)-Date.parse(row.startedAt);
   await append(`\n[${row.finishedAt}] [${name}] finished state=${row.state} duration_ms=${durationMs}\n`);
   await save();
+  if(treeError)throw treeError;
   if(!r.ok){
    if(name==='fetch'&&r.timedOut&&!r.outputFailed){
     try{
@@ -132,8 +148,7 @@ export async function runRegisteredExecution(binding,operationId,{store,policyLo
   await step('fetch','/usr/bin/git',[...GIT_ARGS,'fetch',...(isolated?['--depth=1']:[]),'--no-tags','origin','refs/heads/'+policy.branch],{timeout:GIT_FETCH_TIMEOUT_MS});
   const fetched=(await git('fetched_commit',['rev-parse','--verify','FETCH_HEAD'])).stdout.trim();
   if(fetched!==record.input.expected_commit)throw Error('remote_commit_mismatch');
-  const tree=await git('validate_tree',['ls-tree','-rlz','--full-tree',fetched]);
-  if(tree.truncated)throw Error('candidate_tree_too_large');validateTreeListing(tree.stdout);
+  await git('validate_tree',['ls-tree','-rlz','--full-tree',fetched]);
   if(syncOnly){
    const ancestor=await command('/usr/bin/git',[...GIT_ARGS,'merge-base','--is-ancestor',before.head,fetched],{cwd:policy.repo});
    if(!ancestor.ok)throw Error('fast_forward_required');

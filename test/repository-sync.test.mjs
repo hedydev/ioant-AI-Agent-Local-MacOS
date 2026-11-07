@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {mkdtemp,realpath,chmod,writeFile,readFile,rm} from 'node:fs/promises';
+import {mkdtemp,realpath,chmod,writeFile,readFile,rm,symlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';import {join} from 'node:path';import {execFileSync} from 'node:child_process';
 import {ProjectExecutionStore} from '../integrations/chatgpt-openclaw/project-execution-store.mjs';
 import {projectExecution,validExecutionInput} from '../integrations/chatgpt-openclaw/project-execution.mjs';
@@ -35,6 +35,26 @@ test('overlapping edits stop before HEAD changes and preserve the exact local co
 test('ignored local files are never overwritten by a newly tracked remote file',async t=>{
  const f=await fixture(t),old=f.git(f.repo,'rev-parse','HEAD');await writeFile(join(f.repo,'ignored.txt'),'private local\n');await writeFile(join(f.remote,'ignored.txt'),'remote\n');f.git(f.remote,'add','-f','ignored.txt');f.git(f.remote,'commit','--quiet','-m','remote');
  const r=await execute(f,'sync_ignored_001');assert.notEqual(r.state,'passed');assert.equal(f.git(f.repo,'rev-parse','HEAD'),old);assert.equal(await readFile(join(f.repo,'ignored.txt'),'utf8'),'private local\n');
+});
+
+test('large Git inventories pass sync while an unsafe entry still blocks checkout',async t=>{
+ const f=await fixture(t);
+ await writeFile(join(f.repo,'local.txt'),'operator edit\n');
+ for(let i=0;i<1100;i++)await writeFile(join(f.remote,'fixture-'+i+'-'+('metadata-'.repeat(8))+'.txt'),'fixture\n');
+ f.git(f.remote,'add','.');f.git(f.remote,'commit','--quiet','-m','large inventory');
+ const inventory=f.git(f.remote,'ls-tree','-rlz','--full-tree','HEAD');
+ assert.ok(Buffer.byteLength(inventory)>128*1024);
+ const r=await execute(f,'sync_large_inventory_001');
+ assert.equal(r.state,'passed',JSON.stringify(r));
+ assert.equal(r.preservedLocalChanges.verified,true);
+ assert.equal(await readFile(join(f.repo,'local.txt'),'utf8'),'operator edit\n');
+ await symlink('local.txt',join(f.remote,'unsafe-link'));
+ f.git(f.remote,'add','unsafe-link');f.git(f.remote,'commit','--quiet','-m','unsafe entry');
+ const blocked=await execute(f,'sync_large_inventory_002');
+ assert.equal(blocked.state,'blocked');assert.equal(blocked.reason,'unsafe_candidate_tree');
+ assert.equal(blocked.steps.find(s=>s.name==='validate_tree').state,'failed');
+ assert.equal(blocked.steps.some(s=>s.name==='fast_forward'),false);
+ assert.equal(f.git(f.repo,'rev-parse','HEAD'),r.actualCommit);
 });
 
 test('explicit sync preserves detached HEAD or the current different branch without attaching main',async t=>{

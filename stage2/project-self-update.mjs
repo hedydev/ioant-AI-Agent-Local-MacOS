@@ -81,9 +81,9 @@ async function archiveCandidate(sha,folder){
   tarChild.once('close',x=>{b=x??-1;clearTimeout(timer);finish()});
  });
 }
-export function validateTreeListing(raw){
- if(typeof raw!=='string'||raw.length>MAX_OUTPUT)throw Error('unsafe_candidate_tree');
- const lines=raw.split('\0').filter(Boolean);
+export function validateTreeListing(raw,{maxMetadataBytes=MAX_OUTPUT}={}){
+ if(typeof raw!=='string'||Buffer.byteLength(raw)>maxMetadataBytes||!raw.endsWith('\0'))throw Error('unsafe_candidate_tree');
+ const lines=raw.slice(0,-1).split('\0');
  if(lines.length<1||lines.length>3000)throw Error('unsafe_candidate_tree');
  let total=0;
  for(const line of lines){

@@ -72,6 +72,10 @@ test('Git candidate tree validation rejects symlink, submodule, traversal and ov
  assert.throws(()=>validateTreeListing('160000 commit '+sha+' -\tdependency\0'));
  assert.throws(()=>validateTreeListing('100644 blob '+sha+' 10\t../escape\0'));
  assert.throws(()=>validateTreeListing('100644 blob '+sha+' 70000000\tlarge.bin\0'));
+ const nonAscii='100644 blob '+sha+' 10\t目录/file\0';
+ assert.throws(()=>validateTreeListing(nonAscii,{maxMetadataBytes:nonAscii.length}),/unsafe_candidate_tree/);
+ assert.equal(validateTreeListing(nonAscii,{maxMetadataBytes:Buffer.byteLength(nonAscii)}).files,1);
+ assert.throws(()=>validateTreeListing(nonAscii.slice(0,-1)),/unsafe_candidate_tree/);
 });
 
 test('test gate verifies full passing Node summary, not merely subprocess success',()=>{

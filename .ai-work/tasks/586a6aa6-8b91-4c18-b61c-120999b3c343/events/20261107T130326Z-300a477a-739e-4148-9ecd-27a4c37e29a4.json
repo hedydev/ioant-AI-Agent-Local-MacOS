@@ -1,0 +1,32 @@
+{
+  "schema_version": 2,
+  "event_id": "300a477a-739e-4148-9ecd-27a4c37e29a4",
+  "task_id": "586a6aa6-8b91-4c18-b61c-120999b3c343",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-11-07T13:03:26.995842+00:00",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "9c3b309e692b43189cd004746ca94497f8d60133",
+  "message": "Fixed the MCP checkout inventory ceiling with a bounded 1 MiB capture and byte-counted validation. Existing path, type, count and content limits still apply. Reports record validation rejection as a failed step. The NetScale checkout and original operation receipts were not changed.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "execution_receipt",
+      "summary": "netscale_mint_peersafe_sync_08 blocked before fast-forward with unsafe_candidate_tree"
+    },
+    {
+      "kind": "artifact",
+      "summary": "Exact b8283f140dc00350b0bb8b3d1abb1c68ce41a1cd inventory: 131853 metadata bytes, 1018 files, 6535695 content bytes; fails old default and passes fixed budget in read-only validation"
+    },
+    {
+      "kind": "automated_tests",
+      "summary": "1417 tests passed, including real large-tree fast-forward preserving local edits and symlink rejection before checkout"
+    }
+  ],
+  "supersedes_event_id": null
+}
