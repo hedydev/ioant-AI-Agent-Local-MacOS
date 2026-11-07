@@ -1,3 +1,12 @@
+## Reviewed download timeout recovery (2026-11-07)
+
+See docs/REPOSITORY_TASK_TIMEOUT_RECOVERY_20261106.md. The local recovery command
+can review explicit cwd PIDs that predate the task when the original command
+groups are recorded and gone. Any other scoped process or detected compiler
+still blocks release. Drama Studio's Qwen download lease was released with
+an immutable original receipt and live MCP readback. The main weight is still
+missing and the incomplete cache is retained. All 1416 tests passed.
+
 ## Rust environment for fixed repository tasks (2026-11-06)
 
 Read docs/RUST_BUILD_ENVIRONMENT_20261106.md for actual enrollment/acceptance.

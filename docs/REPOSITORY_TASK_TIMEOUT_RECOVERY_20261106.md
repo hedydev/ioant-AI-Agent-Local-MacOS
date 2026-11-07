@@ -53,6 +53,41 @@ Those local probes cannot prove SSH, detached services or remote effects ended;
 the maintainer must verify such child operations separately before resolving.
 The digest is a short-lived evidence binding, not a new permission grant.
 
+### Reviewing pre-existing processes in the checkout
+
+The default probe blocks while any other same-user process still has its
+working directory inside the checkout. If the maintainer has independently
+identified those processes, append `--reviewed-cwd-pids=PID1,PID2` to both
+`inspect` and `resolve`. Use the exact same PID list. This requires recorded
+process groups for all task steps and confirmed exit of the timed-out group.
+Each reviewed PID must still be in the checkout, have matching process and
+parent/group IDs across probes, and have started before the original task was
+created. The review binds these identities to the digest and records them in
+the audit. Any other scoped process or detected compiler still blocks release.
+
+Review the task's actual effect destinations separately. For a download, check
+the destination and cache for open files and record any partial data. An ended
+process group does not establish artifact integrity. This maintenance command
+does not resume a download, mark it successful, or delete incomplete files.
+
+On 2026-11-07 the Drama Studio download
+`drama_qwen3_tts_1_7b_8bit_weights_stage_20261107_01` timed out after 1,600 s.
+Its recorded runner and command group had exited. The default probe was blocked
+by the existing terminals, editor and project services. The maintainer reviewed
+all 12 process identities and confirmed the model directory had no open files.
+The speech tokenizer weight exists, the main weight is absent, and the cache
+contains an 812,430,972-byte incomplete file.
+
+At 10:59:52 Asia/Shanghai the reviewed release completed and the live MCP
+`project_result` returned `cached=true`, `state=inconclusive`,
+`doNotRepeat=true` and `reconciliation.state=resolved` with
+`lockReleased=true` and `effectsVerified=false`. The original receipt SHA-256
+remains `3179dd1be6752ed6d7a870690b00561b8e2223a9fae102002da2f4b1b90ec97f`.
+All 1,416 tests passed. The existing live reader recognized the audit without
+restarting MCP, the tunnel or the Web console. The Drama checkout stayed at
+`a0aa653` with its three untracked entries preserved. The download and real
+Qwen voice acceptance remain open.
+
 Resolve rechecks evidence, writes an owner-private audit before matching release,
 preserves the original inconclusive receipt/log/claims and records effectsVerified
 false/taskRepeated false. Duplicate recovery reads its audit and cannot release

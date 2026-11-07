@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "event_id": "f487d136-405a-4905-a513-ff55ed869865",
+  "task_id": "586a6aa6-8b91-4c18-b61c-120999b3c343",
+  "event_type": "validation_recorded",
+  "occurred_at": "2026-11-07T03:01:26.570131+00:00",
+  "actor": {
+    "actor_type": "ai",
+    "ai_name": "ChatGPT",
+    "ai_session_id": "k4n8v2cs"
+  },
+  "ledger_branch": "main",
+  "development_branch": "main",
+  "observed_commit": "f177af63331a4711503d1d1943be3f49a8b65245",
+  "message": "Fixed repository task recovery now permits an explicit review of pre-existing checkout processes with recorded group exit and stable identities. The live Drama download lock was released with the original inconclusive result and cache retained. Qwen full integrity and real voice acceptance remain open.",
+  "changes": {},
+  "evidence": [
+    {
+      "kind": "automated_tests",
+      "summary": "1416 passed, zero failures or skips"
+    },
+    {
+      "kind": "execution_receipt",
+      "summary": "drama_qwen3_tts_1_7b_8bit_weights_stage_20261107_01 cached, inconclusive, doNotRepeat; reconciliation resolved, lockReleased true, effectsVerified false"
+    }
+  ],
+  "supersedes_event_id": null
+}

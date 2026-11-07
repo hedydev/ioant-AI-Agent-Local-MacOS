@@ -62,6 +62,35 @@ test('process probe refuses active runner and detects scoped process without col
  const r=await probeRepositoryTask({runnerPid:99999999,steps:[]},{repo:'/fixture'},{command});
  assert.deepEqual(r.scopedProcessIds,[87654]);assert.deepEqual(r.compilerProcessIds,[87654]);assert.equal(calls.flat().some(a=>/args|command=|environment/.test(a)),false);
 });
+test('explicit cwd review only accepts recorded group exit and verified pre-existing processes',async()=>{
+ const record={runnerPid:99999999,createdAt:'2026-11-06T22:30:15.834Z',
+  steps:[{processId:99999998,processGroupAbsent:true}]};
+ const policy={repo:'/fixture'};
+ const reviewedCwdPids=[87654];
+ let start='Fri Nov  6 21:30:15 2026',parent=1;
+ const command=async(file,args)=>({ok:true,truncated:false,stdout:
+  file.endsWith('lsof')?'p87654\nn/fixture\np87655\nn/fixture\n':
+  args[0]==='-p'?`87654 ${parent} 87654 ${start}\n`:'87654 1 87654 /bin/zsh\n87655 1 87655 /usr/bin/cargo\n'});
+ const r=await probeRepositoryTask(record,policy,{command,reviewedCwdPids});
+ assert.deepEqual(r.scopedProcessIds,[87655]);
+ assert.deepEqual(r.compilerProcessIds,[87655]);
+ assert.deepEqual(r.reviewedCwdProcesses,[{pid:87654,ppid:1,pgid:87654,name:'zsh',startedAt:'2026-11-06T21:30:15.000Z'}]);
+ start='Fri Nov  6 22:30:15 2026';
+ await assert.rejects(probeRepositoryTask(record,policy,{command,reviewedCwdPids}),/reviewed_cwd_process_unverified/);
+ start='Fri Nov  6 21:30:15 2026';parent=2;
+ await assert.rejects(probeRepositoryTask(record,policy,{command,reviewedCwdPids}),/reviewed_cwd_process_unverified/);
+ await assert.rejects(probeRepositoryTask({...record,steps:[{}]},policy,{command,reviewedCwdPids}),/reviewed_cwd_requires_recorded_group_exit/);
+});
+test('changing the reviewed cwd evidence invalidates a pending release',async t=>{
+ const c=await fixture(t);
+ const options={...c.options,probe:async(_record,_policy,{reviewedCwdPids})=>({...c.evidence,reviewedCwdProcesses:reviewedCwdPids})};
+ const r=await reconcileRepositoryTask({mode:'inspect',operation_id:id},{...options,reviewedCwdPids:[123]});
+ assert.equal(r.state,'review_ready');
+ const args={mode:'resolve',operation_id:id,review_digest:r.review_digest,acknowledge_effects_unverified:true};
+ assert.equal((await reconcileRepositoryTask(args,options)).reason,'task_review_changed_or_expired');
+ assert.equal(await c.store.owns(id,c.record.digest),true);
+ assert.equal((await reconcileRepositoryTask(args,{...options,reviewedCwdPids:[123]})).state,'resolved');
+});
 test('explicit hour-long task budget is allowed and command timeout records exited process evidence',async()=>{
  const task={schemaVersion:1,title:'Long local build',steps:[{name:'build',runtime:'bash',script:'scripts/build.sh',timeoutSeconds:3600}]};
  assert.equal(parseRepositoryTask(JSON.stringify(task)).steps[0].timeoutSeconds,3600);task.steps[0].timeoutSeconds=3601;assert.throws(()=>parseRepositoryTask(JSON.stringify(task)),/invalid_task_step/);
